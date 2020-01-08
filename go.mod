@@ -1,4 +1,4 @@
-module github.com/anz-gordonj7/wbnf
+module github.com/arr-ai/wbnf
 
 go 1.12
 

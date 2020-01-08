@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	parse "github.com/anz-gordonj7/wbnf/parser"
+	parse "github.com/arr-ai/wbnf/parser"
 )
 
 func parseString(s string) string {

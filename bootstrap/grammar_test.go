@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	parse "github.com/anz-gordonj7/wbnf/parser"
+	parse "github.com/arr-ai/wbnf/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

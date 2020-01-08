@@ -2,9 +2,10 @@ package bootstrap
 
 import (
 	"fmt"
-	parse "github.com/anz-gordonj7/wbnf/parser"
 	"regexp"
 	"strings"
+
+	parse "github.com/arr-ai/wbnf/parser"
 )
 
 const (

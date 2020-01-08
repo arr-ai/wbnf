@@ -1,6 +1,6 @@
 package main
 
-import "github.com/anz-gordonj7/wbnf/cmd"
+import "github.com/arr-ai/wbnf/cmd"
 
 // Version   - Binary version
 // GitCommit - Commit SHA of the source code

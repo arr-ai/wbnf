@@ -3,7 +3,7 @@ package bootstrap
 import (
 	"fmt"
 
-	parse "github.com/anz-gordonj7/wbnf/parser"
+	parse "github.com/arr-ai/wbnf/parser"
 )
 
 func validationErrorf(format string, args ...interface{}) error {

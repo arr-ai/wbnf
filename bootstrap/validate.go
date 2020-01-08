@@ -3,7 +3,7 @@ package bootstrap
 import (
 	"fmt"
 
-	"github.com/arr-ai/arrai/grammar/parse"
+	parse "github.com/anz-gordonj7/wbnf/parser"
 )
 
 func validationErrorf(format string, args ...interface{}) error {
@@ -126,13 +126,6 @@ func (t Stack) ValidateParse(g Grammar, rule Rule, v interface{}) error {
 //-----------------------------------------------------------------------------
 
 func (t Named) ValidateParse(g Grammar, rule Rule, v interface{}) error {
-	// TODO: Be a little more thorough.
-	return nil
-}
-
-//-----------------------------------------------------------------------------
-
-func (t Diff) ValidateParse(g Grammar, rule Rule, v interface{}) error {
 	// TODO: Be a little more thorough.
 	return nil
 }

@@ -2,10 +2,9 @@ package bootstrap
 
 import (
 	"fmt"
+	parse "github.com/anz-gordonj7/wbnf/parser"
 	"regexp"
 	"strings"
-
-	"github.com/arr-ai/arrai/grammar/parse"
 )
 
 const (
@@ -15,7 +14,6 @@ const (
 	oneofTag = "|"
 	delimTag = ":"
 	quantTag = "?"
-	diffTag  = "~"
 )
 
 type cache struct {
@@ -127,7 +125,7 @@ type ruleParser struct {
 	t    Rule
 }
 
-func (p ruleParser) Parse(input, furthest *parse.Scanner, output interface{}) (out bool) {
+func (p ruleParser) Parse(input *parse.Scanner, output interface{}) (out bool) {
 	panic(Inconceivable)
 }
 
@@ -140,11 +138,10 @@ func (t Rule) Parser(rule Rule, c cache) parse.Parser {
 
 //-----------------------------------------------------------------------------
 
-func eatRegexp(input, furthest *parse.Scanner, re *regexp.Regexp, output interface{}) bool {
+func eatRegexp(input *parse.Scanner, re *regexp.Regexp, output interface{}) bool {
 	var eaten [2]parse.Scanner
 	if n, ok := input.EatRegexp(re, nil, eaten[:]); ok {
 		parse.PtrAssign(output, eaten[n-1])
-		*furthest = *input
 		return true
 	}
 	return false
@@ -153,42 +150,22 @@ func eatRegexp(input, furthest *parse.Scanner, re *regexp.Regexp, output interfa
 type sParser struct {
 	rule Rule
 	t    S
-}
-
-func (p *sParser) Parse(input, furthest *parse.Scanner, output interface{}) (out bool) {
-	var eaten parse.Scanner
-	if input.EatString(string(p.t), &eaten) {
-		parse.PtrAssign(output, eaten)
-		*furthest = *input
-		return true
-	}
-	return false
-}
-
-type sREParser struct {
-	rule Rule
-	t    S
 	re   *regexp.Regexp
 }
 
-func (p *sREParser) Parse(input, furthest *parse.Scanner, output interface{}) (out bool) {
-	return eatRegexp(input, furthest, p.re, output)
+func (p *sParser) Parse(input *parse.Scanner, output interface{}) (out bool) {
+	return eatRegexp(input, p.re, output)
 }
 
 func (t S) Parser(rule Rule, c cache) parse.Parser {
+	re := "(" + regexp.QuoteMeta(string(t)) + ")"
 	if wrap, has := c.grammar[WrapRE]; has {
-		re := "(" + regexp.QuoteMeta(string(t)) + ")"
 		re = strings.Replace(string(wrap.(RE)), "()", "(?:"+re+")", 1)
-		return &sREParser{
-			rule: rule,
-			t:    t,
-			re:   regexp.MustCompile(`(?m)\A` + re),
-		}
-	} else {
-		return &sParser{
-			rule: rule,
-			t:    t,
-		}
+	}
+	return &sParser{
+		rule: rule,
+		t:    t,
+		re:   regexp.MustCompile(`(?m)\A` + re),
 	}
 }
 
@@ -198,8 +175,8 @@ type reParser struct {
 	re   *regexp.Regexp
 }
 
-func (p *reParser) Parse(input, furthest *parse.Scanner, output interface{}) (out bool) {
-	return eatRegexp(input, furthest, p.re, output)
+func (p *reParser) Parse(input *parse.Scanner, output interface{}) (out bool) {
+	return eatRegexp(input, p.re, output)
 }
 
 func (t RE) Parser(rule Rule, c cache) parse.Parser {
@@ -223,14 +200,17 @@ type seqParser struct {
 	put     putter
 }
 
-func (p *seqParser) Parse(input, furthest *parse.Scanner, output interface{}) (out bool) {
+func (p *seqParser) Parse(input *parse.Scanner, output interface{}) (out bool) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	result := make([]interface{}, 0, len(p.parsers))
+	furthest := *input
 	for _, parser := range p.parsers {
 		var v interface{}
-		if !parser.Parse(input, furthest, &v) {
+		if !parser.Parse(input, &v) {
+			*input = furthest
 			return false
 		}
+		furthest = *input
 		result = append(result, v)
 	}
 	return p.put(output, nil, result...)
@@ -255,9 +235,9 @@ type delimParser struct {
 	put  putter
 }
 
-func parseAppend(p parse.Parser, input, furthest *parse.Scanner, slice *[]interface{}) bool {
+func parseAppend(p parse.Parser, input *parse.Scanner, slice *[]interface{}) bool {
 	var v interface{}
-	if p.Parse(input, furthest, &v) {
+	if p.Parse(input, &v) {
 		*slice = append(*slice, v)
 		return true
 	}
@@ -266,18 +246,18 @@ func parseAppend(p parse.Parser, input, furthest *parse.Scanner, slice *[]interf
 
 type Empty struct{}
 
-func (p *delimParser) Parse(input, furthest *parse.Scanner, output interface{}) (out bool) {
+func (p *delimParser) Parse(input *parse.Scanner, output interface{}) (out bool) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	var result []interface{}
 
 	switch {
-	case parseAppend(p.term, input, furthest, &result):
+	case parseAppend(p.term, input, &result):
 	case p.t.CanStartWithSep:
 		result = append(result, Empty{})
-		if !parseAppend(p.sep, input, furthest, &result) {
+		if !parseAppend(p.sep, input, &result) {
 			return false
 		}
-		if !parseAppend(p.term, input, furthest, &result) {
+		if !parseAppend(p.term, input, &result) {
 			result = append(result, Empty{})
 			return p.put(output, Associativity(0), result...)
 		}
@@ -286,9 +266,9 @@ func (p *delimParser) Parse(input, furthest *parse.Scanner, output interface{}) 
 	}
 
 	start := *input
-	for parseAppend(p.sep, input, furthest, &result) {
+	for parseAppend(p.sep, input, &result) {
 		start = *input
-		if !parseAppend(p.term, input, furthest, &result) {
+		if !parseAppend(p.term, input, &result) {
 			break
 		}
 		start = *input
@@ -296,7 +276,7 @@ func (p *delimParser) Parse(input, furthest *parse.Scanner, output interface{}) 
 	*input = start
 
 	if p.t.CanEndWithSep {
-		if parseAppend(p.sep, input, furthest, &result) {
+		if parseAppend(p.sep, input, &result) {
 			result = append(result, Empty{})
 		}
 	}
@@ -355,12 +335,12 @@ type quantParser struct {
 	put  putter
 }
 
-func (p *quantParser) Parse(input, furthest *parse.Scanner, output interface{}) (out bool) {
+func (p *quantParser) Parse(input *parse.Scanner, output interface{}) (out bool) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	result := make([]interface{}, 0, p.t.Min)
 	var v interface{}
 	start := *input
-	for i := 0; (p.t.Max == 0 || i < p.t.Max) && p.term.Parse(&start, furthest, &v); i++ {
+	for i := 0; (p.t.Max == 0 || i < p.t.Max) && p.term.Parse(&start, &v); i++ {
 		result = append(result, v)
 		*input = start
 	}
@@ -390,16 +370,21 @@ type oneofParser struct {
 	put     putter
 }
 
-func (p *oneofParser) Parse(input, furthest *parse.Scanner, output interface{}) (out bool) {
+func (p *oneofParser) Parse(input *parse.Scanner, output interface{}) (out bool) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
+	furthest := *input
 	for i, parser := range p.parsers {
 		var v interface{}
-		local := *input
-		if parser.Parse(&local, furthest, &v) {
-			*input = local
+		start := *input
+		if parser.Parse(&start, &v) {
+			*input = start
 			return p.put(output, i, v)
 		}
+		if furthest.Offset() < start.Offset() {
+			furthest = start
+		}
 	}
+	*input = furthest
 	return false
 }
 
@@ -422,42 +407,4 @@ func (t Stack) Parser(_ Rule, _ cache) parse.Parser {
 
 func (t Named) Parser(rule Rule, c cache) parse.Parser {
 	return t.Term.Parser(Rule(t.Name), c)
-}
-
-//-----------------------------------------------------------------------------
-
-type diffParser struct {
-	rule Rule
-	t    Diff
-	a, b parse.Parser
-	put  putter
-}
-
-func (p *diffParser) Parse(input, furthest *parse.Scanner, output interface{}) (out bool) {
-	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
-	panic(Unfinished)
-	// furthest := *input
-	// for i, parser := range p.parsers {
-	// 	var v interface{}
-	// 	start := *input
-	// 	if parser.Parse(&start, &v) {
-	// 		*input = start
-	// 		return p.put(output, i, v)
-	// 	}
-	// 	if furthest.Offset() < start.Offset() {
-	// 		furthest = start
-	// 	}
-	// }
-	// *input = furthest
-	// return false
-}
-
-func (t Diff) Parser(rule Rule, c cache) parse.Parser {
-	return &diffParser{
-		rule: rule,
-		t:    t,
-		a:    t.A.Parser("", c),
-		b:    t.B.Parser("", c),
-		put:  tag(rule, diffTag),
-	}
 }

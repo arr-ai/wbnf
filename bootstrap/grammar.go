@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/arr-ai/arrai/grammar/parse"
+	parse "github.com/anz-gordonj7/wbnf/parser"
 )
 
 var (
@@ -18,7 +18,6 @@ var (
 	atom     = Rule("atom")
 	quant    = Rule("quant")
 	ident    = Rule("IDENT")
-	ref      = Rule("REF")
 	str      = Rule("STR")
 	intR     = Rule("INT")
 	re       = Rule("RE")
@@ -44,7 +43,6 @@ stmt    -> COMMENT | prod;
 prod    -> IDENT "->" term+ ";";
 term    -> term:op="^"
          ^ term:op="|"
-         ^ term (op="~" term)?
          ^ term+
          ^ named quant*;
 quant   -> op=/{[?*+]}
@@ -55,7 +53,6 @@ atom    -> IDENT | STR | RE | "(" term ")" | "(" ")";
 
 // Terminals
 IDENT   -> /{[A-Za-z_\.]\w*};
-REF     -> IDENT ~ /{\.\w*};  // Unused
 STR     -> /{"(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*'|‵(?:‵‵|[^‵]*)‵};
 INT     -> /{\d+};
 RE      -> /{/{((?:\\.|[^\\\}])*)\}};
@@ -73,7 +70,6 @@ var grammarGrammar = Grammar{
 	term: Stack{
 		Delim{Term: term, Sep: Eq("op", S("^"))},
 		Delim{Term: term, Sep: Eq("op", S("|"))},
-		Seq{term, Opt(Seq{Eq("op", S("~")), term})},
 		Some(term),
 		Seq{named, Any(quant)},
 	},
@@ -92,7 +88,6 @@ var grammarGrammar = Grammar{
 
 	// Terminals
 	ident:   RE(`[A-Za-z_\.]\w*`),
-	ref:     Diff{A: ident, B: RE(`\.\w*`)},
 	str:     RE(unfakeBackquote(`"(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*'|‵(?:‵‵|[^‵]*)‵`)),
 	intR:    RE(`\d+`),
 	re:      RE(`/{((?:\\.|[^\\\}])*)\}`),
@@ -181,12 +176,11 @@ func (p Parsers) Unparse(v interface{}, w io.Writer) (n int, err error) {
 // Parse parses some source per a given rule.
 func (p Parsers) Parse(rule Rule, input *parse.Scanner) (interface{}, error) {
 	var v interface{}
-	var furthest parse.Scanner
-	if p.parsers[rule].Parse(input, &furthest, &v) {
+	if p.parsers[rule].Parse(input, &v) {
 		if input.String() == "" {
 			return v, nil
 		}
-		return nil, fmt.Errorf("unconsumed input: %v", furthest.Context())
+		return nil, fmt.Errorf("unconsumed input: %v", input.Context())
 	}
 	return nil, fmt.Errorf("failed to parse %s", rule)
 }
@@ -253,9 +247,6 @@ type (
 		Name string
 		Term Term
 	}
-	Diff struct {
-		A, B Term
-	}
 )
 
 func NonAssoc(term, sep Term) Delim { return Delim{Term: term, Sep: sep, Assoc: NonAssociative} }
@@ -306,4 +297,3 @@ func (t Stack) String() string { return join(t, " ^ ") }
 func (t Delim) String() string { return fmt.Sprintf("%v%s%v", t.Term, t.Assoc, t.Sep) }
 func (t Quant) String() string { return fmt.Sprintf("%v{%d,%d}", t.Term, t.Min, t.Max) }
 func (t Named) String() string { return fmt.Sprintf("%s=%v", t.Name, t.Term) }
-func (t Diff) String() string  { return fmt.Sprintf("%s ~ %v", t.A, t.B) }

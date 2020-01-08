@@ -3,7 +3,7 @@ package bootstrap
 import (
 	"io"
 
-	"github.com/arr-ai/arrai/grammar/parse"
+	parse "github.com/anz-gordonj7/wbnf/parser"
 )
 
 // The following methods assume a valid parse. Call (Term).ValidateParse first if
@@ -83,23 +83,5 @@ func (t Stack) Unparse(g Grammar, v interface{}, w io.Writer) (n int, err error)
 
 func (t Named) Unparse(g Grammar, v interface{}, w io.Writer) (n int, err error) {
 	err = unparse(g, t.Term, v, w, &n)
-	return
-}
-
-//-----------------------------------------------------------------------------
-
-func (t Diff) Unparse(g Grammar, v interface{}, w io.Writer) (n int, err error) {
-	node := v.(parse.Node)
-	if err = unparse(g, t.A, node.Children[0], w, &n); err != nil {
-		return
-	}
-	n2, err := w.Write([]byte(node.Children[1].(parse.Scanner).String()))
-	if err != nil {
-		return
-	}
-	n += n2
-	if err = unparse(g, t.B, node.Children[2], w, &n); err != nil {
-		return
-	}
 	return
 }

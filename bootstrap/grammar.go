@@ -30,6 +30,8 @@ var (
 	WrapRE = Rule(".wrapRE")
 )
 
+var RootRule = grammarR
+
 // unfakeBackquote replaces reversed prime with grave accent (backquote) in
 // order to make the grammar below more readable.
 func unfakeBackquote(s string) string {
@@ -176,13 +178,13 @@ func (p Parsers) Unparse(v interface{}, w io.Writer) (n int, err error) {
 // Parse parses some source per a given rule.
 func (p Parsers) Parse(rule Rule, input *parse.Scanner) (interface{}, error) {
 	var v interface{}
-	if p.parsers[rule].Parse(input, &v) {
-		if input.String() == "" {
-			return v, nil
-		}
-		return nil, fmt.Errorf("unconsumed input: %v", input.Context())
+	if err := p.parsers[rule].Parse(input, &v); err != nil {
+		return nil, err
 	}
-	return nil, fmt.Errorf("failed to parse %s", rule)
+	if input.String() == "" {
+		return v, nil
+	}
+	return nil, fmt.Errorf("unconsumed input: %v", input.Context())
 }
 
 // Term represents the terms of a grammar specification.

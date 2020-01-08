@@ -8,9 +8,9 @@ import (
 )
 
 type Node struct {
-	Tag      string
-	Extra    interface{}
-	Children []interface{}
+	Tag      string        `json:"tag"`
+	Extra    interface{}   `json:"extra"`
+	Children []interface{} `json:"nodes"`
 }
 
 func NewNode(tag string, extra interface{}, children ...interface{}) *Node {
@@ -62,27 +62,27 @@ func (n Node) Format(state fmt.State, c rune) {
 }
 
 type Parser interface {
-	Parse(input *Scanner, output interface{}) bool
+	Parse(input *Scanner, output interface{}) error
 }
 
 func PtrAssign(output, input interface{}) {
 	*output.(*interface{}) = input
 }
 
-type Func func(input *Scanner, output interface{}) bool
+type Func func(input *Scanner, output interface{}) error
 
-func (f Func) Parse(input *Scanner, output interface{}) bool {
+func (f Func) Parse(input *Scanner, output interface{}) error {
 	return f(input, output)
 }
 
 func Transform(parser Parser, transform func(Node) Node) Parser {
-	return Func(func(input *Scanner, output interface{}) bool {
+	return Func(func(input *Scanner, output interface{}) error {
 		var v Node
-		if parser.Parse(input, &v) {
-			PtrAssign(output, transform(v))
-			return true
+		if err := parser.Parse(input, &v); err != nil {
+			return err
 		}
-		return false
+		PtrAssign(output, transform(v))
+		return nil
 	})
 }
 

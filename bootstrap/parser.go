@@ -51,17 +51,17 @@ func ruleOrAlt(rule Rule, alt Rule) Rule {
 	return rule + "\\" + alt
 }
 
-type putter func(output interface{}, extra interface{}, children ...interface{}) bool
+type putter func(output interface{}, extra interface{}, children ...interface{}) error
 
 func tag(rule Rule, alt Rule) putter {
 	rule = ruleOrAlt(rule, alt)
-	return func(output interface{}, extra interface{}, children ...interface{}) bool {
+	return func(output interface{}, extra interface{}, children ...interface{}) error {
 		parse.PtrAssign(output, parse.Node{
 			Tag:      string(rule),
 			Extra:    extra,
 			Children: children,
 		})
-		return true
+		return nil
 	}
 }
 
@@ -126,7 +126,7 @@ type ruleParser struct {
 	t    Rule
 }
 
-func (p ruleParser) Parse(input *parse.Scanner, output interface{}) (out bool) {
+func (p ruleParser) Parse(input *parse.Scanner, output interface{}) error {
 	panic(Inconceivable)
 }
 
@@ -154,8 +154,11 @@ type sParser struct {
 	re   *regexp.Regexp
 }
 
-func (p *sParser) Parse(input *parse.Scanner, output interface{}) (out bool) {
-	return eatRegexp(input, p.re, output)
+func (p *sParser) Parse(input *parse.Scanner, output interface{}) error {
+	if ok := eatRegexp(input, p.re, output); !ok {
+		return newParseError(p.rule, fmt.Sprintf("expected '%s', got '%s'", p.t, input.String()))
+	}
+	return nil
 }
 
 func (t S) Parser(rule Rule, c cache) parse.Parser {
@@ -176,8 +179,11 @@ type reParser struct {
 	re   *regexp.Regexp
 }
 
-func (p *reParser) Parse(input *parse.Scanner, output interface{}) (out bool) {
-	return eatRegexp(input, p.re, output)
+func (p *reParser) Parse(input *parse.Scanner, output interface{}) error {
+	if ok := eatRegexp(input, p.re, output); !ok {
+		return newParseError(p.rule, fmt.Sprintf("regex failed to match got '%s'", p.t, input.String()))
+	}
+	return nil
 }
 
 func (t RE) Parser(rule Rule, c cache) parse.Parser {
@@ -201,15 +207,15 @@ type seqParser struct {
 	put     putter
 }
 
-func (p *seqParser) Parse(input *parse.Scanner, output interface{}) (out bool) {
+func (p *seqParser) Parse(input *parse.Scanner, output interface{}) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	result := make([]interface{}, 0, len(p.parsers))
 	furthest := *input
 	for _, parser := range p.parsers {
 		var v interface{}
-		if !parser.Parse(input, &v) {
+		if err := parser.Parse(input, &v); err != nil {
 			*input = furthest
-			return false
+			return err
 		}
 		furthest = *input
 		result = append(result, v)
@@ -236,40 +242,41 @@ type delimParser struct {
 	put  putter
 }
 
-func parseAppend(p parse.Parser, input *parse.Scanner, slice *[]interface{}) bool {
+func parseAppend(p parse.Parser, input *parse.Scanner, slice *[]interface{}, errOut *error) bool {
 	var v interface{}
-	if p.Parse(input, &v) {
-		*slice = append(*slice, v)
-		return true
+	if err := p.Parse(input, &v); err != nil {
+		*errOut = err
+		return false
 	}
-	return false
+	*slice = append(*slice, v)
+	return true
 }
 
 type Empty struct{}
 
-func (p *delimParser) Parse(input *parse.Scanner, output interface{}) (out bool) {
+func (p *delimParser) Parse(input *parse.Scanner, output interface{}) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	var result []interface{}
 
+	var parseErr error
 	switch {
-	case parseAppend(p.term, input, &result):
+	case parseAppend(p.term, input, &result, &parseErr):
 	case p.t.CanStartWithSep:
 		result = append(result, Empty{})
-		if !parseAppend(p.sep, input, &result) {
-			return false
+		if !parseAppend(p.sep, input, &result, &parseErr) {
+			return parseErr
 		}
-		if !parseAppend(p.term, input, &result) {
-			result = append(result, Empty{})
-			return p.put(output, Associativity(0), result...)
+		if !parseAppend(p.term, input, &result, &parseErr) {
+			return parseErr
 		}
 	default:
-		return false
+		return parseErr
 	}
 
 	start := *input
-	for parseAppend(p.sep, input, &result) {
+	for parseAppend(p.sep, input, &result, &parseErr) {
 		start = *input
-		if !parseAppend(p.term, input, &result) {
+		if !parseAppend(p.term, input, &result, &parseErr) {
 			break
 		}
 		start = *input
@@ -277,7 +284,7 @@ func (p *delimParser) Parse(input *parse.Scanner, output interface{}) (out bool)
 	*input = start
 
 	if p.t.CanEndWithSep {
-		if parseAppend(p.sep, input, &result) {
+		if parseAppend(p.sep, input, &result, &parseErr) {
 			result = append(result, Empty{})
 		}
 	}
@@ -336,19 +343,22 @@ type quantParser struct {
 	put  putter
 }
 
-func (p *quantParser) Parse(input *parse.Scanner, output interface{}) (out bool) {
+func (p *quantParser) Parse(input *parse.Scanner, output interface{}) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	result := make([]interface{}, 0, p.t.Min)
 	var v interface{}
 	start := *input
-	for i := 0; (p.t.Max == 0 || i < p.t.Max) && p.term.Parse(&start, &v); i++ {
+	for i := 0; p.t.Max == 0 || i < p.t.Max; i++ {
+		if out = p.term.Parse(&start, &v); out != nil {
+			break
+		}
 		result = append(result, v)
 		*input = start
 	}
 	if len(result) >= p.t.Min {
 		return p.put(output, nil, result...)
 	}
-	return false
+	return out
 }
 
 func (t Quant) Parser(rule Rule, c cache) parse.Parser {
@@ -371,13 +381,13 @@ type oneofParser struct {
 	put     putter
 }
 
-func (p *oneofParser) Parse(input *parse.Scanner, output interface{}) (out bool) {
+func (p *oneofParser) Parse(input *parse.Scanner, output interface{}) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	furthest := *input
 	for i, parser := range p.parsers {
 		var v interface{}
 		start := *input
-		if parser.Parse(&start, &v) {
+		if out = parser.Parse(&start, &v); out == nil {
 			*input = start
 			return p.put(output, i, v)
 		}
@@ -386,7 +396,7 @@ func (p *oneofParser) Parse(input *parse.Scanner, output interface{}) (out bool)
 		}
 	}
 	*input = furthest
-	return false
+	return newParseError(p.rule, "None of the available options could be satisfied")
 }
 
 func (t Oneof) Parser(rule Rule, c cache) parse.Parser {

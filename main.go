@@ -21,5 +21,4 @@ func main() {
 		BuildDate: BuildDate,
 		BuildOS:   BuildOS,
 	})
-
 }

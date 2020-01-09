@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 )
 
-var depth int64 = 0
+var depth int64
 
 func indentf(format string, args ...interface{}) {
 	// logrus.Tracef(strings.Repeat("    ", depth)+format, args...)

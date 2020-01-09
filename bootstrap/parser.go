@@ -293,14 +293,14 @@ func (p *delimParser) Parse(input *parse.Scanner, output interface{}) (out error
 		case LeftToRight:
 			v := result[0]
 			for i := 1; i < n; i += 2 {
-				p.put(&v, Associativity(i/2), v, result[i], result[i+1])
+				p.put(&v, Associativity(i/2), v, result[i], result[i+1]) //nolint:errcheck
 			}
 			*output.(*interface{}) = v
 		case RightToLeft:
 			v := result[n-1]
 			for i := 1; i < n; i += 2 {
 				j := n - 1 - i
-				p.put(&v, Associativity(-j/2), result[j-1], result[j], v)
+				p.put(&v, Associativity(-j/2), result[j-1], result[j], v) //nolint:errcheck
 			}
 			*output.(*interface{}) = v
 		}

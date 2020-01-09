@@ -49,6 +49,9 @@ func test(c *cli.Context) error {
 	}
 
 	data, err := json.MarshalIndent(tree, "", "  ")
+	if err != nil {
+		return err
+	}
 	fmt.Println(string(data))
 
 	return nil

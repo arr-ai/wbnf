@@ -181,7 +181,7 @@ type reParser struct {
 
 func (p *reParser) Parse(input *parse.Scanner, output interface{}) error {
 	if ok := eatRegexp(input, p.re, output); !ok {
-		return newParseError(p.rule, fmt.Sprintf("regex failed to match got '%s'", p.t, input.String()))
+		return newParseError(p.rule, fmt.Sprintf("regex failed to match got '%s'", input.String()))
 	}
 	return nil
 }
@@ -277,17 +277,16 @@ func (p *delimParser) Parse(input *parse.Scanner, output interface{}) (out error
 	for parseAppend(p.sep, input, &result, &parseErr) {
 		start = *input
 		if !parseAppend(p.term, input, &result, &parseErr) {
+			if p.t.CanEndWithSep {
+				result = append(result, Empty{})
+			} else {
+				return parseErr
+			}
 			break
 		}
 		start = *input
 	}
 	*input = start
-
-	if p.t.CanEndWithSep {
-		if parseAppend(p.sep, input, &result, &parseErr) {
-			result = append(result, Empty{})
-		}
-	}
 
 	if n := len(result); n > 1 {
 		switch p.t.Assoc {
@@ -355,6 +354,7 @@ func (p *quantParser) Parse(input *parse.Scanner, output interface{}) (out error
 		result = append(result, v)
 		*input = start
 	}
+
 	if len(result) >= p.t.Min {
 		return p.put(output, nil, result...)
 	}

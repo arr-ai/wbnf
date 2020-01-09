@@ -3,6 +3,8 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
 
 	"github.com/arr-ai/wbnf/bootstrap"
 	"github.com/arr-ai/wbnf/parser"
@@ -18,25 +20,24 @@ var testCommand = cli.Command{
 }
 
 func test(c *cli.Context) error {
-	/*	source := c.Args().Get(0)
+	source := c.Args().Get(0)
 
-		var input string
-		switch source {
-		case "", "-":
-			buf, err := ioutil.ReadAll(os.Stdin)
-			if err != nil {
-				return err
-			}
-			input = string(buf)
-		default:
-			buf, err := ioutil.ReadFile(source)
-			if err != nil {
-				return err
-			}
-			input = string(buf)
+	var input string
+	switch source {
+	case "", "-":
+		buf, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return err
 		}
-	*/
-	scanner := parser.NewScanner("a -> b")
+		input = string(buf)
+	default:
+		buf, err := ioutil.ReadFile(source)
+		if err != nil {
+			return err
+		}
+		input = string(buf)
+	}
+	scanner := parser.NewScanner(input)
 	g := bootstrap.Core()
 
 	tree, err := g.Parse(bootstrap.RootRule, scanner)

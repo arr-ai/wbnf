@@ -1,0 +1,23 @@
+// Non-terminals
+grammar -> stmt+;
+stmt    -> COMMENT | prod;
+prod    -> IDENT "->" term+ ";";
+term    -> term:op="^"
+         ^ term:op="|"
+         ^ term+
+         ^ named quant*;
+quant   -> op=/{[?*+]}
+         | "{" min=INT? "," max=INT? "}"
+         | op=/{<:|:>?} lbang="!"? named rbang="!"?;
+named   -> (IDENT op="=")? atom;
+atom    -> IDENT | STR | RE | "(" term ")" | "(" ")";
+
+// Terminals
+IDENT   -> /{[A-Za-z_\.]\w*};
+STR     -> /{"(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*'|`(?:``|[^`]*)`};
+INT     -> /{\d+};
+RE      -> /{/{((?:\\.|[^\\\}])*)\}};
+COMMENT -> /{//.*$|(?s:/\*(?:[^*]|\*+[^*/])\*/)};
+
+// Special
+.wrapRE -> /{\s*()\s*};

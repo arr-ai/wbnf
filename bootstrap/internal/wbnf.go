@@ -78,7 +78,16 @@ func (t *Term) AllChildren() []isGenNode { return t.children }
 func (t *Term) Op() isGenNode            { return t.op }
 func (t *Term) CountTerm() int           { return t.termCount }
 func (t *Term) CountQuant() int          { return t.quantCount }
-func (t *Term) Named() *Named            { return t.children[0].(*Named) }
+func (t *Term) Named() *Named {
+	t2 := AtIndex(t.children, reflect.TypeOf(&Named{}), 0)
+	if t2 != nil {
+		return t2.(*Named)
+	}
+	return nil
+}
+func (t *Term) AllQuant() Iter {
+	return NewIter(t.children, reflect.TypeOf(&Quant{}))
+}
 func (t *Term) AllTerm() Iter {
 	return NewIter(t.children, reflect.TypeOf(&Term{}))
 }

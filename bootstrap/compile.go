@@ -232,3 +232,13 @@ func NewFromNode(node parse.Node) Grammar {
 func NewFromNode2(node parse.Node) *internal.Grammar {
 	return internal.FromNodes(node)
 }
+
+func Codegen(g *internal.Grammar) string {
+	return `package internal
+
+import (
+	"reflect"
+	"strings"
+)
+` + internal.Codegen(g)
+}

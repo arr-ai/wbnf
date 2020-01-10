@@ -63,17 +63,18 @@ func codegen(c *cli.Context) error {
 	ast := bootstrap.NewFromNode2(tree.(parser.Node))
 	if ast == nil {
 		return nil
-	}
-	text := ast.Dump()
+	} /*
+		text := ast.Dump()
 
-	newg := bootstrap.NewFromNode(tree.(parser.Node)).Compile()
+		newg := bootstrap.NewFromNode(tree.(parser.Node)).Compile()
 
-	scanner = parser.NewScanner(text)
-	newtree, err := newg.Parse(bootstrap.RootRule, scanner)
-	if err != nil {
-		return err
-	}
+		scanner = parser.NewScanner(text)
+		_, err := newg.Parse(bootstrap.RootRule, scanner)
+		if err != nil {
+			return err
+		}
+	*/
+	fmt.Print(bootstrap.Codegen(ast))
 
-	fmt.Printf("%s", text == bootstrap.NewFromNode2(newtree.(parser.Node)).Dump())
 	return nil
 }

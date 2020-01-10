@@ -29,6 +29,12 @@ func newClassWriter(prod *Prod) classWriter {
 		}
 	}
 
+	ForEach(prod.AllTerm(), func(node isGenNode) {
+		if node.(*Term).op != nil {
+			cw.singles = append(cw.singles, "choice:int")
+		}
+	})
+
 	return cw
 }
 
@@ -36,7 +42,9 @@ func nameFrom(node isGenNode) string {
 	switch x := node.(type) {
 	case *Named:
 		if x.IDENT() != nil {
-			return x.IDENT().String() + ":" + nameFrom(x.Atom())
+			name := x.IDENT().String()
+			atom := nameFrom(x.Atom())
+			return name + ":" + atom
 		}
 		return nameFrom(x.Atom())
 	case *Term:
@@ -62,15 +70,17 @@ func nameFrom(node isGenNode) string {
 	return "<unknown>"
 }
 
-func maxCount(q *Quant) int {
+func maxCount(q *Quant) (string, int) {
 	switch q.choice {
 	case 0:
 		switch fmt.Sprintf("%s", q.op) {
 		case "?":
-			return 0
+			return "", 0
 		}
+	case 2:
+		return nameFrom(q.children[1]), 0
 	}
-	return 1
+	return "", 1
 }
 
 func termName(node *Term, dest *map[string]int) {
@@ -78,16 +88,18 @@ func termName(node *Term, dest *map[string]int) {
 		name := nameFrom(node)
 		val, _ := (*dest)[name]
 		ForEach(node.AllQuant(), func(node isGenNode) {
-			val += maxCount(node.(*Quant))
+			tname, inc := maxCount(node.(*Quant))
+			if tname != "" {
+				val, _ := (*dest)[tname]
+				(*dest)[tname] = val + 1
+			}
+			val += inc
 		})
 		(*dest)[name] = val + 1
 		return
 	}
 	ForEach(node.AllTerm(), func(node isGenNode) {
-		switch x := node.(type) {
-		case *Term:
-			termName(x, dest)
-		}
+		termName(node.(*Term), dest)
 	})
 }
 
@@ -113,6 +125,13 @@ func (x *{{name}}) isGenNode() {}
 func (x *{{name}}) AllChildren() []isGenNode { return x.children }
 
 `
+	if len(c.multis) == 0 && len(c.singles) == 1 {
+		tmpl := `type {{name}} string
+func (x *{{name}}) isGenNode()     {}
+func (x *{{name}}) String() string { return string(*x) }
+`
+		return strings.ReplaceAll(tmpl, "{{name}}", c.name)
+	}
 	var fields []string
 	var funcs []string
 	for _, f := range c.multis {
@@ -140,10 +159,10 @@ func (x *{{name}}) AllChildren() []isGenNode { return x.children }
 		if len(parts) == 2 {
 			tname = goName(parts[1], true)
 		}
-		fields = append(fields, fmt.Sprintf("%s %s", priv, tname))
+		fields = append(fields, fmt.Sprintf("%s *%s", priv, tname))
 
 		ff := []string{
-			fmt.Sprintf(`func (x *{{name}}) %s() %s { return x.%s }`, pub, tname, priv),
+			fmt.Sprintf(`func (x *{{name}}) %s() *%s { return x.%s }`, pub, tname, priv),
 		}
 		funcs = append(funcs, ff...)
 	}

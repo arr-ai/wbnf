@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 )
 
@@ -35,7 +36,7 @@ func nameFrom(node isGenNode) string {
 	switch x := node.(type) {
 	case *Named:
 		if x.IDENT() != nil {
-			return x.IDENT().String()
+			return x.IDENT().String() + ":" + nameFrom(x.Atom())
 		}
 		return nameFrom(x.Atom())
 	case *Term:
@@ -115,27 +116,38 @@ func (x *{{name}}) AllChildren() []isGenNode { return x.children }
 	var fields []string
 	var funcs []string
 	for _, f := range c.multis {
-		pub := goName(f, true)
-		priv := goName(f, false)
+		parts := strings.Split(f, ":")
+		pub := goName(parts[0], true)
+		priv := goName(parts[0], false)
+		tname := pub
+		if len(parts) == 2 {
+			tname = goName(parts[1], true)
+		}
 		fields = append(fields, fmt.Sprintf("%sCount int", priv))
 
 		ff := []string{
-			fmt.Sprintf(`func (x *{{name}}) All%s() Iter { return NewIter(x.children, reflect.TypeOf(&%s{})) }`, pub, pub),
+			fmt.Sprintf(`func (x *{{name}}) All%s() Iter { return NewIter(x.children, reflect.TypeOf(&%s{})) }`, pub, tname),
 			fmt.Sprintf(`func (x *{{name}}) Count%s() int { return x.%sCount }`, pub, priv),
 		}
 		funcs = append(funcs, ff...)
 	}
 
 	for _, f := range c.singles {
-		pub := goName(f, true)
-		priv := goName(f, false)
-		fields = append(fields, fmt.Sprintf("%s isGenNode", priv))
+		parts := strings.Split(f, ":")
+		pub := goName(parts[0], true)
+		priv := goName(parts[0], false)
+		tname := pub
+		if len(parts) == 2 {
+			tname = goName(parts[1], true)
+		}
+		fields = append(fields, fmt.Sprintf("%s %s", priv, tname))
 
 		ff := []string{
-			fmt.Sprintf(`func (x *{{name}}) %s() isGenNode { return x.%s }`, pub, priv),
+			fmt.Sprintf(`func (x *{{name}}) %s() %s { return x.%s }`, pub, tname, priv),
 		}
 		funcs = append(funcs, ff...)
 	}
+	sort.Strings(funcs)
 
 	tmpl += strings.Join(funcs, "\n")
 	tmpl = strings.ReplaceAll(tmpl, "{{fields}}", strings.Join(fields, "\n\t"))

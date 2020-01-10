@@ -43,13 +43,23 @@ func NewIter(nodes []isGenNode, ofType reflect.Type) Iter {
 func AtIndex(nodes []isGenNode, ofType reflect.Type, index int) isGenNode {
 	iter := NewIter(nodes, ofType)
 	var out isGenNode
-	for i := 0; i < index; i++ {
+	for i := 0; i <= index; i++ {
 		out = iter.Next()
 	}
 	return out
 }
 
+func ForEach(iter Iter, fn func(node isGenNode)) {
+	for {
+		val := iter.Next()
+		if val == nil {
+			return
+		}
+		fn(val)
+	}
+}
+
 type Token struct{ v string }
 
-func (t Token) isGenNode()     {}
-func (t Token) String() string { return t.v }
+func (t *Token) isGenNode()     {}
+func (t *Token) String() string { return t.v }

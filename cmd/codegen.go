@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -54,9 +55,25 @@ func codegen(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
 	if err := g.ValidateParse(tree); err != nil {
 		return err
 	}
 
+	ast := bootstrap.NewFromNode2(tree.(parser.Node))
+	if ast == nil {
+		return nil
+	}
+	text := ast.Dump()
+
+	newg := bootstrap.NewFromNode(tree.(parser.Node)).Compile()
+
+	scanner = parser.NewScanner(text)
+	newtree, err := newg.Parse(bootstrap.RootRule, scanner)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", text == bootstrap.NewFromNode2(newtree.(parser.Node)).Dump())
 	return nil
 }

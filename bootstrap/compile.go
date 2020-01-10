@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/arr-ai/wbnf/bootstrap/internal"
+
 	parse "github.com/arr-ai/wbnf/parser"
 )
 
@@ -225,4 +227,8 @@ func NewFromNode(node parse.Node) Grammar {
 		}
 	}
 	return g
+}
+
+func NewFromNode2(node parse.Node) *internal.Grammar {
+	return internal.FromNodes(node)
 }

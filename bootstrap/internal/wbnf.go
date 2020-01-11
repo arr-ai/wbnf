@@ -3,96 +3,92 @@ package internal
 import (
 	"reflect"
 	"strings"
+
+	"github.com/arr-ai/wbnf/parser"
 )
 
 // grammar -> stmt+;
 type Grammar struct {
-	children  []isGenNode
+	parser.NonTerminal
 	stmtCount int
 }
 
-func (g *Grammar) isGenNode()               {}
-func (g *Grammar) AllChildren() []isGenNode { return g.children }
-func (g *Grammar) AllStmt() Iter {
-	return NewIter(g.children, reflect.TypeOf(&Stmt{}))
+func (g *Grammar) AllStmt() parser.Iter {
+	return parser.NewIter(g.AllChildren(), reflect.TypeOf(&Stmt{}), "")
 }
 func (g *Grammar) CountStmt() int { return g.stmtCount }
 func (g *Grammar) Dump() string {
 	var out []string
-	ForEach(g.AllStmt(), func(node isGenNode) {
-		out = append(out, dump(node))
-	})
+	//	parser.ForEach(g.AllStmt(), func(node parser.BaseNode) {
+	//		out = append(out, dump(node))
+	//	})
 
 	return strings.Join(out, "\n")
 }
 
 type Stmt struct {
-	children []isGenNode
-	choice   int
+	parser.NonTerminal
+	choice int
 }
 
-func (s *Stmt) isGenNode()               {}
-func (s *Stmt) AllChildren() []isGenNode { return s.children }
-func (s *Stmt) Choice() int              { return s.choice }
-func (s *Stmt) COMMENT() *COMMENT        { return s.children[0].(*COMMENT) }
-func (s *Stmt) Prod() *Prod              { return s.children[1].(*Prod) }
+func (s *Stmt) Choice() int       { return s.choice }
+func (s *Stmt) COMMENT() *COMMENT { return s.AllChildren()[0].(*COMMENT) }
+func (s *Stmt) Prod() *Prod       { return s.AllChildren()[1].(*Prod) }
 
 type Prod struct {
-	children  []isGenNode
+	parser.NonTerminal
 	termCount int
 }
 
-func (p *Prod) isGenNode()               {}
-func (p *Prod) AllChildren() []isGenNode { return p.children }
-func (p *Prod) IDENT() *IDENT            { return p.children[0].(*IDENT) }
-func (p *Prod) CountTerm() int           { return p.termCount }
-func (p *Prod) AllTerm() Iter {
-	return NewIter(p.children, reflect.TypeOf(&Term{}))
+func (p *Prod) IDENT() *IDENT  { return p.AllChildren()[0].(*IDENT) }
+func (p *Prod) CountTerm() int { return p.termCount }
+func (p *Prod) AllTerm() parser.Iter {
+	return parser.NewIter(p.AllChildren(), reflect.TypeOf(&Term{}), "")
 }
 func (p *Prod) Term(index int) *Term {
-	t := AtIndex(p.children, reflect.TypeOf(&Term{}), index)
+	t := parser.AtIndex(p.AllChildren(), reflect.TypeOf(&Term{}), "", index)
 	if t != nil {
 		return t.(*Term)
 	}
 	return nil
 }
-func (p *Prod) Token(index int) *Token {
-	t := AtIndex(p.children, reflect.TypeOf(&Token{}), index)
+func (p *Prod) Token(index int) *parser.Terminal {
+	t := parser.AtIndex(p.AllChildren(), reflect.TypeOf(&parser.Terminal{}), "", index)
 	if t != nil {
-		return t.(*Token)
+		return t.(*parser.Terminal)
 	}
 	return nil
 }
 
 type Term struct {
-	children   []isGenNode
+	parser.NonTerminal
 	choice     int
 	termCount  int
 	quantCount int
-	op         isGenNode
+	op         parser.BaseNode
 }
 
-func (t *Term) isGenNode()               {}
-func (t *Term) Choice() int              { return t.choice }
-func (t *Term) AllChildren() []isGenNode { return t.children }
-func (t *Term) Op() isGenNode            { return t.op }
-func (t *Term) CountTerm() int           { return t.termCount }
-func (t *Term) CountQuant() int          { return t.quantCount }
+func (t *Term) Choice() int         { return t.choice }
+func (t *Term) Op() parser.BaseNode { return t.op }
+func (t *Term) CountTerm() int      { return t.termCount }
+func (t *Term) CountQuant() int     { return t.quantCount }
 func (t *Term) Named() *Named {
-	t2 := AtIndex(t.children, reflect.TypeOf(&Named{}), 0)
+	var temp Named
+	t2 := parser.AtIndex(t.AllChildren(), reflect.TypeOf(&temp), "", 0)
 	if t2 != nil {
 		return t2.(*Named)
 	}
 	return nil
 }
-func (t *Term) AllQuant() Iter {
-	return NewIter(t.children, reflect.TypeOf(&Quant{}))
+func (t *Term) AllQuant() parser.Iter {
+	return parser.NewIter(t.AllChildren(), reflect.TypeOf(&Quant{}), "")
 }
-func (t *Term) AllTerm() Iter {
-	return NewIter(t.children, reflect.TypeOf(&Term{}))
+func (t *Term) AllTerm() parser.Iter {
+	return parser.NewIter(t.AllChildren(), reflect.TypeOf(&Term{}), "")
 }
 func (t *Term) Term(index int) *Term {
-	t2 := AtIndex(t.children, reflect.TypeOf(&Term{}), index)
+	var temp Term
+	t2 := parser.AtIndex(t.AllChildren(), reflect.TypeOf(&temp), "", 0)
 	if t2 != nil {
 		return t2.(*Term)
 	}
@@ -100,29 +96,24 @@ func (t *Term) Term(index int) *Term {
 }
 
 type Quant struct {
-	children []isGenNode
-	choice   int
-	op       isGenNode
-	min      isGenNode
-	max      isGenNode
-	lbang    isGenNode
-	rbang    isGenNode
+	parser.NonTerminal
+	choice int
+	op     parser.BaseNode
+	min    parser.BaseNode
+	max    parser.BaseNode
+	lbang  parser.BaseNode
+	rbang  parser.BaseNode
 }
-
-func (t *Quant) isGenNode()               {}
-func (t *Quant) AllChildren() []isGenNode { return t.children }
 
 type Named struct {
-	children []isGenNode
-	op       isGenNode
+	parser.NonTerminal
+	op parser.BaseNode
 }
 
-func (t *Named) isGenNode()               {}
-func (t *Named) AllChildren() []isGenNode { return t.children }
-func (t *Named) Op() isGenNode            { return t.op }
+func (t *Named) Op() parser.BaseNode { return t.op }
 func (t *Named) IDENT() *IDENT {
 	var temp IDENT
-	t2 := AtIndex(t.children, reflect.TypeOf(&temp), 0)
+	t2 := parser.AtIndex(t.AllChildren(), reflect.TypeOf(&temp), "", 0)
 	if t2 != nil {
 		return t2.(*IDENT)
 	}
@@ -130,7 +121,7 @@ func (t *Named) IDENT() *IDENT {
 }
 func (t *Named) Atom() *Atom {
 	var temp Atom
-	t2 := AtIndex(t.children, reflect.TypeOf(&temp), 0)
+	t2 := parser.AtIndex(t.AllChildren(), reflect.TypeOf(&temp), "", 0)
 	if t2 != nil {
 		return t2.(*Atom)
 	}
@@ -138,36 +129,44 @@ func (t *Named) Atom() *Atom {
 }
 
 type Atom struct {
-	children  []isGenNode
+	parser.NonTerminal
 	choice    int
 	numTokens int
 }
 
-func (t *Atom) isGenNode()               {}
-func (t *Atom) AllChildren() []isGenNode { return t.children }
-func (t *Atom) Choice() int              { return t.choice }
+func (t *Atom) Choice() int { return t.choice }
 
-type IDENT string
+type IDENT struct{ parser.Terminal }
 
-func (c *IDENT) isGenNode()     {}
-func (c *IDENT) String() string { return string(*c) }
+func (t IDENT) New(value string, tag parser.Tag) parser.BaseNode {
+	(&t).NewFromPtr(value, tag)
+	return &t
+}
 
-type STR string
+type STR struct{ parser.Terminal }
 
-func (c *STR) isGenNode()     {}
-func (c *STR) String() string { return string(*c) }
+func (t STR) New(value string, tag parser.Tag) parser.BaseNode {
+	(&t).NewFromPtr(value, tag)
+	return &t
+}
 
-type INT string
+type INT struct{ parser.Terminal }
 
-func (c *INT) isGenNode()     {}
-func (c *INT) String() string { return string(*c) }
+func (t INT) New(value string, tag parser.Tag) parser.BaseNode {
+	(&t).NewFromPtr(value, tag)
+	return &t
+}
 
-type RE string
+type RE struct{ parser.Terminal }
 
-func (c *RE) isGenNode()     {}
-func (c *RE) String() string { return string(*c) }
+func (t RE) New(value string, tag parser.Tag) parser.BaseNode {
+	(&t).NewFromPtr(value, tag)
+	return &t
+}
 
-type COMMENT string
+type COMMENT struct{ parser.Terminal }
 
-func (c *COMMENT) isGenNode()     {}
-func (c *COMMENT) String() string { return string(*c) }
+func (t COMMENT) New(value string, tag parser.Tag) parser.BaseNode {
+	(&t).NewFromPtr(value, tag)
+	return &t
+}

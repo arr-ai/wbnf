@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/arr-ai/wbnf/parser"
 )
 
 type classWriter struct {
@@ -18,11 +20,13 @@ func newClassWriter(prod *Prod) classWriter {
 		idents: &identFinder{},
 	}
 
-	ForEach(prod.AllTerm(), func(node isGenNode) {
+	hasChoice := false
+	parser.ForEach(prod.AllTerm(), func(node parser.BaseNode) {
 		cw.idents.walk(node, false)
+		hasChoice = hasChoice || node.(*Term).op != nil
 	})
 
-	if prod.CountTerm() > 1 {
+	if hasChoice {
 		cw.idents.Add("choice", "int", false)
 	}
 	if cw.idents.only != "" {
@@ -71,7 +75,7 @@ func quantNeedsMulti(q *Quant) bool {
 	return true
 }
 
-func (i *identFinder) walk(node isGenNode, needsMulti bool) {
+func (i *identFinder) walk(node parser.BaseNode, needsMulti bool) {
 	switch x := node.(type) {
 	case *Named:
 		atomIf := &identFinder{}
@@ -88,14 +92,14 @@ func (i *identFinder) walk(node isGenNode, needsMulti bool) {
 	case *Term:
 		if x.Named() != nil {
 			multi := false
-			ForEach(x.AllQuant(), func(node isGenNode) {
+			parser.ForEach(x.AllQuant(), func(node parser.BaseNode) {
 				i.walk(node, false)
 				multi = multi || quantNeedsMulti(node.(*Quant))
 			})
 
 			i.walk(x.Named(), multi)
 		} else {
-			ForEach(x.AllTerm(), func(node isGenNode) {
+			parser.ForEach(x.AllTerm(), func(node parser.BaseNode) {
 				i.walk(node, false)
 			})
 		}
@@ -104,13 +108,13 @@ func (i *identFinder) walk(node isGenNode, needsMulti bool) {
 		case 0, 1, 2:
 			switch x := x.AllChildren()[0].(type) {
 			case *STR, *RE, *INT:
-				i.Add("Token", "Token", needsMulti)
+				i.Add("Token", "parser.Terminal", needsMulti)
 			case *IDENT:
 				i.Add(x.String(), x.String(), needsMulti)
 			default:
 			}
 		case 3:
-			i.walk(x.children[1], needsMulti)
+			i.walk(x.AllChildren()[1], needsMulti)
 		}
 	case *Quant:
 		for _, child := range x.AllChildren() {
@@ -144,17 +148,17 @@ func goName(str string, public bool) string {
 func (c classWriter) Write() string {
 	tmpl := `
 type {{name}} struct {
-	children []isGenNode
+	parser.NonTerminal
 	{{fields}}
 }
-func (x *{{name}}) isGenNode() {}
-func (x *{{name}}) AllChildren() []isGenNode { return x.children }
 
 `
 	if c.isTerminal {
-		tmpl := `type {{name}} string
-func (x *{{name}}) isGenNode()     {}
-func (x *{{name}}) String() string { return string(*x) }
+		tmpl := `type {{name}} struct{ parser.Terminal }
+func (x {{name}}) New(value string, tag parser.Tag) parser.BaseNode {
+	(&x).NewFromPtr(value, tag)
+	return &x
+}
 `
 		return strings.ReplaceAll(tmpl, "{{name}}", c.name)
 	}
@@ -164,12 +168,16 @@ func (x *{{name}}) String() string { return string(*x) }
 		pub := goName(fname, true)
 		priv := goName(fname, false)
 		tname := goName(ftype.typename, true)
+		switch ftype.typename {
+		case "parser.Terminal":
+			tname = ftype.typename
+		}
 
 		var ff []string
 		if ftype.multiple {
 			fields = append(fields, fmt.Sprintf("%sCount int", priv))
 			ff = []string{
-				fmt.Sprintf(`func (x *{{name}}) All%s() Iter { return NewIter(x.children, reflect.TypeOf(&%s{})) }`, pub, tname),
+				fmt.Sprintf(`func (x *{{name}}) All%s() parser.Iter { return x.Iter(reflect.TypeOf(%s{}), parser.NoTag) }`, pub, tname),
 				fmt.Sprintf(`func (x *{{name}}) Count%s() int { return x.%sCount }`, pub, priv),
 			}
 		} else {
@@ -177,10 +185,14 @@ func (x *{{name}}) String() string { return string(*x) }
 				tname = "*" + tname
 			}
 
-			fields = append(fields, fmt.Sprintf("%s %s", priv, tname))
-
-			ff = []string{
-				fmt.Sprintf(`func (x *{{name}}) %s() %s { return x.%s }`, pub, tname, priv),
+			if fname == "choice" {
+				fields = append(fields, fmt.Sprintf("%s int", priv))
+				ff = []string{fmt.Sprintf(`func (x *{{name}}) %s() %s { return x.%s }`, pub, tname, priv)}
+			} else {
+				fields = append(fields, fmt.Sprintf("%s parser.BaseNode", priv))
+				ff = []string{
+					fmt.Sprintf(`func (x *{{name}}) %s() %s { return x.%s.(%s) }`, pub, tname, priv, tname),
+				}
 			}
 		}
 		funcs = append(funcs, ff...)
@@ -194,16 +206,16 @@ func (x *{{name}}) String() string { return string(*x) }
 	return out
 }
 
-func Codegen(node isGenNode) string {
+func Codegen(node parser.BaseNode) string {
 	switch x := node.(type) {
 	case *Grammar:
 		var out []string
-		ForEach(x.AllStmt(), func(node isGenNode) {
+		parser.ForEach(x.AllStmt(), func(node parser.BaseNode) {
 			out = append(out, Codegen(node))
 		})
 		return strings.Join(out, "\n")
 	case *Stmt:
-		return Codegen(x.children[0])
+		return Codegen(x.AllChildren()[0])
 	case *Prod:
 		return newClassWriter(x).Write()
 	case *COMMENT:

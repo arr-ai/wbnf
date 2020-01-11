@@ -3,16 +3,18 @@ package internal
 import (
 	"fmt"
 	"strings"
+
+	"github.com/arr-ai/wbnf/parser"
 )
 
-func Join(iter Iter, sep string) string {
+func Join(iter parser.Iter, sep string) string {
 	var out []string
-	ForEach(iter, func(node isGenNode) {
+	parser.ForEach(iter, func(node parser.BaseNode) {
 		out = append(out, dump(node))
 	})
 	return strings.Join(out, sep)
 }
-func Join2(children []isGenNode, sep string) string {
+func Join2(children []parser.BaseNode, sep string) string {
 	var out []string
 	for _, c := range children {
 		out = append(out, dump(c))
@@ -20,10 +22,10 @@ func Join2(children []isGenNode, sep string) string {
 	return strings.Join(out, sep)
 }
 
-func dump(node isGenNode) string {
+func dump(node parser.BaseNode) string {
 	switch x := node.(type) {
 	case *Stmt:
-		return dump(x.children[0])
+		return dump(x.AllChildren()[0])
 	case *Prod:
 		return fmt.Sprintf("%s %s %s %s",
 			x.IDENT(), x.Token(0),
@@ -46,13 +48,13 @@ func dump(node isGenNode) string {
 		case 0:
 			return dump(x.op)
 		case 1:
-			return Join2(x.children, " ")
+			return Join2(x.AllChildren(), " ")
 		case 2:
-			return Join2(x.children, " ")
+			return Join2(x.AllChildren(), " ")
 		}
 	case *Atom:
 		return Join2(x.AllChildren(), " ")
-	case *IDENT, *Token, *INT, *COMMENT:
+	case *IDENT, *parser.Terminal, *INT, *COMMENT:
 		return fmt.Sprintf("%s", x)
 	case *STR:
 		return fmt.Sprintf(`"%s"`, x)

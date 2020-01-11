@@ -78,103 +78,101 @@ func parseString(s string) string {
 	return sb.String()
 }
 
-func makeCOMMENT(s string) *COMMENT { x := COMMENT(s); return &x }
-func makeIDENT(s string) *IDENT     { x := IDENT(s); return &x }
-func makeINT(s string) *INT         { x := INT(s); return &x }
-func makeSTR(s string) *STR         { x := STR(s); return &x }
-func makeRE(s string) *RE           { x := RE(s); return &x }
-
-func compileAtomNode(node parser.Node) isGenNode {
+func compileAtomNode(node parser.Node) parser.BaseNode {
 	atom := Atom{
-		children:  nil,
 		choice:    node.Extra.(int),
 		numTokens: 0,
 	}
 	switch node.Extra.(int) {
 	case 0:
-		atom.children = []isGenNode{makeIDENT(node.GetString(0))}
+		atom.Add(IDENT{}.New(node.GetString(0), parser.NoTag))
 	case 1:
-		atom.children = []isGenNode{makeSTR(parseString(node.GetString(0)))}
+		atom.Add(STR{}.New(node.GetString(0), parser.NoTag))
 	case 2:
-		atom.children = []isGenNode{makeRE(strings.ReplaceAll(node.GetString(0), `\/`, `/`))}
+		atom.Add(RE{}.New(strings.ReplaceAll(node.GetString(0), `\/`, `/`), parser.NoTag))
 	case 3:
 		node := node.GetNode(0)
-		atom.children = []isGenNode{
-			&Token{v: node.GetString(0)},
+		atom.Add(
+			parser.Terminal{}.New(node.GetString(0), parser.NoTag),
 			compileTermStackNode(node.GetNode(1)),
-			&Token{v: node.GetString(2)},
-		}
+			parser.Terminal{}.New(node.GetString(2), parser.NoTag),
+		)
 	case 4:
 		node := node.GetNode(0)
-		atom.children = []isGenNode{
-			&Token{v: node.GetString(0)},
-			&Token{v: node.GetString(1)},
-		}
+		atom.Add(
+			parser.Terminal{}.New(node.GetString(0), parser.NoTag),
+			parser.Terminal{}.New(node.GetString(1), parser.NoTag),
+		)
 	default:
 		panic("foo")
 	}
 	return &atom
 }
 
-func compileQuantNode(node parser.Node) isGenNode {
+func compileQuantNode(node parser.Node) parser.BaseNode {
 	quant := Quant{
 		choice: node.Extra.(int),
 	}
 	switch node.Extra.(int) {
 	case 0:
-		quant.op = &Token{node.GetString(0)}
+		op := parser.Terminal{}.New(node.GetString(0), parser.Tag("op"))
+		quant.op = op
+		quant.Add(op)
 	case 1:
 		if node.Count() != 5 {
 			panic("ooops")
 		}
-		quant.children = []isGenNode{
-			&Token{node.GetString(0)},
-			makeINT(node.GetString(1)),
-			&Token{node.GetString(2)},
-			makeINT(node.GetString(3)),
-			&Token{node.GetString(4)},
-		}
-		quant.min = quant.children[1]
-		quant.max = quant.children[2]
+		quant.Add(
+			parser.Terminal{}.New(node.GetString(0), parser.NoTag),
+			INT{}.New(node.GetString(1), parser.Tag("min")),
+			parser.Terminal{}.New(node.GetString(2), parser.NoTag),
+			INT{}.New(node.GetString(3), parser.Tag("max")),
+			parser.Terminal{}.New(node.GetString(4), parser.NoTag),
+		)
+		quant.min = quant.AllChildren()[1]
+		quant.max = quant.AllChildren()[3]
 	case 2:
 		node = node.GetNode(0)
 		if node.Count() != 4 {
 			panic("ooops")
 		}
-		quant.op = &Token{node.GetString(0)}
-		quant.children = []isGenNode{
-			quant.op,
-			compileNamedNode(node.GetNode(2)),
-		}
-		// FIXME: These 2 are not present in the wbnf grammar
-		if node.GetNode(1).Count() != 0 {
-			quant.lbang = &Token{node.GetString(1)}
-		}
-		if node.GetNode(3).Count() != 0 {
-			quant.rbang = &Token{node.GetString(3)}
-		}
+		op := parser.Terminal{}.New(node.GetString(0), parser.Tag("op"))
+		quant.op = op
+		quant.Add(
+			op,
+			compileNamedNode(node.GetNode(2)))
+		/*
+			// FIXME: These 2 are not present in the wbnf grammar
+			if node.GetNode(1).Count() != 0 {
+				quant.lbang = &Token{node.GetString(1)}
+			}
+			if node.GetNode(3).Count() != 0 {
+				quant.rbang = &Token{node.GetString(3)}
+			}*/
 
 	}
 	return &quant
 }
 
-func compileNamedNode(node parser.Node) isGenNode {
+func compileNamedNode(node parser.Node) parser.BaseNode {
 	named := Named{
-		children: nil,
-		op:       nil,
+		op: nil,
 	}
 	if x := node.GetNode(0); x.Count() != 0 {
 		x := x.GetNode(0)
-		named.children = append(named.children, makeIDENT(x.GetString(0)))
-		named.op = &Token{v: x.GetString(1)}
+		named.Add(
+			IDENT{}.New(x.GetString(0), parser.NoTag),
+			parser.Terminal{}.New(x.GetString(1), parser.Tag("op")),
+		)
+		named.op = named.AllChildren()[1]
 	}
 
-	named.children = append(named.children, compileAtomNode(node.GetNode(1)))
+	named.Add(compileAtomNode(node.GetNode(1)))
 
 	return &named
 }
 
-func compileTermStackNode(node parser.Node) isGenNode {
+func compileTermStackNode(node parser.Node) parser.BaseNode {
 	var child interface{}
 	if node.Count() > 1 {
 		child = node
@@ -205,18 +203,20 @@ func compileTermStackNode(node parser.Node) isGenNode {
 		case parser.Node:
 			switch {
 			case strings.HasPrefix(x.Tag, "term"):
-				term.children = append(term.children, compileTermStackNode(x))
+				term.Add(compileTermStackNode(x))
 				term.termCount++
 			case strings.HasPrefix(x.Tag, "named"):
-				term.children = append(term.children, compileNamedNode(x))
+				term.Add(compileNamedNode(x))
 			case strings.HasPrefix(x.Tag, "?") && x.Count() > 0:
-				term.children = append(term.children, compileQuantNode(x.GetNode(0)))
+				term.Add(compileQuantNode(x.GetNode(0)))
 				term.quantCount++
 			}
 		case parser.Scanner:
 			switch term.Choice() {
 			case 0, 1:
-				term.op = &Token{v: x.String()}
+				op := parser.Terminal{}.New(x.String(), parser.Tag("op"))
+				term.Add(op)
+				term.op = op
 			default:
 			}
 		}
@@ -225,13 +225,12 @@ func compileTermStackNode(node parser.Node) isGenNode {
 	return &term
 }
 
-func compileProdNode(node parser.Node) isGenNode {
-	prod := Prod{
-		children: []isGenNode{
-			makeIDENT(node.GetString(0)),
-			&Token{node.GetString(1)},
-		},
-	}
+func compileProdNode(node parser.Node) parser.BaseNode {
+	prod := Prod{}
+	prod.Add(
+		IDENT{}.New(node.GetString(0), parser.NoTag),
+		parser.Terminal{}.New(node.GetString(1), parser.NoTag),
+	)
 
 	terms := node.GetNode(2)
 	switch terms.Tag {
@@ -241,17 +240,15 @@ func compileProdNode(node parser.Node) isGenNode {
 	children := terms.Children
 	prod.termCount = len(children)
 	for _, child := range children {
-		prod.children = append(prod.children, compileTermStackNode(child.(parser.Node)))
+		prod.Add(compileTermStackNode(child.(parser.Node)))
 	}
 
-	prod.children = append(prod.children, &Token{node.GetString(3)})
-
+	prod.Add(parser.Terminal{}.New(node.GetString(3), parser.NoTag))
 	return &prod
 }
 
 func FromNodes(node parser.Node) *Grammar {
 	g := Grammar{
-		children:  []isGenNode{},
 		stmtCount: len(node.Children),
 	}
 	for _, v := range node.Children {
@@ -260,17 +257,17 @@ func FromNodes(node parser.Node) *Grammar {
 		switch stmt.Extra.(int) {
 		case 0:
 			child.choice = 0
-			child.children = []isGenNode{
-				makeCOMMENT(v.(parser.Node).GetString(0)),
-			}
+			child.Add(
+				COMMENT{}.New(v.(parser.Node).GetString(0), parser.NoTag),
+			)
 		case 1:
 			prod := stmt.GetNode(0)
 			child.choice = 1
-			child.children = []isGenNode{compileProdNode(prod)}
+			child.Add(compileProdNode(prod))
 		default:
 			panic("")
 		}
-		g.children = append(g.children, &child)
+		g.Add(&child)
 	}
 	return &g
 }

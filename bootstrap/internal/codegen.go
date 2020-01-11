@@ -22,14 +22,11 @@ func newClassWriter(prod *Prod) classWriter {
 		cw.idents.walk(node, false)
 	})
 
-	if prod.CountTerm() > 0 {
+	if prod.CountTerm() > 1 {
 		cw.idents.Add("choice", "int", false)
 	}
-	if len(cw.idents.names) == 1 {
-		for _, val := range cw.idents.names {
-			cw.isTerminal = !val.multiple
-			break
-		}
+	if cw.idents.only != "" {
+		cw.isTerminal = !cw.idents.names[cw.idents.only].multiple
 	}
 
 	return cw
@@ -90,6 +87,7 @@ func (i *identFinder) walk(node isGenNode, needsMulti bool) {
 		if x.Named() != nil {
 			multi := false
 			ForEach(x.AllQuant(), func(node isGenNode) {
+				i.walk(node, false)
 				multi = multi || quantNeedsMulti(node.(*Quant))
 			})
 
@@ -97,10 +95,6 @@ func (i *identFinder) walk(node isGenNode, needsMulti bool) {
 		} else {
 			ForEach(x.AllTerm(), func(node isGenNode) {
 				i.walk(node, false)
-				n := node.(*Term)
-				ForEach(n.AllQuant(), func(node isGenNode) {
-					i.walk(node, false)
-				})
 			})
 		}
 	case *Atom:
@@ -131,6 +125,10 @@ func goName(str string, public bool) string {
 	switch str[0] {
 	case '.':
 		str = str[1:]
+	}
+
+	if str == "int" {
+		return str
 	}
 
 	if public && strings.ToUpper(str) == str {

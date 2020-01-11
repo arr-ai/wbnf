@@ -2,38 +2,35 @@ package internal
 
 import (
 	"fmt"
-	"reflect"
 	"sort"
 	"strings"
 )
 
 type classWriter struct {
-	name    string
-	multis  []string
-	singles []string
+	name       string
+	idents     *identFinder
+	isTerminal bool
 }
 
 func newClassWriter(prod *Prod) classWriter {
-	cw := classWriter{name: goName(prod.IDENT().String(), true)}
-
-	fields := map[string]int{}
-	ForEach(prod.AllTerm(), func(node isGenNode) {
-		termName(node.(*Term), &fields)
-	})
-
-	for key, count := range fields {
-		if count == 1 {
-			cw.singles = append(cw.singles, key)
-		} else {
-			cw.multis = append(cw.multis, key)
-		}
+	cw := classWriter{
+		name:   goName(prod.IDENT().String(), true),
+		idents: &identFinder{},
 	}
 
 	ForEach(prod.AllTerm(), func(node isGenNode) {
-		if node.(*Term).op != nil {
-			cw.singles = append(cw.singles, "choice:int")
-		}
+		cw.idents.walk(node, false)
 	})
+
+	if prod.CountTerm() > 0 {
+		cw.idents.Add("choice", "int", false)
+	}
+	if len(cw.idents.names) == 1 {
+		for _, val := range cw.idents.names {
+			cw.isTerminal = !val.multiple
+			break
+		}
+	}
 
 	return cw
 }
@@ -44,10 +41,18 @@ type identifier struct {
 }
 type identFinder struct {
 	names map[string]*identifier
+	only  string
 }
 
-/*
 func (i *identFinder) Add(name, typename string, multi bool) {
+	if len(i.names) == 0 {
+		i.only = name
+	} else {
+		i.only = ""
+	}
+	if i.names == nil {
+		i.names = map[string]*identifier{}
+	}
 	if v, has := i.names[name]; has {
 		if v.typename != typename {
 			panic("oops")
@@ -57,84 +62,69 @@ func (i *identFinder) Add(name, typename string, multi bool) {
 		i.names[name] = &identifier{typename: typename, multiple: multi}
 	}
 }
-func (i *identFinder) walk(node isGenNode) {
-	switch x := node.(type) {
-	case *Named:
-		if x.IDENT() != nil {
-			name := x.IDENT().String()
-			atom := nameFrom(x.Atom())
-		}
-	case *Term:
-		if x.Named() != nil {
-			name := nameFrom(x.Named())
-		}
 
-	}
-}
-*/
-func nameFrom(node isGenNode) string {
-	switch x := node.(type) {
-	case *Named:
-		if x.IDENT() != nil {
-			name := x.IDENT().String()
-			if t := AtIndex(x.children, reflect.TypeOf(&Term{}), 0); t != nil {
-				panic("eek")
-			}
-
-			atom := nameFrom(x.Atom())
-			return name + ":" + atom
-		}
-		return nameFrom(x.Atom())
-	case *Term:
-		if x.Named() != nil {
-			return nameFrom(x.Named())
-		}
-		return "poo"
-	case *Atom:
-		switch x.Choice() {
-		case 0, 1, 2:
-			return nameFrom(x.AllChildren()[0])
-		default:
-		}
-	case *IDENT:
-		return string(*x)
-	case *STR, *RE, *INT:
-		return "Token"
-	}
-	return "<unknown>"
-}
-
-func maxCount(q *Quant) (string, int) {
+func quantNeedsMulti(q *Quant) bool {
 	switch q.choice {
 	case 0:
 		switch fmt.Sprintf("%s", q.op) {
 		case "?":
-			return "", 0
+			return false
 		}
-	case 2:
-		return nameFrom(q.children[1]), 0
 	}
-	return "", 1
+	return true
 }
 
-func termName(node *Term, dest *map[string]int) {
-	if node.Named() != nil {
-		name := nameFrom(node)
-		val, _ := (*dest)[name]
-		ForEach(node.AllQuant(), func(node isGenNode) {
-			tname, inc := maxCount(node.(*Quant))
-			if tname != "" {
-				v, _ := (*dest)[tname]
-				(*dest)[tname] = v + 1
+func (i *identFinder) walk(node isGenNode, needsMulti bool) {
+	switch x := node.(type) {
+	case *Named:
+		atomIf := &identFinder{}
+		atomIf.walk(x.Atom(), false)
+		atomName := atomIf.only
+		if x.IDENT() != nil {
+			i.Add(x.IDENT().String(), atomName, needsMulti)
+		}
+		if atomName != "" {
+			i.Add(atomName, atomIf.names[atomName].typename, needsMulti)
+		}
+	case *Term:
+		if x.Named() != nil {
+			multi := false
+			ForEach(x.AllQuant(), func(node isGenNode) {
+				multi = multi || quantNeedsMulti(node.(*Quant))
+			})
+
+			i.walk(x.Named(), multi)
+		} else {
+			ForEach(x.AllTerm(), func(node isGenNode) {
+				i.walk(node, false)
+				n := node.(*Term)
+				ForEach(n.AllQuant(), func(node isGenNode) {
+					i.walk(node, false)
+				})
+			})
+		}
+	case *Atom:
+		switch x.Choice() {
+		case 0, 1, 2:
+			switch x := x.AllChildren()[0].(type) {
+			case *STR, *RE, *INT:
+				i.Add("Token", "Token", needsMulti)
+			case *IDENT:
+				i.Add(x.String(), x.String(), needsMulti)
+			default:
 			}
-			val += inc
-		})
-		(*dest)[name] = val + 1
-		return
+		case 3:
+			i.walk(x.children[1], needsMulti)
+		}
+	case *Quant:
+		for _, child := range x.AllChildren() {
+			switch x := child.(type) {
+			case *Named:
+				i.walk(x, true)
+			}
+		}
+	default:
 	}
-	ForEach(node.AllTerm(), func(node isGenNode) {
-		termName(node.(*Term), dest)
-	})
 }
 
 func goName(str string, public bool) string {
@@ -164,7 +154,7 @@ func (x *{{name}}) isGenNode() {}
 func (x *{{name}}) AllChildren() []isGenNode { return x.children }
 
 `
-	if len(c.multis) == 0 && len(c.singles) == 1 {
+	if c.isTerminal {
 		tmpl := `type {{name}} string
 func (x *{{name}}) isGenNode()     {}
 func (x *{{name}}) String() string { return string(*x) }
@@ -173,41 +163,32 @@ func (x *{{name}}) String() string { return string(*x) }
 	}
 	var fields []string
 	var funcs []string
-	for _, f := range c.multis {
-		parts := strings.Split(f, ":")
-		pub := goName(parts[0], true)
-		priv := goName(parts[0], false)
-		tname := pub
-		if len(parts) == 2 {
-			tname = goName(parts[1], true)
-		}
-		fields = append(fields, fmt.Sprintf("%sCount int", priv))
+	for fname, ftype := range c.idents.names {
+		pub := goName(fname, true)
+		priv := goName(fname, false)
+		tname := goName(ftype.typename, true)
 
-		ff := []string{
-			fmt.Sprintf(`func (x *{{name}}) All%s() Iter { return NewIter(x.children, reflect.TypeOf(&%s{})) }`, pub, tname),
-			fmt.Sprintf(`func (x *{{name}}) Count%s() int { return x.%sCount }`, pub, priv),
+		var ff []string
+		if ftype.multiple {
+			fields = append(fields, fmt.Sprintf("%sCount int", priv))
+			ff = []string{
+				fmt.Sprintf(`func (x *{{name}}) All%s() Iter { return NewIter(x.children, reflect.TypeOf(&%s{})) }`, pub, tname),
+				fmt.Sprintf(`func (x *{{name}}) Count%s() int { return x.%sCount }`, pub, priv),
+			}
+		} else {
+			if tname != "int" {
+				tname = "*" + tname
+			}
+
+			fields = append(fields, fmt.Sprintf("%s %s", priv, tname))
+
+			ff = []string{
+				fmt.Sprintf(`func (x *{{name}}) %s() %s { return x.%s }`, pub, tname, priv),
+			}
 		}
 		funcs = append(funcs, ff...)
 	}
 
-	for _, f := range c.singles {
-		parts := strings.Split(f, ":")
-		pub := goName(parts[0], true)
-		priv := goName(parts[0], false)
-		tname := "*" + pub
-		if len(parts) == 2 {
-			tname = "*" + goName(parts[1], true)
-		}
-		if parts[0] == "choice" {
-			tname = "int"
-		}
-		fields = append(fields, fmt.Sprintf("%s %s", priv, tname))
-
-		ff := []string{
-			fmt.Sprintf(`func (x *{{name}}) %s() %s { return x.%s }`, pub, tname, priv),
-		}
-		funcs = append(funcs, ff...)
-	}
 	sort.Strings(funcs)
 
 	tmpl += strings.Join(funcs, "\n")

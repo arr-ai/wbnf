@@ -142,6 +142,11 @@ func goName(str string, public bool) string {
 	case '.':
 		str = str[1:]
 	}
+
+	if public && strings.ToUpper(str) == str {
+		return str // keep it allcaps
+	}
+
 	str = strings.ToLower(str)
 	if !public {
 		return str

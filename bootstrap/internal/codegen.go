@@ -80,8 +80,10 @@ func (i *identFinder) walk(node isGenNode, needsMulti bool) {
 		if x.IDENT() != nil {
 			i.Add(x.IDENT().String(), atomName, needsMulti)
 		}
-		if atomName != "" {
-			i.Add(atomName, atomIf.names[atomName].typename, needsMulti)
+		for name, val := range atomIf.names {
+			if name != "Token" || name == atomName {
+				i.Add(name, val.typename, needsMulti)
+			}
 		}
 	case *Term:
 		if x.Named() != nil {
@@ -112,10 +114,7 @@ func (i *identFinder) walk(node isGenNode, needsMulti bool) {
 		}
 	case *Quant:
 		for _, child := range x.AllChildren() {
-			switch x := child.(type) {
-			case *Named:
-				i.walk(x, true)
-			}
+			i.walk(child, true)
 		}
 	default:
 	}

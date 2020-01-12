@@ -172,6 +172,8 @@ func (x {{name}}) New(value string, tag parser.Tag) parser.BaseNode {
 		switch ftype.typename {
 		case "parser.Terminal":
 			tname = ftype.typename
+		case "Token":
+			tname = "parser.Terminal"
 		}
 		tag := ftype.tag
 		if tag == "" {
@@ -185,10 +187,10 @@ func (x {{name}}) New(value string, tag parser.Tag) parser.BaseNode {
 			fields = append(fields, fmt.Sprintf("%sCount int", priv))
 			ff = []string{
 				fmt.Sprintf(`func (x *{{name}}) All%s() parser.Iter { return x.Iter(reflect.TypeOf(%s{}), %s) }`, pub, tname, tag),
-				fmt.Sprintf(`func (x *{{name}}) Get%s(index int) %s {
+				fmt.Sprintf(`func (x *{{name}}) Get%s(index int) *%s {
 										if res := x.AtIndex(reflect.TypeOf(%s{}), %s, index); res != nil {
-											return res.(%s)
-										} return nil }`, pub, tname, tname, tag, tname),
+											return res.(*%s)
+										}; return nil }`, pub, tname, tname, tag, tname),
 				fmt.Sprintf(`func (x *{{name}}) Count%s() int { return x.%sCount }`, pub, priv),
 			}
 		} else {
@@ -202,7 +204,7 @@ func (x {{name}}) New(value string, tag parser.Tag) parser.BaseNode {
 			} else {
 				fields = append(fields, fmt.Sprintf("%s parser.BaseNode", priv))
 				ff = []string{
-					fmt.Sprintf(`func (x *{{name}}) %s() %s { return x.%s.(%s) }`, pub, tname, priv, tname),
+					fmt.Sprintf(`func (x *{{name}}) %s() %s { if x.%s == nil {return nil};return x.%s.(%s) }`, pub, tname, priv, priv, tname),
 				}
 			}
 		}

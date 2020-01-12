@@ -29,9 +29,19 @@ type Stmt struct {
 	choice  int
 }
 
-func (x *Stmt) COMMENT() *COMMENT { return x.comment.(*COMMENT) }
-func (x *Stmt) Choice() int       { return x.choice }
-func (x *Stmt) Prod() *Prod       { return x.prod.(*Prod) }
+func (x *Stmt) COMMENT() *COMMENT {
+	if x.comment == nil {
+		return nil
+	}
+	return x.comment.(*COMMENT)
+}
+func (x *Stmt) Choice() int { return x.choice }
+func (x *Stmt) Prod() *Prod {
+	if x.prod == nil {
+		return nil
+	}
+	return x.prod.(*Prod)
+}
 
 type Prod struct {
 	parser.NonTerminal
@@ -56,16 +66,21 @@ func (x *Prod) GetToken(index int) *parser.Terminal {
 	}
 	return nil
 }
-func (x *Prod) IDENT() *IDENT { return x.ident.(*IDENT) }
+func (x *Prod) IDENT() *IDENT {
+	if x.ident == nil {
+		return nil
+	}
+	return x.ident.(*IDENT)
+}
 
 type Term struct {
 	parser.NonTerminal
-	opCount    int
-	tokenCount int
-	termCount  int
 	named      parser.BaseNode
 	quantCount int
 	choice     int
+	opCount    int
+	tokenCount int
+	termCount  int
 }
 
 func (x *Term) AllOp() parser.Iter    { return x.Iter(reflect.TypeOf(parser.Terminal{}), "op") }
@@ -110,15 +125,15 @@ func (x *Term) Named() *Named {
 
 type Quant struct {
 	parser.NonTerminal
-	named      parser.BaseNode
-	rbang      parser.BaseNode
-	choice     int
-	min        parser.BaseNode
-	max        parser.BaseNode
 	lbang      parser.BaseNode
+	named      parser.BaseNode
+	choice     int
 	opCount    int
 	tokenCount int
+	min        parser.BaseNode
 	intCount   int
+	max        parser.BaseNode
+	rbang      parser.BaseNode
 }
 
 func (x *Quant) AllINT() parser.Iter   { return x.Iter(reflect.TypeOf(INT{}), parser.NoTag) }
@@ -146,31 +161,71 @@ func (x *Quant) GetToken(index int) *parser.Terminal {
 	}
 	return nil
 }
-func (x *Quant) Lbang() *parser.Terminal { return x.lbang.(*parser.Terminal) }
-func (x *Quant) Max() *INT               { return x.max.(*INT) }
-func (x *Quant) Min() *INT               { return x.min.(*INT) }
-func (x *Quant) Named() *Named           { return x.named.(*Named) }
-func (x *Quant) Rbang() *parser.Terminal { return x.rbang.(*parser.Terminal) }
+func (x *Quant) Lbang() *parser.Terminal {
+	if x.lbang == nil {
+		return nil
+	}
+	return x.lbang.(*parser.Terminal)
+}
+func (x *Quant) Max() *INT {
+	if x.max == nil {
+		return nil
+	}
+	return x.max.(*INT)
+}
+func (x *Quant) Min() *INT {
+	if x.min == nil {
+		return nil
+	}
+	return x.min.(*INT)
+}
+func (x *Quant) Named() *Named {
+	if x.named == nil {
+		return nil
+	}
+	return x.named.(*Named)
+}
+func (x *Quant) Rbang() *parser.Terminal {
+	if x.rbang == nil {
+		return nil
+	}
+	return x.rbang.(*parser.Terminal)
+}
 
 type Named struct {
 	parser.NonTerminal
+	atom  parser.BaseNode
 	ident parser.BaseNode
 	op    parser.BaseNode
-	atom  parser.BaseNode
 }
 
-func (x *Named) Atom() *Atom          { return x.atom.(*Atom) }
-func (x *Named) IDENT() *IDENT        { return x.ident.(*IDENT) }
-func (x *Named) Op() *parser.Terminal { return x.op.(*parser.Terminal) }
+func (x *Named) Atom() *Atom {
+	if x.atom == nil {
+		return nil
+	}
+	return x.atom.(*Atom)
+}
+func (x *Named) IDENT() *IDENT {
+	if x.ident == nil {
+		return nil
+	}
+	return x.ident.(*IDENT)
+}
+func (x *Named) Op() *parser.Terminal {
+	if x.op == nil {
+		return nil
+	}
+	return x.op.(*parser.Terminal)
+}
 
 type Atom struct {
 	parser.NonTerminal
-	tokenCount int
-	term       parser.BaseNode
-	choice     int
 	ident      parser.BaseNode
 	str        parser.BaseNode
 	re         parser.BaseNode
+	tokenCount int
+	term       parser.BaseNode
+	choice     int
 }
 
 func (x *Atom) AllToken() parser.Iter { return x.Iter(reflect.TypeOf(parser.Terminal{}), parser.NoTag) }
@@ -182,10 +237,30 @@ func (x *Atom) GetToken(index int) *parser.Terminal {
 	}
 	return nil
 }
-func (x *Atom) IDENT() *IDENT { return x.ident.(*IDENT) }
-func (x *Atom) RE() *RE       { return x.re.(*RE) }
-func (x *Atom) STR() *STR     { return x.str.(*STR) }
-func (x *Atom) Term() *Term   { return x.term.(*Term) }
+func (x *Atom) IDENT() *IDENT {
+	if x.ident == nil {
+		return nil
+	}
+	return x.ident.(*IDENT)
+}
+func (x *Atom) RE() *RE {
+	if x.re == nil {
+		return nil
+	}
+	return x.re.(*RE)
+}
+func (x *Atom) STR() *STR {
+	if x.str == nil {
+		return nil
+	}
+	return x.str.(*STR)
+}
+func (x *Atom) Term() *Term {
+	if x.term == nil {
+		return nil
+	}
+	return x.term.(*Term)
+}
 
 // Terminals
 type IDENT struct{ parser.Terminal }

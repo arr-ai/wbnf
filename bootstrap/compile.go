@@ -238,7 +238,6 @@ func Codegen(g *internal.Grammar) string {
 
 import (
 	"reflect"
-	"strings"
 
 	"github.com/arr-ai/wbnf/parser"
 )

@@ -1,82 +1,10 @@
 package internal
 
 import (
-	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/arr-ai/wbnf/parser"
 )
-
-func parseString(s string) string {
-	var sb strings.Builder
-	quote, s := s[0], s[1:len(s)-1]
-	if quote == '`' {
-		return strings.ReplaceAll(s, "``", "`")
-	}
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		switch c {
-		case '\\':
-			i++
-			switch s[i] {
-			case 'x':
-				n, err := strconv.ParseInt(s[i:i+2], 16, 8)
-				if err != nil {
-					panic(err)
-				}
-				sb.WriteByte(uint8(n))
-				i++
-			case 'u':
-				n, err := strconv.ParseInt(s[i:i+4], 16, 16)
-				if err != nil {
-					panic(err)
-				}
-				sb.WriteByte(uint8(n))
-				i += 2
-			case 'U':
-				n, err := strconv.ParseInt(s[i:i+8], 16, 32)
-				if err != nil {
-					panic(err)
-				}
-				sb.WriteByte(uint8(n))
-				i += 4
-			case '0', '1', '2', '3', '4', '5', '6', '7':
-				n, err := strconv.ParseInt(s[i:i+3], 8, 8)
-				if err != nil {
-					panic(err)
-				}
-				sb.WriteByte(uint8(n))
-				i++
-			case 'a':
-				sb.WriteByte('\a')
-			case 'b':
-				sb.WriteByte('\b')
-			case 'f':
-				sb.WriteByte('\f')
-			case 'n':
-				sb.WriteByte('\n')
-			case 'r':
-				sb.WriteByte('\r')
-			case 't':
-				sb.WriteByte('\t')
-			case 'v':
-				sb.WriteByte('\v')
-			case '\\':
-				sb.WriteByte('\\')
-			case '\'':
-				sb.WriteByte('\'')
-			case quote:
-				sb.WriteByte(quote)
-			default:
-				panic(fmt.Errorf("unrecognized \\-escape: %q", s[i]))
-			}
-		default:
-			sb.WriteByte(c)
-		}
-	}
-	return sb.String()
-}
 
 func compileAtomNode(node parser.Node) parser.BaseNode {
 	atom := Atom{
@@ -85,10 +13,13 @@ func compileAtomNode(node parser.Node) parser.BaseNode {
 	switch node.Extra.(int) {
 	case 0:
 		atom.Add(IDENT{}.New(node.GetString(0), parser.NoTag))
+		atom.ident = atom.AllChildren()[0]
 	case 1:
 		atom.Add(STR{}.New(node.GetString(0), parser.NoTag))
+		atom.str = atom.AllChildren()[0]
 	case 2:
 		atom.Add(RE{}.New(strings.ReplaceAll(node.GetString(0), `\/`, `/`), parser.NoTag))
+		atom.re = atom.AllChildren()[0]
 	case 3:
 		node := node.GetNode(0)
 		atom.Add(
@@ -96,6 +27,7 @@ func compileAtomNode(node parser.Node) parser.BaseNode {
 			compileTermStackNode(node.GetNode(1)),
 			parser.Terminal{}.New(node.GetString(2), parser.NoTag),
 		)
+		atom.term = atom.AllChildren()[1]
 		atom.tokenCount = 2
 	case 4:
 		node := node.GetNode(0)
@@ -156,9 +88,7 @@ func compileQuantNode(node parser.Node) parser.BaseNode {
 }
 
 func compileNamedNode(node parser.Node) parser.BaseNode {
-	named := Named{
-		op: nil,
-	}
+	named := Named{}
 	if x := node.GetNode(0); x.Count() != 0 {
 		x := x.GetNode(0)
 		named.Add(
@@ -169,7 +99,9 @@ func compileNamedNode(node parser.Node) parser.BaseNode {
 		named.op = named.AllChildren()[1]
 	}
 
-	named.Add(compileAtomNode(node.GetNode(1)))
+	atom := compileAtomNode(node.GetNode(1))
+	named.Add(atom)
+	named.atom = atom
 
 	return &named
 }
@@ -208,7 +140,8 @@ func compileTermStackNode(node parser.Node) parser.BaseNode {
 				term.Add(compileTermStackNode(x))
 				term.termCount++
 			case strings.HasPrefix(x.Tag, "named"):
-				term.Add(compileNamedNode(x))
+				term.named = compileNamedNode(x)
+				term.Add(term.named)
 			case strings.HasPrefix(x.Tag, "?") && x.Count() > 0:
 				term.Add(compileQuantNode(x.GetNode(0)))
 				term.quantCount++
@@ -247,6 +180,7 @@ func compileProdNode(node parser.Node) parser.BaseNode {
 	}
 
 	prod.Add(parser.Terminal{}.New(node.GetString(3), parser.NoTag))
+	prod.tokenCount++
 	return &prod
 }
 
@@ -263,10 +197,12 @@ func FromNodes(node parser.Node) *Grammar {
 			child.Add(
 				COMMENT{}.New(v.(parser.Node).GetString(0), parser.NoTag),
 			)
+			child.comment = child.AllChildren()[0]
 		case 1:
 			prod := stmt.GetNode(0)
 			child.choice = 1
 			child.Add(compileProdNode(prod))
+			child.prod = child.AllChildren()[0]
 		default:
 			panic("")
 		}

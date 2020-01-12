@@ -2,171 +2,231 @@ package internal
 
 import (
 	"reflect"
-	"strings"
 
 	"github.com/arr-ai/wbnf/parser"
 )
 
-// grammar -> stmt+;
+// Non-terminals
+
 type Grammar struct {
 	parser.NonTerminal
 	stmtCount int
 }
 
-func (g *Grammar) AllStmt() parser.Iter {
-	return parser.NewIter(g.AllChildren(), reflect.TypeOf(&Stmt{}), "")
-}
-func (g *Grammar) CountStmt() int { return g.stmtCount }
-func (g *Grammar) Dump() string {
-	var out []string
-	//	parser.ForEach(g.AllStmt(), func(node parser.BaseNode) {
-	//		out = append(out, dump(node))
-	//	})
-
-	return strings.Join(out, "\n")
+func (x *Grammar) AllStmt() parser.Iter { return x.Iter(reflect.TypeOf(Stmt{}), parser.NoTag) }
+func (x *Grammar) CountStmt() int       { return x.stmtCount }
+func (x *Grammar) GetStmt(index int) *Stmt {
+	if res := x.AtIndex(reflect.TypeOf(Stmt{}), parser.NoTag, index); res != nil {
+		return res.(*Stmt)
+	}
+	return nil
 }
 
 type Stmt struct {
 	parser.NonTerminal
-	choice int
+	comment parser.BaseNode
+	prod    parser.BaseNode
+	choice  int
 }
 
-func (s *Stmt) Choice() int       { return s.choice }
-func (s *Stmt) COMMENT() *COMMENT { return s.AllChildren()[0].(*COMMENT) }
-func (s *Stmt) Prod() *Prod       { return s.AllChildren()[1].(*Prod) }
+func (x *Stmt) COMMENT() *COMMENT { return x.comment.(*COMMENT) }
+func (x *Stmt) Choice() int       { return x.choice }
+func (x *Stmt) Prod() *Prod       { return x.prod.(*Prod) }
 
 type Prod struct {
 	parser.NonTerminal
-	termCount int
+	ident      parser.BaseNode
+	tokenCount int
+	termCount  int
 }
 
-func (p *Prod) IDENT() *IDENT  { return p.AllChildren()[0].(*IDENT) }
-func (p *Prod) CountTerm() int { return p.termCount }
-func (p *Prod) AllTerm() parser.Iter {
-	return parser.NewIter(p.AllChildren(), reflect.TypeOf(&Term{}), "")
-}
-func (p *Prod) Term(index int) *Term {
-	t := parser.AtIndex(p.AllChildren(), reflect.TypeOf(&Term{}), "", index)
-	if t != nil {
-		return t.(*Term)
+func (x *Prod) AllTerm() parser.Iter  { return x.Iter(reflect.TypeOf(Term{}), parser.NoTag) }
+func (x *Prod) AllToken() parser.Iter { return x.Iter(reflect.TypeOf(parser.Terminal{}), parser.NoTag) }
+func (x *Prod) CountTerm() int        { return x.termCount }
+func (x *Prod) CountToken() int       { return x.tokenCount }
+func (x *Prod) GetTerm(index int) *Term {
+	if res := x.AtIndex(reflect.TypeOf(Term{}), parser.NoTag, index); res != nil {
+		return res.(*Term)
 	}
 	return nil
 }
-func (p *Prod) Token(index int) *parser.Terminal {
-	t := parser.AtIndex(p.AllChildren(), reflect.TypeOf(&parser.Terminal{}), "", index)
-	if t != nil {
-		return t.(*parser.Terminal)
+func (x *Prod) GetToken(index int) *parser.Terminal {
+	if res := x.AtIndex(reflect.TypeOf(parser.Terminal{}), parser.NoTag, index); res != nil {
+		return res.(*parser.Terminal)
 	}
 	return nil
 }
+func (x *Prod) IDENT() *IDENT { return x.ident.(*IDENT) }
 
 type Term struct {
 	parser.NonTerminal
-	choice     int
+	opCount    int
+	tokenCount int
 	termCount  int
+	named      parser.BaseNode
 	quantCount int
-	op         parser.BaseNode
+	choice     int
 }
 
-func (t *Term) Choice() int         { return t.choice }
-func (t *Term) Op() parser.BaseNode { return t.op }
-func (t *Term) CountTerm() int      { return t.termCount }
-func (t *Term) CountQuant() int     { return t.quantCount }
-func (t *Term) Named() *Named {
-	var temp Named
-	t2 := parser.AtIndex(t.AllChildren(), reflect.TypeOf(&temp), "", 0)
-	if t2 != nil {
-		return t2.(*Named)
+func (x *Term) AllOp() parser.Iter    { return x.Iter(reflect.TypeOf(parser.Terminal{}), "op") }
+func (x *Term) AllQuant() parser.Iter { return x.Iter(reflect.TypeOf(Quant{}), parser.NoTag) }
+func (x *Term) AllTerm() parser.Iter  { return x.Iter(reflect.TypeOf(Term{}), parser.NoTag) }
+func (x *Term) AllToken() parser.Iter { return x.Iter(reflect.TypeOf(parser.Terminal{}), parser.NoTag) }
+func (x *Term) Choice() int           { return x.choice }
+func (x *Term) CountOp() int          { return x.opCount }
+func (x *Term) CountQuant() int       { return x.quantCount }
+func (x *Term) CountTerm() int        { return x.termCount }
+func (x *Term) CountToken() int       { return x.tokenCount }
+func (x *Term) GetOp(index int) *parser.Terminal {
+	if res := x.AtIndex(reflect.TypeOf(parser.Terminal{}), "op", index); res != nil {
+		return res.(*parser.Terminal)
 	}
 	return nil
 }
-func (t *Term) AllQuant() parser.Iter {
-	return parser.NewIter(t.AllChildren(), reflect.TypeOf(&Quant{}), "")
-}
-func (t *Term) AllTerm() parser.Iter {
-	return parser.NewIter(t.AllChildren(), reflect.TypeOf(&Term{}), "")
-}
-func (t *Term) Term(index int) *Term {
-	var temp Term
-	t2 := parser.AtIndex(t.AllChildren(), reflect.TypeOf(&temp), "", 0)
-	if t2 != nil {
-		return t2.(*Term)
+func (x *Term) GetQuant(index int) *Quant {
+	if res := x.AtIndex(reflect.TypeOf(Quant{}), parser.NoTag, index); res != nil {
+		return res.(*Quant)
 	}
 	return nil
+}
+func (x *Term) GetTerm(index int) *Term {
+	if res := x.AtIndex(reflect.TypeOf(Term{}), parser.NoTag, index); res != nil {
+		return res.(*Term)
+	}
+	return nil
+}
+func (x *Term) GetToken(index int) *parser.Terminal {
+	if res := x.AtIndex(reflect.TypeOf(parser.Terminal{}), parser.NoTag, index); res != nil {
+		return res.(*parser.Terminal)
+	}
+	return nil
+}
+func (x *Term) Named() *Named {
+	if x.named == nil {
+		return nil
+	}
+	return x.named.(*Named)
 }
 
 type Quant struct {
 	parser.NonTerminal
-	choice int
-	op     parser.BaseNode
-	min    parser.BaseNode
-	max    parser.BaseNode
-	lbang  parser.BaseNode
-	rbang  parser.BaseNode
+	named      parser.BaseNode
+	rbang      parser.BaseNode
+	choice     int
+	min        parser.BaseNode
+	max        parser.BaseNode
+	lbang      parser.BaseNode
+	opCount    int
+	tokenCount int
+	intCount   int
 }
+
+func (x *Quant) AllINT() parser.Iter   { return x.Iter(reflect.TypeOf(INT{}), parser.NoTag) }
+func (x *Quant) AllOp() parser.Iter    { return x.Iter(reflect.TypeOf(parser.Terminal{}), "op") }
+func (x *Quant) AllToken() parser.Iter { return x.Iter(reflect.TypeOf(parser.Terminal{}), parser.NoTag) }
+func (x *Quant) Choice() int           { return x.choice }
+func (x *Quant) CountINT() int         { return x.intCount }
+func (x *Quant) CountOp() int          { return x.opCount }
+func (x *Quant) CountToken() int       { return x.tokenCount }
+func (x *Quant) GetINT(index int) *INT {
+	if res := x.AtIndex(reflect.TypeOf(INT{}), parser.NoTag, index); res != nil {
+		return res.(*INT)
+	}
+	return nil
+}
+func (x *Quant) GetOp(index int) *parser.Terminal {
+	if res := x.AtIndex(reflect.TypeOf(parser.Terminal{}), "op", index); res != nil {
+		return res.(*parser.Terminal)
+	}
+	return nil
+}
+func (x *Quant) GetToken(index int) *parser.Terminal {
+	if res := x.AtIndex(reflect.TypeOf(parser.Terminal{}), parser.NoTag, index); res != nil {
+		return res.(*parser.Terminal)
+	}
+	return nil
+}
+func (x *Quant) Lbang() *parser.Terminal { return x.lbang.(*parser.Terminal) }
+func (x *Quant) Max() *INT               { return x.max.(*INT) }
+func (x *Quant) Min() *INT               { return x.min.(*INT) }
+func (x *Quant) Named() *Named           { return x.named.(*Named) }
+func (x *Quant) Rbang() *parser.Terminal { return x.rbang.(*parser.Terminal) }
 
 type Named struct {
 	parser.NonTerminal
-	op parser.BaseNode
+	ident parser.BaseNode
+	op    parser.BaseNode
+	atom  parser.BaseNode
 }
 
-func (t *Named) Op() parser.BaseNode { return t.op }
-func (t *Named) IDENT() *IDENT {
-	var temp IDENT
-	t2 := parser.AtIndex(t.AllChildren(), reflect.TypeOf(&temp), "", 0)
-	if t2 != nil {
-		return t2.(*IDENT)
-	}
-	return nil
-}
-func (t *Named) Atom() *Atom {
-	var temp Atom
-	t2 := parser.AtIndex(t.AllChildren(), reflect.TypeOf(&temp), "", 0)
-	if t2 != nil {
-		return t2.(*Atom)
-	}
-	return nil
-}
+func (x *Named) Atom() *Atom          { return x.atom.(*Atom) }
+func (x *Named) IDENT() *IDENT        { return x.ident.(*IDENT) }
+func (x *Named) Op() *parser.Terminal { return x.op.(*parser.Terminal) }
 
 type Atom struct {
 	parser.NonTerminal
-	choice    int
-	numTokens int
+	tokenCount int
+	term       parser.BaseNode
+	choice     int
+	ident      parser.BaseNode
+	str        parser.BaseNode
+	re         parser.BaseNode
 }
 
-func (t *Atom) Choice() int { return t.choice }
+func (x *Atom) AllToken() parser.Iter { return x.Iter(reflect.TypeOf(parser.Terminal{}), parser.NoTag) }
+func (x *Atom) Choice() int           { return x.choice }
+func (x *Atom) CountToken() int       { return x.tokenCount }
+func (x *Atom) GetToken(index int) *parser.Terminal {
+	if res := x.AtIndex(reflect.TypeOf(parser.Terminal{}), parser.NoTag, index); res != nil {
+		return res.(*parser.Terminal)
+	}
+	return nil
+}
+func (x *Atom) IDENT() *IDENT { return x.ident.(*IDENT) }
+func (x *Atom) RE() *RE       { return x.re.(*RE) }
+func (x *Atom) STR() *STR     { return x.str.(*STR) }
+func (x *Atom) Term() *Term   { return x.term.(*Term) }
 
+// Terminals
 type IDENT struct{ parser.Terminal }
 
-func (t IDENT) New(value string, tag parser.Tag) parser.BaseNode {
-	(&t).NewFromPtr(value, tag)
-	return &t
+func (x IDENT) New(value string, tag parser.Tag) parser.BaseNode {
+	(&x).NewFromPtr(value, tag)
+	return &x
 }
 
 type STR struct{ parser.Terminal }
 
-func (t STR) New(value string, tag parser.Tag) parser.BaseNode {
-	(&t).NewFromPtr(value, tag)
-	return &t
+func (x STR) New(value string, tag parser.Tag) parser.BaseNode {
+	(&x).NewFromPtr(value, tag)
+	return &x
 }
 
 type INT struct{ parser.Terminal }
 
-func (t INT) New(value string, tag parser.Tag) parser.BaseNode {
-	(&t).NewFromPtr(value, tag)
-	return &t
+func (x INT) New(value string, tag parser.Tag) parser.BaseNode {
+	(&x).NewFromPtr(value, tag)
+	return &x
 }
 
 type RE struct{ parser.Terminal }
 
-func (t RE) New(value string, tag parser.Tag) parser.BaseNode {
-	(&t).NewFromPtr(value, tag)
-	return &t
+func (x RE) New(value string, tag parser.Tag) parser.BaseNode {
+	(&x).NewFromPtr(value, tag)
+	return &x
 }
 
 type COMMENT struct{ parser.Terminal }
 
-func (t COMMENT) New(value string, tag parser.Tag) parser.BaseNode {
-	(&t).NewFromPtr(value, tag)
-	return &t
+func (x COMMENT) New(value string, tag parser.Tag) parser.BaseNode {
+	(&x).NewFromPtr(value, tag)
+	return &x
+}
+
+// Special
+type Wrapre struct{ parser.Terminal }
+
+func (x Wrapre) New(value string, tag parser.Tag) parser.BaseNode {
+	(&x).NewFromPtr(value, tag)
+	return &x
 }

@@ -80,8 +80,7 @@ func parseString(s string) string {
 
 func compileAtomNode(node parser.Node) parser.BaseNode {
 	atom := Atom{
-		choice:    node.Extra.(int),
-		numTokens: 0,
+		choice: node.Extra.(int),
 	}
 	switch node.Extra.(int) {
 	case 0:
@@ -97,12 +96,14 @@ func compileAtomNode(node parser.Node) parser.BaseNode {
 			compileTermStackNode(node.GetNode(1)),
 			parser.Terminal{}.New(node.GetString(2), parser.NoTag),
 		)
+		atom.tokenCount = 2
 	case 4:
 		node := node.GetNode(0)
 		atom.Add(
 			parser.Terminal{}.New(node.GetString(0), parser.NoTag),
 			parser.Terminal{}.New(node.GetString(1), parser.NoTag),
 		)
+		atom.tokenCount = 2
 	default:
 		panic("foo")
 	}
@@ -116,8 +117,8 @@ func compileQuantNode(node parser.Node) parser.BaseNode {
 	switch node.Extra.(int) {
 	case 0:
 		op := parser.Terminal{}.New(node.GetString(0), parser.Tag("op"))
-		quant.op = op
 		quant.Add(op)
+		quant.opCount++
 	case 1:
 		if node.Count() != 5 {
 			panic("ooops")
@@ -137,7 +138,7 @@ func compileQuantNode(node parser.Node) parser.BaseNode {
 			panic("ooops")
 		}
 		op := parser.Terminal{}.New(node.GetString(0), parser.Tag("op"))
-		quant.op = op
+		quant.opCount++
 		quant.Add(
 			op,
 			compileNamedNode(node.GetNode(2)))
@@ -164,6 +165,7 @@ func compileNamedNode(node parser.Node) parser.BaseNode {
 			IDENT{}.New(x.GetString(0), parser.NoTag),
 			parser.Terminal{}.New(x.GetString(1), parser.Tag("op")),
 		)
+		named.ident = named.AllChildren()[0]
 		named.op = named.AllChildren()[1]
 	}
 
@@ -216,7 +218,7 @@ func compileTermStackNode(node parser.Node) parser.BaseNode {
 			case 0, 1:
 				op := parser.Terminal{}.New(x.String(), parser.Tag("op"))
 				term.Add(op)
-				term.op = op
+				term.opCount++
 			default:
 			}
 		}
@@ -231,6 +233,7 @@ func compileProdNode(node parser.Node) parser.BaseNode {
 		IDENT{}.New(node.GetString(0), parser.NoTag),
 		parser.Terminal{}.New(node.GetString(1), parser.NoTag),
 	)
+	prod.ident = prod.AllChildren()[0]
 
 	terms := node.GetNode(2)
 	switch terms.Tag {

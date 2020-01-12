@@ -28,8 +28,8 @@ func dump(node parser.BaseNode) string {
 		return dump(x.AllChildren()[0])
 	case *Prod:
 		return fmt.Sprintf("%s %s %s %s",
-			x.IDENT(), x.Token(0),
-			Join(x.AllTerm(), " "), x.Token(1))
+			x.IDENT(), x.GetToken(0),
+			Join(x.AllTerm(), " "), x.GetToken(1))
 	case *Named:
 		out := ""
 		if ident := x.IDENT(); ident != nil {
@@ -39,14 +39,14 @@ func dump(node parser.BaseNode) string {
 		return out
 	case *Term:
 		sep := " "
-		if op := x.Op(); op != nil {
+		if op := x.GetOp(0); op != nil {
 			sep = fmt.Sprintf(" %s ", dump(op))
 		}
 		return Join2(x.AllChildren(), sep)
 	case *Quant:
 		switch x.choice {
 		case 0:
-			return dump(x.op)
+			return dump(x.GetOp(0))
 		case 1:
 			return Join2(x.AllChildren(), " ")
 		case 2:

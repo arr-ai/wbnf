@@ -23,7 +23,7 @@ func newClassWriter(prod *Prod) classWriter {
 	hasChoice := false
 	parser.ForEach(prod.AllTerm(), func(node parser.BaseNode) {
 		cw.idents.walk(node, false)
-		hasChoice = hasChoice || node.(*Term).op != nil
+		hasChoice = hasChoice || node.(*Term).CountOp() != 0
 	})
 
 	if hasChoice {
@@ -68,7 +68,7 @@ func (i *identFinder) Add(name, typename string, multi bool, tag string) {
 func quantNeedsMulti(q *Quant) bool {
 	switch q.choice {
 	case 0:
-		switch fmt.Sprintf("%s", q.op) {
+		switch fmt.Sprintf("%s", q.GetOp(0)) {
 		case "?":
 			return false
 		}

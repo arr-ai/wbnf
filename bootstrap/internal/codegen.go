@@ -27,7 +27,7 @@ func newClassWriter(prod *Prod) classWriter {
 	})
 
 	if hasChoice {
-		cw.idents.Add("choice", "int", false)
+		cw.idents.Add("choice", "int", false, "")
 	}
 	if cw.idents.only != "" {
 		cw.isTerminal = !cw.idents.names[cw.idents.only].multiple
@@ -39,13 +39,14 @@ func newClassWriter(prod *Prod) classWriter {
 type identifier struct {
 	multiple bool
 	typename string
+	tag      string
 }
 type identFinder struct {
 	names map[string]*identifier
 	only  string
 }
 
-func (i *identFinder) Add(name, typename string, multi bool) {
+func (i *identFinder) Add(name, typename string, multi bool, tag string) {
 	if len(i.names) == 0 {
 		i.only = name
 	} else {
@@ -60,7 +61,7 @@ func (i *identFinder) Add(name, typename string, multi bool) {
 		}
 		v.multiple = true
 	} else {
-		i.names[name] = &identifier{typename: typename, multiple: multi}
+		i.names[name] = &identifier{typename: typename, multiple: multi, tag: tag}
 	}
 }
 
@@ -82,11 +83,11 @@ func (i *identFinder) walk(node parser.BaseNode, needsMulti bool) {
 		atomIf.walk(x.Atom(), false)
 		atomName := atomIf.only
 		if x.IDENT() != nil {
-			i.Add(x.IDENT().String(), atomName, needsMulti)
+			i.Add(x.IDENT().String(), atomName, needsMulti, x.IDENT().String())
 		}
 		for name, val := range atomIf.names {
 			if name != "Token" || name == atomName {
-				i.Add(name, val.typename, needsMulti)
+				i.Add(name, val.typename, needsMulti, "")
 			}
 		}
 	case *Term:
@@ -108,9 +109,9 @@ func (i *identFinder) walk(node parser.BaseNode, needsMulti bool) {
 		case 0, 1, 2:
 			switch x := x.AllChildren()[0].(type) {
 			case *STR, *RE, *INT:
-				i.Add("Token", "parser.Terminal", needsMulti)
+				i.Add("Token", "parser.Terminal", needsMulti, "")
 			case *IDENT:
-				i.Add(x.String(), x.String(), needsMulti)
+				i.Add(x.String(), x.String(), needsMulti, "")
 			default:
 			}
 		case 3:
@@ -172,12 +173,22 @@ func (x {{name}}) New(value string, tag parser.Tag) parser.BaseNode {
 		case "parser.Terminal":
 			tname = ftype.typename
 		}
+		tag := ftype.tag
+		if tag == "" {
+			tag = "parser.NoTag"
+		} else {
+			tag = `"` + tag + `"`
+		}
 
 		var ff []string
 		if ftype.multiple {
 			fields = append(fields, fmt.Sprintf("%sCount int", priv))
 			ff = []string{
-				fmt.Sprintf(`func (x *{{name}}) All%s() parser.Iter { return x.Iter(reflect.TypeOf(%s{}), parser.NoTag) }`, pub, tname),
+				fmt.Sprintf(`func (x *{{name}}) All%s() parser.Iter { return x.Iter(reflect.TypeOf(%s{}), %s) }`, pub, tname, tag),
+				fmt.Sprintf(`func (x *{{name}}) Get%s(index int) %s {
+										if res := x.AtIndex(reflect.TypeOf(%s{}), %s, index); res != nil {
+											return res.(%s)
+										} return nil }`, pub, tname, tname, tag, tname),
 				fmt.Sprintf(`func (x *{{name}}) Count%s() int { return x.%sCount }`, pub, priv),
 			}
 		} else {

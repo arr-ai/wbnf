@@ -216,6 +216,7 @@ func (x {{name}}) New(value string, tag parser.Tag) parser.BaseNode {
 		funcs = append(funcs, ff...)
 	}
 
+	sort.Strings(fields)
 	sort.Strings(funcs)
 
 	tmpl += strings.Join(funcs, "\n")

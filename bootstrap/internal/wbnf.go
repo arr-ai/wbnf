@@ -29,9 +29,9 @@ func (x *Grammar) GetStmt(index int) *Stmt {
 
 type Stmt struct {
 	parser.NonTerminal
+	choice  int
 	comment parser.BaseNode
 	prod    parser.BaseNode
-	choice  int
 }
 
 func (x *Stmt) COMMENT() *COMMENT {
@@ -51,8 +51,8 @@ func (x *Stmt) Prod() *Prod {
 type Prod struct {
 	parser.NonTerminal
 	ident      parser.BaseNode
-	tokenCount int
 	termCount  int
+	tokenCount int
 }
 
 func (x *Prod) AllTerm() parser.Iter  { return x.Iter(reflect.TypeOf(Term{}), parser.NoTag) }
@@ -90,12 +90,12 @@ func (x *Prod) IDENT() *IDENT {
 
 type Term struct {
 	parser.NonTerminal
-	named      parser.BaseNode
-	quantCount int
 	choice     int
+	named      parser.BaseNode
 	opCount    int
-	tokenCount int
+	quantCount int
 	termCount  int
+	tokenCount int
 }
 
 func (x *Term) AllOp() parser.Iter    { return x.Iter(reflect.TypeOf(parser.Terminal{}), "op") }
@@ -160,15 +160,15 @@ func (x *Term) Named() *Named {
 
 type Quant struct {
 	parser.NonTerminal
-	opCount    int
-	tokenCount int
-	intCount   int
-	named      parser.BaseNode
-	rbang      parser.BaseNode
-	min        parser.BaseNode
-	max        parser.BaseNode
-	lbang      parser.BaseNode
 	choice     int
+	intCount   int
+	lbang      parser.BaseNode
+	max        parser.BaseNode
+	min        parser.BaseNode
+	named      parser.BaseNode
+	opCount    int
+	rbang      parser.BaseNode
+	tokenCount int
 }
 
 func (x *Quant) AllINT() parser.Iter   { return x.Iter(reflect.TypeOf(INT{}), parser.NoTag) }
@@ -244,9 +244,9 @@ func (x *Quant) Rbang() *parser.Terminal {
 
 type Named struct {
 	parser.NonTerminal
-	op    parser.BaseNode
 	atom  parser.BaseNode
 	ident parser.BaseNode
+	op    parser.BaseNode
 }
 
 func (x *Named) Atom() *Atom {
@@ -270,12 +270,12 @@ func (x *Named) Op() *parser.Terminal {
 
 type Atom struct {
 	parser.NonTerminal
-	str        parser.BaseNode
-	re         parser.BaseNode
-	tokenCount int
-	term       parser.BaseNode
 	choice     int
 	ident      parser.BaseNode
+	re         parser.BaseNode
+	str        parser.BaseNode
+	term       parser.BaseNode
+	tokenCount int
 }
 
 func (x *Atom) AllToken() parser.Iter { return x.Iter(reflect.TypeOf(parser.Terminal{}), parser.NoTag) }

@@ -72,7 +72,7 @@ func (r *Scanner) EatString(s string, eaten *Scanner) bool {
 	return false
 }
 
-// EatRegexp eats the text matchin a regexp, populating match (if != nil) with
+// EatRegexp eats the text matching a regexp, populating match (if != nil) with
 // the whole match and captures (if != nil) with any captured groups. Returns
 // n as the number of captures set and ok iff a match was found.
 func (r *Scanner) EatRegexp(re *regexp.Regexp, match *Scanner, captures []Scanner) (n int, ok bool) {

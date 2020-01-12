@@ -40,6 +40,14 @@ func (t *NonTerminal) isBaseNode()             {}
 func (t *NonTerminal) Add(child ...BaseNode) {
 	t.nodes = append(t.nodes, child...)
 }
+func (t *NonTerminal) AddAndSet(child BaseNode, dest *BaseNode) {
+	t.nodes = append(t.nodes, child)
+	*dest = child
+}
+func (t *NonTerminal) AddAndCount(child BaseNode, dest *int) {
+	t.nodes = append(t.nodes, child)
+	*dest++
+}
 func (t *NonTerminal) AtIndex(ofType reflect.Type, tag Tag, index int) BaseNode {
 	return AtIndex(t.AllChildren(), reflect.PtrTo(ofType), tag, index)
 }

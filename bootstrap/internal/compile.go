@@ -12,14 +12,11 @@ func compileAtomNode(node parser.Node) parser.BaseNode {
 	}
 	switch node.Extra.(int) {
 	case 0:
-		atom.Add(IDENT{}.New(node.GetString(0), parser.NoTag))
-		atom.ident = atom.AllChildren()[0]
+		atom.AddAndSet(IDENT{}.New(node.GetString(0), parser.NoTag), &atom.ident)
 	case 1:
-		atom.Add(STR{}.New(node.GetString(0), parser.NoTag))
-		atom.str = atom.AllChildren()[0]
+		atom.AddAndSet(STR{}.New(node.GetString(0), parser.NoTag), &atom.str)
 	case 2:
-		atom.Add(RE{}.New(strings.ReplaceAll(node.GetString(0), `\/`, `/`), parser.NoTag))
-		atom.re = atom.AllChildren()[0]
+		atom.AddAndSet(RE{}.New(strings.ReplaceAll(node.GetString(0), `\/`, `/`), parser.NoTag), &atom.re)
 	case 3:
 		node := node.GetNode(0)
 		atom.Add(

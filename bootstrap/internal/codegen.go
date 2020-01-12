@@ -93,14 +93,14 @@ func (i *identFinder) walk(node parser.BaseNode, needsMulti bool) {
 	case *Term:
 		if x.Named() != nil {
 			multi := false
-			parser.ForEach(x.AllQuant(), func(node parser.BaseNode) {
+			x.ForEachQuant(func(node *Quant) {
 				i.walk(node, false)
-				multi = multi || quantNeedsMulti(node.(*Quant))
+				multi = multi || quantNeedsMulti(node)
 			})
 
 			i.walk(x.Named(), multi)
 		} else {
-			parser.ForEach(x.AllTerm(), func(node parser.BaseNode) {
+			x.ForEachTerm(func(node *Term) {
 				i.walk(node, false)
 			})
 		}
@@ -192,6 +192,11 @@ func (x {{name}}) New(value string, tag parser.Tag) parser.BaseNode {
 											return res.(*%s)
 										}; return nil }`, pub, tname, tname, tag, tname),
 				fmt.Sprintf(`func (x *{{name}}) Count%s() int { return x.%sCount }`, pub, priv),
+				fmt.Sprintf(`func (x *{{name}}) ForEach%s(fn func(node *%s)) {
+										parser.ForEach(x.All%s(), func(node parser.BaseNode) {
+											fn(node.(*%s))
+										})
+									}`, pub, tname, pub, tname),
 			}
 		} else {
 			if tname != "int" {
@@ -223,7 +228,7 @@ func Codegen(node parser.BaseNode) string {
 	switch x := node.(type) {
 	case *Grammar:
 		var out []string
-		parser.ForEach(x.AllStmt(), func(node parser.BaseNode) {
+		x.ForEachStmt(func(node *Stmt) {
 			out = append(out, Codegen(node))
 		})
 		return strings.Join(out, "\n")

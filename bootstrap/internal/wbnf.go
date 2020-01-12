@@ -15,6 +15,11 @@ type Grammar struct {
 
 func (x *Grammar) AllStmt() parser.Iter { return x.Iter(reflect.TypeOf(Stmt{}), parser.NoTag) }
 func (x *Grammar) CountStmt() int       { return x.stmtCount }
+func (x *Grammar) ForEachStmt(fn func(node *Stmt)) {
+	parser.ForEach(x.AllStmt(), func(node parser.BaseNode) {
+		fn(node.(*Stmt))
+	})
+}
 func (x *Grammar) GetStmt(index int) *Stmt {
 	if res := x.AtIndex(reflect.TypeOf(Stmt{}), parser.NoTag, index); res != nil {
 		return res.(*Stmt)
@@ -54,6 +59,16 @@ func (x *Prod) AllTerm() parser.Iter  { return x.Iter(reflect.TypeOf(Term{}), pa
 func (x *Prod) AllToken() parser.Iter { return x.Iter(reflect.TypeOf(parser.Terminal{}), parser.NoTag) }
 func (x *Prod) CountTerm() int        { return x.termCount }
 func (x *Prod) CountToken() int       { return x.tokenCount }
+func (x *Prod) ForEachTerm(fn func(node *Term)) {
+	parser.ForEach(x.AllTerm(), func(node parser.BaseNode) {
+		fn(node.(*Term))
+	})
+}
+func (x *Prod) ForEachToken(fn func(node *parser.Terminal)) {
+	parser.ForEach(x.AllToken(), func(node parser.BaseNode) {
+		fn(node.(*parser.Terminal))
+	})
+}
 func (x *Prod) GetTerm(index int) *Term {
 	if res := x.AtIndex(reflect.TypeOf(Term{}), parser.NoTag, index); res != nil {
 		return res.(*Term)
@@ -92,6 +107,26 @@ func (x *Term) CountOp() int          { return x.opCount }
 func (x *Term) CountQuant() int       { return x.quantCount }
 func (x *Term) CountTerm() int        { return x.termCount }
 func (x *Term) CountToken() int       { return x.tokenCount }
+func (x *Term) ForEachOp(fn func(node *parser.Terminal)) {
+	parser.ForEach(x.AllOp(), func(node parser.BaseNode) {
+		fn(node.(*parser.Terminal))
+	})
+}
+func (x *Term) ForEachQuant(fn func(node *Quant)) {
+	parser.ForEach(x.AllQuant(), func(node parser.BaseNode) {
+		fn(node.(*Quant))
+	})
+}
+func (x *Term) ForEachTerm(fn func(node *Term)) {
+	parser.ForEach(x.AllTerm(), func(node parser.BaseNode) {
+		fn(node.(*Term))
+	})
+}
+func (x *Term) ForEachToken(fn func(node *parser.Terminal)) {
+	parser.ForEach(x.AllToken(), func(node parser.BaseNode) {
+		fn(node.(*parser.Terminal))
+	})
+}
 func (x *Term) GetOp(index int) *parser.Terminal {
 	if res := x.AtIndex(reflect.TypeOf(parser.Terminal{}), "op", index); res != nil {
 		return res.(*parser.Terminal)
@@ -125,15 +160,15 @@ func (x *Term) Named() *Named {
 
 type Quant struct {
 	parser.NonTerminal
-	lbang      parser.BaseNode
-	named      parser.BaseNode
-	choice     int
 	opCount    int
 	tokenCount int
-	min        parser.BaseNode
 	intCount   int
-	max        parser.BaseNode
+	named      parser.BaseNode
 	rbang      parser.BaseNode
+	min        parser.BaseNode
+	max        parser.BaseNode
+	lbang      parser.BaseNode
+	choice     int
 }
 
 func (x *Quant) AllINT() parser.Iter   { return x.Iter(reflect.TypeOf(INT{}), parser.NoTag) }
@@ -143,6 +178,21 @@ func (x *Quant) Choice() int           { return x.choice }
 func (x *Quant) CountINT() int         { return x.intCount }
 func (x *Quant) CountOp() int          { return x.opCount }
 func (x *Quant) CountToken() int       { return x.tokenCount }
+func (x *Quant) ForEachINT(fn func(node *INT)) {
+	parser.ForEach(x.AllINT(), func(node parser.BaseNode) {
+		fn(node.(*INT))
+	})
+}
+func (x *Quant) ForEachOp(fn func(node *parser.Terminal)) {
+	parser.ForEach(x.AllOp(), func(node parser.BaseNode) {
+		fn(node.(*parser.Terminal))
+	})
+}
+func (x *Quant) ForEachToken(fn func(node *parser.Terminal)) {
+	parser.ForEach(x.AllToken(), func(node parser.BaseNode) {
+		fn(node.(*parser.Terminal))
+	})
+}
 func (x *Quant) GetINT(index int) *INT {
 	if res := x.AtIndex(reflect.TypeOf(INT{}), parser.NoTag, index); res != nil {
 		return res.(*INT)
@@ -194,9 +244,9 @@ func (x *Quant) Rbang() *parser.Terminal {
 
 type Named struct {
 	parser.NonTerminal
+	op    parser.BaseNode
 	atom  parser.BaseNode
 	ident parser.BaseNode
-	op    parser.BaseNode
 }
 
 func (x *Named) Atom() *Atom {
@@ -220,17 +270,22 @@ func (x *Named) Op() *parser.Terminal {
 
 type Atom struct {
 	parser.NonTerminal
-	ident      parser.BaseNode
 	str        parser.BaseNode
 	re         parser.BaseNode
 	tokenCount int
 	term       parser.BaseNode
 	choice     int
+	ident      parser.BaseNode
 }
 
 func (x *Atom) AllToken() parser.Iter { return x.Iter(reflect.TypeOf(parser.Terminal{}), parser.NoTag) }
 func (x *Atom) Choice() int           { return x.choice }
 func (x *Atom) CountToken() int       { return x.tokenCount }
+func (x *Atom) ForEachToken(fn func(node *parser.Terminal)) {
+	parser.ForEach(x.AllToken(), func(node parser.BaseNode) {
+		fn(node.(*parser.Terminal))
+	})
+}
 func (x *Atom) GetToken(index int) *parser.Terminal {
 	if res := x.AtIndex(reflect.TypeOf(parser.Terminal{}), parser.NoTag, index); res != nil {
 		return res.(*parser.Terminal)

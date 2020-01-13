@@ -51,14 +51,14 @@ func (n Node) Format(state fmt.State, c rune) {
 	if n.Extra != nil {
 		fmt.Fprintf(state, "║"+format, n.Extra)
 	}
-	state.Write([]byte{'('})
+	fmt.Fprint(state, "[")
 	for i, child := range n.Children {
 		if i > 0 {
 			fmt.Fprint(state, ", ")
 		}
 		fmt.Fprintf(state, format, child)
 	}
-	fmt.Fprint(state, ")")
+	fmt.Fprint(state, "]")
 }
 
 type Parser interface {

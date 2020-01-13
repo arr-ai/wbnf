@@ -139,6 +139,15 @@ func (t Rule) Parser(rule Rule, c cache) parse.Parser {
 
 //-----------------------------------------------------------------------------
 
+func getErrorStrings(input *parse.Scanner) string {
+	text := input.String()
+	if len(text) > 40 {
+		text = text[:40] + "  ..."
+	}
+
+	return parse.NewScanner(text).Context()
+}
+
 func eatRegexp(input *parse.Scanner, re *regexp.Regexp, output interface{}) bool {
 	var eaten [2]parse.Scanner
 	if n, ok := input.EatRegexp(re, nil, eaten[:]); ok {
@@ -156,7 +165,10 @@ type sParser struct {
 
 func (p *sParser) Parse(input *parse.Scanner, output interface{}) error {
 	if ok := eatRegexp(input, p.re, output); !ok {
-		return newParseError(p.rule, fmt.Sprintf("expected '%s', got '%s'", p.t, input.String()))
+
+		return newParseError(p.rule, "",
+			fmt.Errorf("expect: %s", parse.NewScanner(p.t.String()).Context()),
+			fmt.Errorf("actual: %s", getErrorStrings(input)))
 	}
 	return nil
 }
@@ -181,7 +193,9 @@ type reParser struct {
 
 func (p *reParser) Parse(input *parse.Scanner, output interface{}) error {
 	if ok := eatRegexp(input, p.re, output); !ok {
-		return newParseError(p.rule, fmt.Sprintf("regex failed to match got '%s'", input.String()))
+		return newParseError(p.rule, "",
+			fmt.Errorf("expect: %s", parse.NewScanner(p.re.String()).Context()),
+			fmt.Errorf("actual: %s", getErrorStrings(input)))
 	}
 	return nil
 }
@@ -384,19 +398,24 @@ type oneofParser struct {
 func (p *oneofParser) Parse(input *parse.Scanner, output interface{}) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	furthest := *input
+
+	var errors []error
 	for i, parser := range p.parsers {
 		var v interface{}
 		start := *input
-		if out = parser.Parse(&start, &v); out == nil {
+		if err := parser.Parse(&start, &v); err != nil {
+			errors = append(errors, err)
+
+			if furthest.Offset() < start.Offset() {
+				furthest = start
+			}
+		} else {
 			*input = start
 			return p.put(output, i, v)
 		}
-		if furthest.Offset() < start.Offset() {
-			furthest = start
-		}
 	}
 	*input = furthest
-	return newParseError(p.rule, "None of the available options could be satisfied")
+	return newParseError(p.rule, "None of the available options could be satisfied", errors...)
 }
 
 func (t Oneof) Parser(rule Rule, c cache) parse.Parser {

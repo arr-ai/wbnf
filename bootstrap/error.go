@@ -25,17 +25,40 @@ func (p Error) Error() string {
 }
 
 type ParseError struct {
-	rule Rule
-	msgs []string
+	rule     Rule
+	msg      string
+	children []error
 }
 
 func (p ParseError) Error() string {
-	return fmt.Sprintf("rule(%s) -\n  %s", p.rule, strings.Join(p.msgs, "\n  "))
+	return p.walkErrors(0)
 }
 
-func newParseError(rule Rule, msgs ...string) error {
+func prefix(depth int) string {
+	if depth == 0 {
+		return ""
+	}
+	return fmt.Sprintf("\t\\%s ", strings.Repeat("-", depth))
+}
+
+func (p ParseError) walkErrors(depth int) string {
+	lines := []string{
+		fmt.Sprintf(`%srule(%s) - %s`, prefix(depth), p.rule, p.msg),
+	}
+	for _, err := range p.children {
+		if pe, ok := err.(*ParseError); ok {
+			lines = append(lines, pe.walkErrors(depth+1))
+		} else {
+			lines = append(lines, fmt.Sprintf(`%s	 %s`, prefix(depth), err.Error()))
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+func newParseError(rule Rule, msg string, errors ...error) error {
 	return &ParseError{
-		rule: rule,
-		msgs: msgs,
+		rule:     rule,
+		msg:      msg,
+		children: errors,
 	}
 }

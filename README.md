@@ -5,7 +5,33 @@
 
 # Grammar Syntax Guid
 
-[![Example Syntax](examples/wbnf.txt)](.)
+ωBNF is self describing!
+```
+// Non-terminals
+grammar -> stmt+;
+stmt    -> COMMENT | prod;
+prod    -> IDENT "->" term+ ";";
+term    -> term:op="^"
+         ^ term:op="|"
+         ^ term+
+         ^ named quant*;
+quant   -> op=/{[?*+]}
+         | "{" min=INT? "," max=INT? "}"
+         | op=/{<:|:>?} lbang="!"? named rbang="!"?;
+named   -> (IDENT op="=")? atom;
+atom    -> IDENT | STR | RE | "(" term ")" | "(" ")";
+
+// Terminals
+IDENT   -> /{[A-Za-z_\.]\w*};
+STR     -> /{"(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*'|`(?:``|[^`]*)`};
+INT     -> /{\d+};
+RE      -> /{/{((?:\\.|[^\\\}])*)\}};
+COMMENT -> /{//.*$|(?s:/\*(?:[^*]|\*+[^*/])\*/)};
+
+// Special
+.wrapRE -> /{\s*()\s*};
+
+```
 
 ## The basics
 
@@ -63,7 +89,13 @@ A rule is defined in terms of *terms*, or *terminals* in the form of `NAME -> TE
     The *rule* `word` appears 3 times in that tiny snippet! This can be eliminated with the use of the `:` operator after a term:
     `csv -> /{\w*}:",";` expresses the same *rule*. (More on this operator below)
 
-- Stacks (or operator precedence)
+- Min/Max repetition
+
+    `a -> "x"{3,9}` indicates that a string of at least 3 `x` up to 9 will be accepted.
+     * If the first number is missing `0` will be the assumed minimum.
+     * If the 2nd number is missing `unlimited` with be the assumed maximum
+
+- Precedence Stacks
 
    Languages often require some way to define the order of operations (remember BODMAS from school?).
    
@@ -102,3 +134,44 @@ A rule is defined in terms of *terms*, or *terminals* in the form of `NAME -> TE
             (1 "+" 2) "*" 3 
         ```
           giving the result 9
+          
+- Named Terms
+
+    *Term*s in a *rule* may be named as a convenience item. 
+     ```
+    expr -> "(" expr ")"   
+          ^ expr:op=/{[*/]}
+          ^ expr:op=/{[+-]}
+          ^ /{\d+};
+    ```
+    
+    This is the same math grammar as above, except two lines have `op=` for the *delimiter* term name.
+          
+###  Further Details
+
+##### Delimited Repeater
+
+This is the definition of the delimited repeater ` op=/{<:|:>?} lbang="!"? named rbang="!"?`.
+ * op describes the associativity of the separated terms
+   TODO FILL THIS IN
+ * `lbang` and `rbang` are optional markers used to allow the seperator to start and/or end the sequence.
+     
+     - If `lbang` is found then the sequence is allowed to start with the seperater term
+     - If `rbang` is found then the sequence is allowed to end with the seperater term
+     - Both are allowed together also.
+     
+     Example:
+     
+     ` x -> a:b!` - Allows `ab...aba` or `ab...ab` (where `...` represents any amount of `ab`)
+     
+     ` x -> a:!b` - Allows `ab...aba` or `bab..aba` (where `...` represents any amount of `ab`)
+
+##### Magic Rules
+
+*Rules* prefixed by a `.` are special rules which are interpreted as a parser runtime configuration item. The following rules are recognised
+
+* `.wrapRE - > /{some () regex}`  
+
+This rule instructs the parser to wrap every regular expression with this one. The actual regex is insertd into the `()`.
+
+`.wrapRE -> /{\s*()\s*};` Will ignore all whitespace surrounded every token in the grammar.

@@ -177,14 +177,16 @@ func (p Parsers) Unparse(v interface{}, w io.Writer) (n int, err error) {
 
 // Parse parses some source per a given rule.
 func (p Parsers) Parse(rule Rule, input *parse.Scanner) (interface{}, error) {
-	var v interface{}
-	if err := p.parsers[rule].Parse(input, &v); err != nil {
-		return nil, err
+	for {
+		var v interface{}
+		if err := p.parsers[rule].Parse(input, &v); err != nil {
+			return nil, err
+		}
+
+		if input.String() == "" {
+			return v, nil
+		}
 	}
-	if input.String() == "" {
-		return v, nil
-	}
-	return nil, fmt.Errorf("unconsumed input: %v", input.Context())
 }
 
 // Term represents the terms of a grammar specification.

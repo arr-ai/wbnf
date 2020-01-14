@@ -112,9 +112,9 @@ A rule is defined in terms of *terms*, or *terminals* in the form of `NAME -> TE
     
     The `^` operator can help with this (newlines are generally ignored by the parser) ->
     ```
-    expr -> "(" expr ")"   
+    expr -> expr:/{[+-]}
           ^ expr:/{[*/]}
-          ^ expr:/{[+-]}
+          ^ "(" expr ")" 
           ^ /{\d+};
     ```
     
@@ -139,9 +139,9 @@ A rule is defined in terms of *terms*, or *terminals* in the form of `NAME -> TE
 
     *Term*s in a *rule* may be named as a convenience item. 
      ```
-    expr -> "(" expr ")"   
+    expr -> expr:op=/{[+-]}
           ^ expr:op=/{[*/]}
-          ^ expr:op=/{[+-]}
+          ^ "(" expr ")" 
           ^ /{\d+};
     ```
     

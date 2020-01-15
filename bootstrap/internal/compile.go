@@ -66,20 +66,16 @@ func compileQuantNode(node parser.Node) parser.BaseNode {
 		if node.Count() != 4 {
 			panic("ooops")
 		}
-		op := parser.Terminal{}.New(node.GetString(0), parser.Tag("op"))
-		quant.opCount++
-		quant.Add(
-			op,
-			compileNamedNode(node.GetNode(2)))
-		/*
-			// FIXME: These 2 are not present in the wbnf grammar
-			if node.GetNode(1).Count() != 0 {
-				quant.lbang = &Token{node.GetString(1)}
-			}
-			if node.GetNode(3).Count() != 0 {
-				quant.rbang = &Token{node.GetString(3)}
-			}*/
-
+		quant.AddAndCount(parser.Terminal{}.New(node.GetString(0), parser.Tag("op")), &quant.opCount)
+		if node.GetNode(1).Count() != 0 {
+			quant.AddAndSet(parser.Terminal{}.New(node.GetString(1), parser.Tag("lbang")),
+				&quant.lbang)
+		}
+		quant.AddAndSet(compileNamedNode(node.GetNode(2)), &quant.named)
+		if node.GetNode(3).Count() != 0 {
+			quant.AddAndSet(parser.Terminal{}.New(node.GetString(3), parser.Tag("rbang")),
+				&quant.rbang)
+		}
 	}
 	return &quant
 }

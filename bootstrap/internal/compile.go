@@ -54,15 +54,14 @@ func compileQuantNode(node parser.Node) parser.BaseNode {
 		}
 		quant.Add(
 			parser.Terminal{}.New(node.GetString(0), parser.NoTag),
-			INT{}.New(node.GetString(1), parser.Tag("min")),
+			INT{}.New(node.GetString(1, 0), parser.Tag("min")),
 			parser.Terminal{}.New(node.GetString(2), parser.NoTag),
-			INT{}.New(node.GetString(3), parser.Tag("max")),
+			INT{}.New(node.GetString(3, 0), parser.Tag("max")),
 			parser.Terminal{}.New(node.GetString(4), parser.NoTag),
 		)
 		quant.min = quant.AllChildren()[1]
 		quant.max = quant.AllChildren()[3]
 	case 2:
-		node = node.GetNode(0)
 		if node.Count() != 4 {
 			panic("ooops")
 		}
@@ -78,6 +77,34 @@ func compileQuantNode(node parser.Node) parser.BaseNode {
 		}
 	}
 	return &quant
+}
+func compileMultipleQuantNodes(node parser.Node) []parser.BaseNode {
+	var quants []parser.BaseNode
+	for i := range node.Children {
+		q := node.GetNode(i)
+		if strings.HasPrefix(q.Tag, "quant") {
+
+			child := q.Get(0)
+			switch child.(type) {
+			case parser.Scanner:
+				quants = append(quants, compileQuantNode(q))
+			case parser.Node:
+				child := child.(parser.Node)
+				copy := parser.Node{
+					Tag:      child.Tag,
+					Extra:    q.Extra,
+					Children: child.Children,
+				}
+				if child.Tag == "_" {
+					quants = append(quants, compileQuantNode(copy))
+				} else {
+					quants = append(quants, compileMultipleQuantNodes(copy)...)
+				}
+			}
+		}
+	}
+
+	return quants
 }
 
 func compileNamedNode(node parser.Node) parser.BaseNode {
@@ -136,8 +163,9 @@ func compileTermStackNode(node parser.Node) parser.BaseNode {
 				term.named = compileNamedNode(x)
 				term.Add(term.named)
 			case strings.HasPrefix(x.Tag, "?") && x.Count() > 0:
-				term.Add(compileQuantNode(x.GetNode(0)))
-				term.quantCount++
+				for _, q := range compileMultipleQuantNodes(x) {
+					term.AddAndCount(q, &term.quantCount)
+				}
 			}
 		case parser.Scanner:
 			switch term.Choice() {

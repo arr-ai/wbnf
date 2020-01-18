@@ -3,7 +3,7 @@
 [![GitHub Actions Go status](https://github.com/arr-ai/wbnf/workflows/Go/badge.svg)](.)
 
 
-# Grammar Syntax Guid
+# Grammar Syntax Guide
 
 ωBNF is self describing!
 ```

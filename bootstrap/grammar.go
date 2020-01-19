@@ -50,7 +50,7 @@ term    -> term:op="^"
 named   -> (IDENT op="=")? atom;
 quant   -> op=/{[?*+]}
          | "{" min=INT? "," max=INT? "}"
-         | op=/{<:|:>?} lbang=","? named rbang=","?;
+         | op=/{<:|:>?} opt_leading=","? named opt_trailing=","?;
 atom    -> IDENT | STR | RE | "(" term ")" | "(" ")";
 
 // Terminals
@@ -94,9 +94,9 @@ var grammarGrammar = Grammar{
 		Seq{S("{"), Opt(Eq("min", intR)), S(","), Opt(Eq("max", intR)), S("}")},
 		Seq{
 			Eq("op", RE(`<:|:>?`)),
-			Opt(Eq("lbang", S(","))),
+			Opt(Eq("opt_leading", S(","))),
 			named,
-			Opt(Eq("rbang", S(","))),
+			Opt(Eq("opt_trailing", S(","))),
 		},
 	},
 	named: Seq{Opt(Seq{ident, Eq("op", S("="))}), atom},

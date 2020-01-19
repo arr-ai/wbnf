@@ -132,6 +132,14 @@ func Compile(grammar string) (Parsers, error) {
 	return NewFromNode(v.(parser.Node)).Compile(), nil
 }
 
+func MustCompile(grammar string) Parsers {
+	p, err := Compile(grammar)
+	if err != nil {
+		panic(err)
+	}
+	return p
+}
+
 //-----------------------------------------------------------------------------
 
 type ruleParser struct {

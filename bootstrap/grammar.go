@@ -193,6 +193,16 @@ func (p Parsers) Parse(rule Rule, input *parse.Scanner) (interface{}, error) {
 	}
 }
 
+// MustParse calls Parse and returns the result or panics if an error was
+// returned.
+func (p Parsers) MustParse(rule Rule, input *parse.Scanner) interface{} {
+	i, err := p.Parse(rule, input)
+	if err != nil {
+		panic(err)
+	}
+	return i
+}
+
 // Singletons returns the set of names that will produce exactly one child
 // under a given production.
 func (p Parsers) Singletons() PathSet {

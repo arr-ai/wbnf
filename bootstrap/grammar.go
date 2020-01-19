@@ -176,6 +176,7 @@ func (p Parsers) Unparse(v interface{}, w io.Writer) (n int, err error) {
 
 // Parse parses some source per a given rule.
 func (p Parsers) Parse(rule Rule, input *parse.Scanner) (interface{}, error) {
+	start := *input
 	for {
 		var v interface{}
 		if err := p.parsers[rule].Parse(input, &v); err != nil {
@@ -184,6 +185,10 @@ func (p Parsers) Parse(rule Rule, input *parse.Scanner) (interface{}, error) {
 
 		if input.String() == "" {
 			return v, nil
+		}
+
+		if input.Offset() == start.Offset() {
+			return nil, fmt.Errorf("unconsumed input: %v", input.Context())
 		}
 	}
 }

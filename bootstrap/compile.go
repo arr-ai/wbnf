@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -80,6 +81,9 @@ func parseString(s string) string {
 	return sb.String()
 }
 
+var whitespaceRE = regexp.MustCompile(`\s`)
+var escapedSpaceRE = regexp.MustCompile(`((?:\A|[^\\])(?:\\\\)*)\\_`)
+
 func compileAtomNode(node parse.Node) Term {
 	switch node.Extra.(int) {
 	case 0:
@@ -87,7 +91,11 @@ func compileAtomNode(node parse.Node) Term {
 	case 1:
 		return S(parseString(node.GetString(0)))
 	case 2:
-		return RE(strings.ReplaceAll(node.GetString(0), `\/`, `/`))
+		s := whitespaceRE.ReplaceAllString(node.GetString(0), "")
+		// Do this twice to cover adjacent escaped spaces `\_\_`.
+		s = escapedSpaceRE.ReplaceAllString(s, " ")
+		s = escapedSpaceRE.ReplaceAllString(s, " ")
+		return RE(s)
 	case 3:
 		return compileTermNode(node.GetNode(0, 1))
 	case 4:

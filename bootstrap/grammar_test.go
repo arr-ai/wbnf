@@ -24,7 +24,7 @@ var expr = Rule("expr")
 var exprGrammarSrc = `
 // Simple expression grammar
 expr -> expr:/{([-+])}
-      ^ expr:/{([*\/])}
+      ^ expr:/{([*/])}
       ^ "-"? expr
 	  ^ /{(\d+)} | expr
 	  ^ expr<:"**"
@@ -208,7 +208,7 @@ func TestExprGrammarGrammar(t *testing.T) {
 	assertUnparse(t,
 		`// Simple expression grammar`+
 			`expr->expr:([-+])`+
-			`^expr:([*\/])`+
+			`^expr:([*/])`+
 			`^"-"?expr`+
 			`^(\d+)|expr`+
 			`^expr<:"**"`+

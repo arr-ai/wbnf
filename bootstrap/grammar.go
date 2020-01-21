@@ -333,5 +333,29 @@ func (t Seq) String() string   { return join(t, " ") }
 func (t Oneof) String() string { return join(t, " | ") }
 func (t Stack) String() string { return join(t, " ^ ") }
 func (t Delim) String() string { return fmt.Sprintf("%v%s%v", t.Term, t.Assoc, t.Sep) }
-func (t Quant) String() string { return fmt.Sprintf("%v{%d,%d}", t.Term, t.Min, t.Max) }
 func (t Named) String() string { return fmt.Sprintf("%s=%v", t.Name, t.Term) }
+func (t Quant) String() string {
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "%v", t.Term)
+	switch [2]int{t.Min, t.Max} {
+	case [2]int{0, 0}:
+		sb.WriteString("*")
+	case [2]int{0, 1}:
+		sb.WriteString("?")
+	case [2]int{1, 0}:
+		sb.WriteString("+")
+	case [2]int{1, 1}:
+		panic(Inconceivable)
+	default:
+		sb.WriteString("{")
+		if t.Min != 0 {
+			fmt.Fprintf(&sb, "%d", t.Min)
+		}
+		sb.WriteString(",")
+		if t.Max != 0 {
+			fmt.Fprintf(&sb, "%d", t.Max)
+		}
+		sb.WriteString("}")
+	}
+	return sb.String()
+}

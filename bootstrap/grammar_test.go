@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	parse "github.com/arr-ai/wbnf/parser"
+	"github.com/arr-ai/wbnf/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -61,20 +61,54 @@ func assertEqualObjects(t *testing.T, expected, actual interface{}) bool { //nol
 	return false
 }
 
-func assertEqualNodes(t *testing.T, expected, actual parse.Node) bool {
-	if diff := parse.NewNodeDiff(&expected, &actual); !assert.True(t, diff.Equal()) {
-		t.Logf("\nexpected: %v\nactual  : %v\ndiff: %v", expected, actual, diff)
-		return false
-	}
-	return true
+func assertEqualNodes(t *testing.T, v, u parser.Node) bool {
+	return assertEqualNodesImpl(t, v, u, []interface{}{})
 }
 
-func assertParseToNode(t *testing.T, expected parse.Node, rule Rule, input *parse.Scanner) bool { //nolint:unparam
+func assertEqualNodesImpl(t *testing.T, v, u parser.Node, path []interface{}) bool {
+	result := true
+	ok := func(ok bool) bool {
+		result = result && ok
+		return ok
+	}
+	ok(assert.Equal(t, v.Tag, u.Tag, "%v", path))
+	ok(assert.Equal(t, v.Extra, u.Extra, "%v", path))
+	ok(assert.Equal(t, len(v.Children), len(u.Children)))
+	n := len(v.Children)
+	if n > len(u.Children) {
+		n = len(u.Children)
+	}
+	for i := 0; i < n; i++ {
+		subpath := append(path, i)
+		vc := v.Children[i]
+		uc := u.Children[i]
+		if ok(assert.IsType(t, vc, uc, "%v", subpath)) {
+			switch vc := vc.(type) {
+			case parser.Node:
+				ok(assertEqualNodesImpl(t, vc, uc.(parser.Node), subpath))
+			case parser.Scanner:
+				ok(assert.Equal(t, vc, uc, subpath))
+			default:
+				ok(false)
+				t.Errorf("%v unexpected type %T: %[1]v %v", vc, uc)
+			}
+		}
+	}
+	for i, c := range v.Children[n:] {
+		t.Errorf("%v expected node not found: %v", append(path, n+i), c)
+	}
+	for i, c := range u.Children[n:] {
+		t.Errorf("%v unexpected node found: %v", append(path, n+i), c)
+	}
+	return result
+}
+
+func assertParseToNode(t *testing.T, expected parser.Node, rule Rule, input *parser.Scanner) bool { //nolint:unparam
 	parsers := Core()
 	v, err := parsers.Parse(rule, input)
 	if assert.NoError(t, err) {
 		if assert.NoError(t, parsers.ValidateParse(v)) {
-			return assertEqualNodes(t, expected, v.(parse.Node))
+			return assertEqualNodes(t, expected, v.(parser.Node))
 		}
 	} else {
 		t.Logf("input: %s", input.Context())
@@ -83,7 +117,7 @@ func assertParseToNode(t *testing.T, expected parse.Node, rule Rule, input *pars
 }
 
 type stackBuilder struct {
-	stack  []*parse.Node
+	stack  []*parser.Node
 	prefix string
 	level  int
 }
@@ -108,11 +142,11 @@ func (s *stackBuilder) a(name string, extras ...interface{}) *stackBuilder {
 			name = fmt.Sprintf("%s#%d%s", s.prefix, s.level, name)
 		}
 	}
-	s.stack = append(s.stack, parse.NewNode(name, extra))
+	s.stack = append(s.stack, parser.NewNode(name, extra))
 	return s
 }
 
-func (s *stackBuilder) z(children ...interface{}) parse.Node {
+func (s *stackBuilder) z(children ...interface{}) parser.Node {
 	if children == nil {
 		children = []interface{}{}
 	}
@@ -128,11 +162,11 @@ func stack(name string, extras ...interface{}) *stackBuilder {
 }
 
 func TestParseNamedTerm(t *testing.T) {
-	r := parse.NewScanner(`opt=""`)
+	r := parser.NewScanner(`opt=""`)
 	x := stack(`term`, NonAssociative).a(`term@1`, NonAssociative).a(`term@2`).a(`term@3`).z(
 		stack(`named`).z(
-			stack(`?`).a(`_`).z(r.Slice(0, 3), r.Slice(3, 4)),
-			stack(`atom`, 1).z(r),
+			stack(`?`).a(`_`).z(*r.Slice(0, 3), *r.Slice(3, 4)),
+			stack(`atom`, 1).z(*r.Slice(4, 6)),
 		),
 		stack(`?`).z(),
 	)
@@ -140,18 +174,18 @@ func TestParseNamedTerm(t *testing.T) {
 }
 
 func TestParseNamedTermInDelim(t *testing.T) {
-	r := parse.NewScanner(`"1":op=","`)
+	r := parser.NewScanner(`"1":op=","`)
 	x := stack(`term`, NonAssociative).a(`term@1`, NonAssociative).a(`term@2`).a(`term@3`).z(
 		stack(`named`).z(
 			stack(`?`).z(),
-			stack(`atom`, 1).z(r.Slice(1, 2)),
+			stack(`atom`, 1).z(*r.Slice(0, 3)),
 		),
 		stack(`?`).a(`quant`, 2).a(`_`).z(
-			r.Slice(3, 4),
+			*r.Slice(3, 4),
 			stack(`?`).z(),
 			stack(`named`).z(
-				stack(`?`).a(`_`).z(r.Slice(4, 6), r.Slice(6, 7)),
-				stack(`atom`, 1).z(r.Slice(8, 9)),
+				stack(`?`).a(`_`).z(*r.Slice(4, 6), *r.Slice(6, 7)),
+				stack(`atom`, 1).z(*r.Slice(7, 10)),
 			),
 			stack(`?`).z(),
 		),
@@ -164,7 +198,7 @@ func TestGrammarParser(t *testing.T) {
 
 	parsers := exprGrammar.Compile()
 
-	r := parse.NewScanner("1+2*3")
+	r := parser.NewScanner("1+2*3")
 	v, err := parsers.Parse(expr, r)
 	require.NoError(t, err)
 	assert.NoError(t, parsers.ValidateParse(v))
@@ -176,7 +210,7 @@ func TestGrammarParser(t *testing.T) {
 		fmt.Sprintf("%v", v),
 	)
 
-	r = parse.NewScanner("1+(2-3/4)")
+	r = parser.NewScanner("1+(2-3/4)")
 	v, err = parsers.Parse(expr, r)
 	assert.NoError(t, err)
 	assert.NoError(t, parsers.ValidateParse(v))
@@ -200,7 +234,7 @@ func TestExprGrammarGrammar(t *testing.T) {
 	t.Parallel()
 
 	parsers := Core()
-	r := parse.NewScanner(exprGrammarSrc)
+	r := parser.NewScanner(exprGrammarSrc)
 	v, err := parsers.Parse(grammarR, r)
 	require.NoError(t, err, "r=%v\nv=%v", r.Context(), v)
 	require.Equal(t, len(exprGrammarSrc), r.Offset(), "r=%v\nv=%v", r.Context(), v)
@@ -222,7 +256,7 @@ func TestGrammarSnippet(t *testing.T) {
 	t.Parallel()
 
 	parsers := Core()
-	r := parse.NewScanner(`prod+`)
+	r := parser.NewScanner(`prod+`)
 	v, err := parsers.Parse(term, r)
 	require.NoError(t, err)
 	assert.Equal(t,
@@ -241,10 +275,10 @@ func TestTinyGrammarGrammarGrammar(t *testing.T) {
 	tinyGrammarSrc := `tiny -> "x";`
 
 	parsers := Core()
-	r := parse.NewScanner(tinyGrammarSrc)
+	r := parser.NewScanner(tinyGrammarSrc)
 	v, err := parsers.Parse(grammarR, r)
 	require.NoError(t, err)
-	e := v.(parse.Node)
+	e := v.(parser.Node)
 	assert.NoError(t, parsers.ValidateParse(v))
 
 	grammar2 := NewFromNode(e)
@@ -255,10 +289,10 @@ func TestExprGrammarGrammarGrammar(t *testing.T) {
 	t.Parallel()
 
 	parsers := Core()
-	r := parse.NewScanner(exprGrammarSrc)
+	r := parser.NewScanner(exprGrammarSrc)
 	v, err := parsers.Parse(grammarR, r)
 	require.NoError(t, err)
-	e := v.(parse.Node)
+	e := v.(parser.Node)
 	assert.NoError(t, parsers.ValidateParse(v))
 
 	grammar2 := NewFromNode(e)

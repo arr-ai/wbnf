@@ -8,7 +8,7 @@ import (
 var depth int64
 
 func indentf(format string, args ...interface{}) {
-	// logrus.Tracef(strings.Repeat("    ", depth)+format, args...)
+	// logrus.Tracef(strings.Repeat("    ", int(depth))+format, args...)
 }
 
 type enterexit struct{}

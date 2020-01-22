@@ -307,6 +307,18 @@ func join(terms []Term, sep string) string {
 	return strings.Join(s, sep)
 }
 
+func (t Quant) Contains(i int) bool {
+	return t.Min <= i && (t.Max == 0 || i <= t.Max)
+}
+
+func (t Quant) counter() counter {
+	max := t.Max
+	if max == 0 {
+		max = 2
+	}
+	return newCounter(t.Min, max)
+}
+
 func (g Grammar) String() string {
 	keys := make([]string, 0, len(g))
 	for key := range g {

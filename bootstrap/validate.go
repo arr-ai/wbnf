@@ -101,7 +101,7 @@ func (t Delim) ValidateParse(g Grammar, rule Rule, v interface{}) error {
 func (t Quant) ValidateParse(g Grammar, rule Rule, v interface{}) error {
 	return validateNode(v, ruleOrAlt(rule, quantTag), func(node parse.Node) error {
 		n := node.Count()
-		if n < t.Min || (t.Max != 0 && t.Max < n) {
+		if !t.Contains(n) {
 			return validationErrorf("quant(%d..%d): wrong number of children: %d", t.Min, t.Max, n)
 		}
 		for _, child := range node.Children {

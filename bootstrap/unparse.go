@@ -3,18 +3,18 @@ package bootstrap
 import (
 	"io"
 
-	parse "github.com/arr-ai/wbnf/parser"
+	"github.com/arr-ai/wbnf/parser"
 )
 
 // The following methods assume a valid parse. Call (Term).ValidateParse first if
 // unsure.
 
 func (t S) Unparse(g Grammar, v interface{}, w io.Writer) (n int, err error) {
-	return w.Write([]byte(v.(parse.Scanner).String()))
+	return w.Write([]byte(v.(parser.Scanner).String()))
 }
 
 func (t RE) Unparse(g Grammar, v interface{}, w io.Writer) (n int, err error) {
-	return w.Write([]byte(v.(parse.Scanner).String()))
+	return w.Write([]byte(v.(parser.Scanner).String()))
 }
 
 func unparse(g Grammar, term Term, v interface{}, w io.Writer, N *int) error {
@@ -26,7 +26,7 @@ func unparse(g Grammar, term Term, v interface{}, w io.Writer, N *int) error {
 }
 
 func (t Seq) Unparse(g Grammar, v interface{}, w io.Writer) (n int, err error) {
-	node := v.(parse.Node)
+	node := v.(parser.Node)
 	for i, term := range t {
 		if err = unparse(g, term, node.Children[i], w, &n); err != nil {
 			return
@@ -36,12 +36,12 @@ func (t Seq) Unparse(g Grammar, v interface{}, w io.Writer) (n int, err error) {
 }
 
 func (t Oneof) Unparse(g Grammar, v interface{}, w io.Writer) (n int, err error) {
-	node := v.(parse.Node)
+	node := v.(parser.Node)
 	return t[node.Extra.(int)].Unparse(g, node.Children[0], w)
 }
 
 func (t Delim) Unparse(g Grammar, v interface{}, w io.Writer) (n int, err error) {
-	node := v.(parse.Node)
+	node := v.(parser.Node)
 	left, right := t.LRTerms(node)
 
 	if err = unparse(g, left, node.Children[0], w, &n); err != nil {
@@ -59,7 +59,7 @@ func (t Delim) Unparse(g Grammar, v interface{}, w io.Writer) (n int, err error)
 }
 
 func (t Quant) Unparse(g Grammar, v interface{}, w io.Writer) (n int, err error) {
-	for _, child := range v.(parse.Node).Children {
+	for _, child := range v.(parser.Node).Children {
 		if err = unparse(g, t.Term, child, w, &n); err != nil {
 			return
 		}

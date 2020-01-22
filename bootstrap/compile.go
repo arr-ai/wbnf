@@ -8,7 +8,7 @@ import (
 
 	"github.com/arr-ai/wbnf/bootstrap/internal"
 
-	parse "github.com/arr-ai/wbnf/parser"
+	"github.com/arr-ai/wbnf/parser"
 )
 
 func parseString(s string) string {
@@ -84,7 +84,7 @@ func parseString(s string) string {
 var whitespaceRE = regexp.MustCompile(`\s`)
 var escapedSpaceRE = regexp.MustCompile(`((?:\A|[^\\])(?:\\\\)*)\\_`)
 
-func compileAtomNode(node parse.Node) Term {
+func compileAtomNode(node parser.Node) Term {
 	switch node.Extra.(int) {
 	case 0:
 		return Rule(node.GetString(0))
@@ -105,7 +105,7 @@ func compileAtomNode(node parse.Node) Term {
 	}
 }
 
-func compileTermNamedNode(node parse.Node) Term {
+func compileTermNamedNode(node parser.Node) Term {
 	term := compileAtomNode(node.GetNode(1))
 	if quant := node.GetNode(0); quant.Count() == 1 {
 		return Named{
@@ -116,7 +116,7 @@ func compileTermNamedNode(node parse.Node) Term {
 	return term
 }
 
-func compileTermQuantNode(node parse.Node) Term {
+func compileTermQuantNode(node parser.Node) Term {
 	term := compileTermNamedNode(node.GetNode(0))
 	opt := node.GetNode(1)
 	if opt.Count() == 1 {
@@ -167,19 +167,19 @@ func compileTermQuantNode(node parse.Node) Term {
 	return term
 }
 
-func compileTermSeqNode(node parse.Node) Term {
+func compileTermSeqNode(node parser.Node) Term {
 	n := node.Count()
 	if n == 1 {
-		return compileTermQuantNode(node.Children[0].(parse.Node))
+		return compileTermQuantNode(node.Children[0].(parser.Node))
 	}
 	seq := make(Seq, 0, node.Count())
 	for _, child := range node.Children {
-		seq = append(seq, compileTermQuantNode(child.(parse.Node)))
+		seq = append(seq, compileTermQuantNode(child.(parser.Node)))
 	}
 	return seq
 }
 
-func compileTermOneofNode(node parse.Node) Term {
+func compileTermOneofNode(node parser.Node) Term {
 	n := node.Count()
 	if n == 1 {
 		return compileTermSeqNode(node.GetNode(0))
@@ -191,7 +191,7 @@ func compileTermOneofNode(node parse.Node) Term {
 	return oneof
 }
 
-func compileTermStackNode(node parse.Node) Term {
+func compileTermStackNode(node parser.Node) Term {
 	if node.Count() == 1 {
 		return compileTermOneofNode(node.GetNode(0))
 	}
@@ -202,28 +202,28 @@ func compileTermStackNode(node parse.Node) Term {
 	return stack
 }
 
-func compileTermNode(node parse.Node) Term {
+func compileTermNode(node parser.Node) Term {
 	return compileTermStackNode(node)
 }
 
-func compileProdNode(node parse.Node) Term {
+func compileProdNode(node parser.Node) Term {
 	children := node.GetNode(2).Children
 	if len(children) == 1 {
-		return compileTermNode(children[0].(parse.Node))
+		return compileTermNode(children[0].(parser.Node))
 	}
 	seq := make(Seq, 0, node.Count())
 	for _, child := range children {
-		seq = append(seq, compileTermNode(child.(parse.Node)))
+		seq = append(seq, compileTermNode(child.(parser.Node)))
 	}
 	return seq
 }
 
 // NewFromNode converts the output from parsing an input via GrammarGrammar into
 // a Grammar, which can then be used to generate parsers.
-func NewFromNode(node parse.Node) Grammar {
+func NewFromNode(node parser.Node) Grammar {
 	g := Grammar{}
 	for _, v := range node.Children {
-		stmt := v.(parse.Node)
+		stmt := v.(parser.Node)
 		switch stmt.Extra.(int) {
 		case 0:
 		// 	comment := v.(parse.Node).GetString(0)
@@ -237,7 +237,7 @@ func NewFromNode(node parse.Node) Grammar {
 	return g
 }
 
-func NewFromNode2(node parse.Node) *internal.Grammar {
+func NewFromNode2(node parser.Node) *internal.Grammar {
 	return internal.FromNodes(node)
 }
 

@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/arr-ai/wbnf/parser"
-	parse "github.com/arr-ai/wbnf/parser"
 )
 
 const (
@@ -19,25 +18,25 @@ const (
 )
 
 type cache struct {
-	parsers    map[Rule]parse.Parser
+	parsers    map[Rule]parser.Parser
 	grammar    Grammar
-	rulePtrses map[Rule][]*parse.Parser
+	rulePtrses map[Rule][]*parser.Parser
 }
 
-func (c cache) registerRule(parser *parse.Parser) {
+func (c cache) registerRule(parser *parser.Parser) {
 	if rule, ok := (*parser).(ruleParser); ok {
 		c.rulePtrses[rule.t] = append(c.rulePtrses[rule.t], parser)
 	}
 }
 
-func (c cache) registerRules(parsers []parse.Parser) {
+func (c cache) registerRules(parsers []parser.Parser) {
 	for i := range parsers {
 		c.registerRule(&parsers[i])
 	}
 }
 
-func (c cache) makeParsers(terms []Term) []parse.Parser {
-	parsers := make([]parse.Parser, 0, len(terms))
+func (c cache) makeParsers(terms []Term) []parser.Parser {
+	parsers := make([]parser.Parser, 0, len(terms))
 	for _, t := range terms {
 		parsers = append(parsers, t.Parser("", c))
 	}
@@ -57,7 +56,7 @@ type putter func(output interface{}, extra interface{}, children ...interface{})
 func tag(rule Rule, alt Rule) putter {
 	rule = ruleOrAlt(rule, alt)
 	return func(output interface{}, extra interface{}, children ...interface{}) error {
-		parse.PtrAssign(output, parse.Node{
+		parser.PtrAssign(output, parser.Node{
 			Tag:      string(rule),
 			Extra:    extra,
 			Children: children,
@@ -102,9 +101,9 @@ func (g Grammar) Compile() Parsers {
 	}
 
 	c := cache{
-		parsers:    map[Rule]parse.Parser{},
+		parsers:    map[Rule]parser.Parser{},
 		grammar:    g,
-		rulePtrses: map[Rule][]*parse.Parser{},
+		rulePtrses: map[Rule][]*parser.Parser{},
 	}
 	for rule, term := range g {
 		c.parsers[rule] = term.Parser(rule, c)
@@ -147,11 +146,11 @@ type ruleParser struct {
 	t    Rule
 }
 
-func (p ruleParser) Parse(input *parse.Scanner, output interface{}) error {
+func (p ruleParser) Parse(input *parser.Scanner, output interface{}) error {
 	panic(Inconceivable)
 }
 
-func (t Rule) Parser(rule Rule, c cache) parse.Parser {
+func (t Rule) Parser(rule Rule, c cache) parser.Parser {
 	return ruleParser{
 		rule: rule,
 		t:    t,
@@ -160,19 +159,19 @@ func (t Rule) Parser(rule Rule, c cache) parse.Parser {
 
 //-----------------------------------------------------------------------------
 
-func getErrorStrings(input *parse.Scanner) string {
+func getErrorStrings(input *parser.Scanner) string {
 	text := input.String()
 	if len(text) > 40 {
 		text = text[:40] + "  ..."
 	}
 
-	return parse.NewScanner(text).Context()
+	return parser.NewScanner(text).Context()
 }
 
-func eatRegexp(input *parse.Scanner, re *regexp.Regexp, output interface{}) bool {
-	var eaten [2]parse.Scanner
+func eatRegexp(input *parser.Scanner, re *regexp.Regexp, output interface{}) bool {
+	var eaten [2]parser.Scanner
 	if n, ok := input.EatRegexp(re, nil, eaten[:]); ok {
-		parse.PtrAssign(output, eaten[n-1])
+		parser.PtrAssign(output, eaten[n-1])
 		return true
 	}
 	return false
@@ -184,17 +183,17 @@ type sParser struct {
 	re   *regexp.Regexp
 }
 
-func (p *sParser) Parse(input *parse.Scanner, output interface{}) error {
+func (p *sParser) Parse(input *parser.Scanner, output interface{}) error {
 	if ok := eatRegexp(input, p.re, output); !ok {
 
 		return newParseError(p.rule, "",
-			fmt.Errorf("expect: %s", parse.NewScanner(p.t.String()).Context()),
+			fmt.Errorf("expect: %s", parser.NewScanner(p.t.String()).Context()),
 			fmt.Errorf("actual: %s", getErrorStrings(input)))
 	}
 	return nil
 }
 
-func (t S) Parser(rule Rule, c cache) parse.Parser {
+func (t S) Parser(rule Rule, c cache) parser.Parser {
 	re := "(" + regexp.QuoteMeta(string(t)) + ")"
 	if wrap, has := c.grammar[WrapRE]; has {
 		re = strings.Replace(string(wrap.(RE)), "()", "(?:"+re+")", 1)
@@ -212,16 +211,16 @@ type reParser struct {
 	re   *regexp.Regexp
 }
 
-func (p *reParser) Parse(input *parse.Scanner, output interface{}) error {
+func (p *reParser) Parse(input *parser.Scanner, output interface{}) error {
 	if ok := eatRegexp(input, p.re, output); !ok {
 		return newParseError(p.rule, "",
-			fmt.Errorf("expect: %s", parse.NewScanner(p.re.String()).Context()),
+			fmt.Errorf("expect: %s", parser.NewScanner(p.re.String()).Context()),
 			fmt.Errorf("actual: %s", getErrorStrings(input)))
 	}
 	return nil
 }
 
-func (t RE) Parser(rule Rule, c cache) parse.Parser {
+func (t RE) Parser(rule Rule, c cache) parser.Parser {
 	re := "(" + string(t) + ")"
 	if wrap, has := c.grammar[WrapRE]; has {
 		re = strings.Replace(string(wrap.(RE)), "()", "(?:"+re+")", 1)
@@ -238,11 +237,11 @@ func (t RE) Parser(rule Rule, c cache) parse.Parser {
 type seqParser struct {
 	rule    Rule
 	t       Seq
-	parsers []parse.Parser
+	parsers []parser.Parser
 	put     putter
 }
 
-func (p *seqParser) Parse(input *parse.Scanner, output interface{}) (out error) {
+func (p *seqParser) Parse(input *parser.Scanner, output interface{}) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	result := make([]interface{}, 0, len(p.parsers))
 	furthest := *input
@@ -258,7 +257,7 @@ func (p *seqParser) Parse(input *parse.Scanner, output interface{}) (out error) 
 	return p.put(output, nil, result...)
 }
 
-func (t Seq) Parser(rule Rule, c cache) parse.Parser {
+func (t Seq) Parser(rule Rule, c cache) parser.Parser {
 	return &seqParser{
 		rule:    rule,
 		t:       t,
@@ -272,12 +271,12 @@ func (t Seq) Parser(rule Rule, c cache) parse.Parser {
 type delimParser struct {
 	rule Rule
 	t    Delim
-	term parse.Parser
-	sep  parse.Parser
+	term parser.Parser
+	sep  parser.Parser
 	put  putter
 }
 
-func parseAppend(p parse.Parser, input *parse.Scanner, slice *[]interface{}, errOut *error) bool {
+func parseAppend(p parser.Parser, input *parser.Scanner, slice *[]interface{}, errOut *error) bool {
 	var v interface{}
 	if err := p.Parse(input, &v); err != nil {
 		*errOut = err
@@ -289,7 +288,7 @@ func parseAppend(p parse.Parser, input *parse.Scanner, slice *[]interface{}, err
 
 type Empty struct{}
 
-func (p *delimParser) Parse(input *parse.Scanner, output interface{}) (out error) {
+func (p *delimParser) Parse(input *parser.Scanner, output interface{}) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	var result []interface{}
 
@@ -344,7 +343,7 @@ func (p *delimParser) Parse(input *parse.Scanner, output interface{}) (out error
 	return p.put(output, Associativity(0), result...)
 }
 
-func (t Delim) Parser(rule Rule, c cache) parse.Parser {
+func (t Delim) Parser(rule Rule, c cache) parser.Parser {
 	p := &delimParser{
 		rule: rule,
 		t:    t,
@@ -357,7 +356,7 @@ func (t Delim) Parser(rule Rule, c cache) parse.Parser {
 	return p
 }
 
-func (t Delim) LRTerms(node parse.Node) (left, right Term) {
+func (t Delim) LRTerms(node parser.Node) (left, right Term) {
 	associativity := node.Extra.(Associativity)
 	switch {
 	case associativity < 0:
@@ -373,11 +372,11 @@ func (t Delim) LRTerms(node parse.Node) (left, right Term) {
 type quantParser struct {
 	rule Rule
 	t    Quant
-	term parse.Parser
+	term parser.Parser
 	put  putter
 }
 
-func (p *quantParser) Parse(input *parse.Scanner, output interface{}) (out error) {
+func (p *quantParser) Parse(input *parser.Scanner, output interface{}) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	result := make([]interface{}, 0, p.t.Min)
 	var v interface{}
@@ -396,7 +395,7 @@ func (p *quantParser) Parse(input *parse.Scanner, output interface{}) (out error
 	return out
 }
 
-func (t Quant) Parser(rule Rule, c cache) parse.Parser {
+func (t Quant) Parser(rule Rule, c cache) parser.Parser {
 	p := &quantParser{
 		rule: rule,
 		t:    t,
@@ -412,11 +411,11 @@ func (t Quant) Parser(rule Rule, c cache) parse.Parser {
 type oneofParser struct {
 	rule    Rule
 	t       Oneof
-	parsers []parse.Parser
+	parsers []parser.Parser
 	put     putter
 }
 
-func (p *oneofParser) Parse(input *parse.Scanner, output interface{}) (out error) {
+func (p *oneofParser) Parse(input *parser.Scanner, output interface{}) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	furthest := *input
 
@@ -439,7 +438,7 @@ func (p *oneofParser) Parse(input *parse.Scanner, output interface{}) (out error
 	return newParseError(p.rule, "None of the available options could be satisfied", errors...)
 }
 
-func (t Oneof) Parser(rule Rule, c cache) parse.Parser {
+func (t Oneof) Parser(rule Rule, c cache) parser.Parser {
 	return &oneofParser{
 		rule:    rule,
 		t:       t,
@@ -450,12 +449,12 @@ func (t Oneof) Parser(rule Rule, c cache) parse.Parser {
 
 //-----------------------------------------------------------------------------
 
-func (t Stack) Parser(_ Rule, _ cache) parse.Parser {
+func (t Stack) Parser(_ Rule, _ cache) parser.Parser {
 	panic(Inconceivable)
 }
 
 //-----------------------------------------------------------------------------
 
-func (t Named) Parser(rule Rule, c cache) parse.Parser {
+func (t Named) Parser(rule Rule, c cache) parser.Parser {
 	return t.Term.Parser(Rule(t.Name), c)
 }

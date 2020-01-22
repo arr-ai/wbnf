@@ -3,15 +3,15 @@ package bootstrap
 import (
 	"fmt"
 
-	parse "github.com/arr-ai/wbnf/parser"
+	"github.com/arr-ai/wbnf/parser"
 )
 
 func validationErrorf(format string, args ...interface{}) error {
 	return fmt.Errorf(format, args...)
 }
 
-func validateNode(v interface{}, expectedTag Rule, validate func(parse.Node) error) error {
-	if node, ok := v.(parse.Node); ok {
+func validateNode(v interface{}, expectedTag Rule, validate func(parser.Node) error) error {
+	if node, ok := v.(parser.Node); ok {
 		if node.Tag != string(expectedTag) {
 			return validationErrorf("expecting tag `%s`, got `%s`", expectedTag, node.Tag)
 		}
@@ -22,27 +22,27 @@ func validateNode(v interface{}, expectedTag Rule, validate func(parse.Node) err
 
 func validateScanner(
 	v interface{},
-	validate func(parse.Scanner) error,
+	validate func(parser.Scanner) error,
 ) error {
-	if scanner, ok := v.(parse.Scanner); ok {
+	if scanner, ok := v.(parser.Scanner); ok {
 		return validate(scanner)
 	}
 	return validationErrorf("not a scanner: %v", v)
 }
 
 func (t S) ValidateParse(g Grammar, rule Rule, v interface{}) error {
-	return validateScanner(v, func(scanner parse.Scanner) error { return nil })
+	return validateScanner(v, func(scanner parser.Scanner) error { return nil })
 }
 
 func (t RE) ValidateParse(g Grammar, rule Rule, v interface{}) error {
-	return validateScanner(v, func(scanner parse.Scanner) error {
+	return validateScanner(v, func(scanner parser.Scanner) error {
 		return nil
 		// if _, err := regexp.Parse()
 	})
 }
 
 func (t Seq) ValidateParse(g Grammar, rule Rule, v interface{}) error {
-	return validateNode(v, ruleOrAlt(rule, seqTag), func(node parse.Node) error {
+	return validateNode(v, ruleOrAlt(rule, seqTag), func(node parser.Node) error {
 		if node.Count() != len(t) {
 			return validationErrorf("seq(%d): wrong number of children: %d", len(t), node.Count())
 		}
@@ -56,7 +56,7 @@ func (t Seq) ValidateParse(g Grammar, rule Rule, v interface{}) error {
 }
 
 func (t Oneof) ValidateParse(g Grammar, rule Rule, v interface{}) error {
-	return validateNode(v, ruleOrAlt(rule, oneofTag), func(node parse.Node) error {
+	return validateNode(v, ruleOrAlt(rule, oneofTag), func(node parser.Node) error {
 		if n := node.Count(); n != 1 {
 			return validationErrorf("oneof: expecting one child, got %d", n)
 		}
@@ -68,7 +68,7 @@ func (t Oneof) ValidateParse(g Grammar, rule Rule, v interface{}) error {
 }
 
 func (t Delim) ValidateParse(g Grammar, rule Rule, v interface{}) error {
-	return validateNode(v, ruleOrAlt(rule, delimTag), func(node parse.Node) error {
+	return validateNode(v, ruleOrAlt(rule, delimTag), func(node parser.Node) error {
 		n := node.Count()
 		if n == 0 {
 			return validationErrorf("delim: no children")
@@ -99,7 +99,7 @@ func (t Delim) ValidateParse(g Grammar, rule Rule, v interface{}) error {
 }
 
 func (t Quant) ValidateParse(g Grammar, rule Rule, v interface{}) error {
-	return validateNode(v, ruleOrAlt(rule, quantTag), func(node parse.Node) error {
+	return validateNode(v, ruleOrAlt(rule, quantTag), func(node parser.Node) error {
 		n := node.Count()
 		if !t.Contains(n) {
 			return validationErrorf("quant(%d..%d): wrong number of children: %d", t.Min, t.Max, n)

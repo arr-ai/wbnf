@@ -75,7 +75,7 @@ func (ctrs counters) union(o counters) {
 
 func (ctrs counters) termCountChildren(term Term, parent counter) {
 	switch t := term.(type) {
-	case S, RE:
+	case S, RE, REF:
 		ctrs.count("", parent)
 	case Rule:
 		ctrs.count(string(t), parent)

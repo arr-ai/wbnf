@@ -155,7 +155,7 @@ func (n ASTBranch) singular() ASTChildren {
 
 func (n ASTBranch) fromTerm(g Grammar, term Term, ctrs counters, v interface{}) {
 	switch t := term.(type) {
-	case S, RE:
+	case S, RE, REF:
 		n.add("", 0, ASTLeaf(v.(parser.Scanner)), ctrs[""], nil)
 	case Rule:
 		term := g[t]

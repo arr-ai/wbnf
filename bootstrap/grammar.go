@@ -39,47 +39,6 @@ func unfakeBackquote(s string) string {
 	return strings.ReplaceAll(s, "‵", "`")
 }
 
-var grammarGrammarSrc = unfakeBackquote(`
-// Non-terminals
-grammar -> stmt+;
-stmt    -> COMMENT | prod;
-prod    -> IDENT "->" term+ ";";
-term    -> @:op="^"
-         ^ @:op="|"
-         ^ @+
-         ^ named quant*;
-named   -> (IDENT op="=")? atom;
-quant   -> op=/{[?*+]}
-         | "{" min=INT? "," max=INT? "}"
-         | op=/{<:|:>?} opt_leading=","? named opt_trailing=","?;
-atom    -> IDENT | STR | RE | REF | "(" term ")" | "(" ")";
-
-// Terminals
-IDENT   -> /{@|[A-Za-z_\.]\w*};
-STR     -> /{ " (?: \\. | [^\\"] )* "
-            | ' (?: \\. | [^\\'] )* '
-            | ‵ (?: ‵‵  | [^‵]   )* ‵
-            };
-INT     -> /{\d+};
-RE      -> /{
-             /{
-               ((?:
-                 \\.
-                 | { (?: (?: \d+(?:,\d*)? | ,\d+ ) \} )?
-                 | \[ (?: \\] | [^\]] )+ ]
-                 | [^\\{\}]
-               )*)
-             \}
-           };
-REF		-> ‵\‵ IDENT;
-COMMENT -> /{ //.*$
-            | (?s: /\* (?: [^*] | \*+[^*/] ) \*/ )
-            };
-
-// Special
-.wrapRE -> /{\s*()\s*};
-`)
-
 var grammarGrammar = Grammar{
 	// Non-terminals
 	grammarR: Some(stmt),
@@ -127,7 +86,7 @@ type Grammar map[Rule]Term
 var core = func() Parsers {
 	parsers := grammarGrammar.Compile()
 
-	r := parser.NewScanner(grammarGrammarSrc)
+	r := parser.NewScanner(grammarGrammarSrc())
 	v, err := parsers.Parse(grammarR, r)
 	if err != nil {
 		panic(err)

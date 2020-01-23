@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,15 +11,48 @@ import (
 	"github.com/urfave/cli"
 )
 
+var inGrammarFile string
+var startingRule string
 var testCommand = cli.Command{
 	Name:    "test",
 	Aliases: []string{"t"},
 	Usage:   "Test a grammar",
 	Action:  test,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:        "grammar",
+			Usage:       "input grammar file",
+			Required:    true,
+			TakesFile:   true,
+			Destination: &inGrammarFile,
+		},
+		cli.StringFlag{
+			Name:        "start",
+			Usage:       "starting rule to process the input text",
+			Required:    true,
+			TakesFile:   false,
+			Destination: &startingRule,
+		},
+		cli.StringFlag{
+			Name:        "input",
+			Usage:       "input test file",
+			Required:    false,
+			TakesFile:   true,
+			Destination: &inFile,
+		},
+	},
+}
+
+func loadTestGrammar() bootstrap.Parsers {
+	text, err := ioutil.ReadFile(inGrammarFile)
+	if err != nil {
+		panic(err)
+	}
+	return bootstrap.MustCompile(string(text))
 }
 
 func test(c *cli.Context) error {
-	source := c.Args().Get(0)
+	source := inFile
 
 	var input string
 	switch source {
@@ -37,22 +69,14 @@ func test(c *cli.Context) error {
 		}
 		input = string(buf)
 	}
-	scanner := parser.NewScanner(input)
-	g := bootstrap.Core()
 
-	tree, err := g.Parse(bootstrap.RootRule, scanner)
+	g := loadTestGrammar()
+	tree, err := g.Parse(bootstrap.Rule(startingRule), parser.NewScanner(input))
 	if err != nil {
 		return err
 	}
-	if err := g.ValidateParse(tree); err != nil {
-		return err
-	}
-
-	data, err := json.MarshalIndent(tree, "", "  ")
-	if err != nil {
-		return err
-	}
-	fmt.Println(string(data))
+	ast := bootstrap.ParserNodeToASTNode(g.Grammar(), tree)
+	fmt.Println(ast)
 
 	return nil
 }

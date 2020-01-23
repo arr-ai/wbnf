@@ -6,18 +6,33 @@ term    -> @:op="^"
          ^ @:op="|"
          ^ @+
          ^ named quant*;
+named   -> (IDENT op="=")? atom;
 quant   -> op=/{[?*+]}
          | "{" min=INT? "," max=INT? "}"
-         | op=/{<:|:>?} lbang="!"? named rbang="!"?;
-named   -> (IDENT op="=")? atom;
-atom    -> IDENT | STR | RE | "(" term ")" | "(" ")";
+         | op=/{<:|:>?} opt_leading=","? named opt_trailing=","?;
+atom    -> IDENT | STR | RE | REF | "(" term ")" | "(" ")";
 
 // Terminals
-IDENT   -> /{[A-Za-z_\.]\w*};
-STR     -> /{"(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*'|`(?:``|[^`]*)`};
+IDENT   -> /{@|[A-Za-z_\.]\w*};
+STR     -> /{ " (?: \\. | [^\\"] )* "
+            | ' (?: \\. | [^\\'] )* '
+            | ` (?: ``  | [^`]   )* `
+            };
 INT     -> /{\d+};
-RE      -> /{/{((?:\\.|[^\\\}])*)\}};
-COMMENT -> /{//.*$|(?s:/\*(?:[^*]|\*+[^*/])\*/)};
+RE      -> /{
+             /{
+               ((?:
+                 \\.
+                 | { (?: (?: \d+(?:,\d*)? | ,\d+ ) \} )?
+                 | \[ (?: \\] | [^\]] )+ ]
+                 | [^\\{\}]
+               )*)
+             \}
+           };
+REF		-> "\\" IDENT;
+COMMENT -> /{ //.*$
+            | (?s: /\* (?: [^*] | \*+[^*/] ) \*/ )
+            };
 
 // Special
 .wrapRE -> /{\s*()\s*};

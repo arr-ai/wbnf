@@ -41,6 +41,10 @@ func (t RE) ValidateParse(g Grammar, rule Rule, v interface{}) error {
 	})
 }
 
+func (t REF) ValidateParse(g Grammar, rule Rule, v interface{}) error {
+	panic(Inconceivable)
+}
+
 func (t Seq) ValidateParse(g Grammar, rule Rule, v interface{}) error {
 	return validateNode(v, ruleOrAlt(rule, seqTag), func(node parser.Node) error {
 		if node.Count() != len(t) {

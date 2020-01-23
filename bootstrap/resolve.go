@@ -14,6 +14,9 @@ func (t S) Resolve(oldRule, newRule Rule) Term {
 func (t RE) Resolve(oldRule, newRule Rule) Term {
 	return t
 }
+func (t REF) Resolve(oldRule, newRule Rule) Term {
+	return t
+}
 
 func (t Seq) Resolve(oldRule, newRule Rule) Term {
 	result := make(Seq, 0, len(t))

@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -242,15 +243,70 @@ type seqParser struct {
 	put     putter
 }
 
+func identFromTerm(term Term) string {
+	switch x := term.(type) {
+	case Named:
+		if x.Name != "" {
+			return x.Name
+		}
+		return identFromTerm(x.Term)
+	case Rule:
+		return string(x)
+	case Quant:
+		return identFromTerm(x.Term)
+	}
+	return ""
+}
+
+func nodesEqual(a, b interface{}) bool {
+	aType := reflect.TypeOf(a)
+	bType := reflect.TypeOf(b)
+	if aType == bType {
+		switch a := a.(type) {
+		case parser.Node:
+			b := b.(parser.Node)
+			diff := parser.NewNodeDiff(&a, &b)
+			if diff.Equal() {
+				return true
+			}
+		case parser.Scanner:
+			b := b.(parser.Scanner)
+			if a.String() == b.String() {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (p *seqParser) Parse(input *parser.Scanner, output interface{}) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	result := make([]interface{}, 0, len(p.parsers))
 	furthest := *input
-	for _, parser := range p.parsers {
+
+	for _, item := range p.parsers {
 		var v interface{}
-		if err := parser.Parse(input, &v); err != nil {
-			*input = furthest
-			return err
+		if ref, ok := item.(*REF); ok {
+			for i := 0; i < len(result); i++ {
+				ident := identFromTerm(p.t[i])
+				if ident == string(*ref) {
+					if err := p.parsers[i].Parse(input, &v); err != nil {
+						*input = furthest
+						return err
+					}
+					if !nodesEqual(v, result[i]) {
+						*input = furthest
+						return newParseError(p.rule, "Backref not matched",
+							fmt.Errorf("expected: %s", result[i]),
+							fmt.Errorf("actual: %s", v))
+					}
+				}
+			}
+		} else {
+			if err := item.Parse(input, &v); err != nil {
+				*input = furthest
+				return err
+			}
 		}
 		furthest = *input
 		result = append(result, v)
@@ -458,4 +514,13 @@ func (t Stack) Parser(_ Rule, _ cache) parser.Parser {
 
 func (t Named) Parser(rule Rule, c cache) parser.Parser {
 	return t.Term.Parser(Rule(t.Name), c)
+}
+
+//-----------------------------------------------------------------------------
+
+func (t *REF) Parse(input *parser.Scanner, output interface{}) (out error) {
+	panic(Inconceivable)
+}
+func (t REF) Parser(rule Rule, c cache) parser.Parser {
+	return &t
 }

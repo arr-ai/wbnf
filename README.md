@@ -202,8 +202,16 @@ named opt_trailing=","?`.
 - `op` describes the associativity of the separated terms. All forms of the term
   `a op b` will match sequences of the form `a b a ... b a`.
 
-  - `:` denotes a non-associative delimiter. The parser will emit a single node
-    with occurrences of the term and delimiter in it.
+  - `:` denotes a non-associative delimiter. The term `a:b` will produce trees
+    conceptually like the following diagram. The parser will emit a single node
+    with all terms and delimiters in it:
+
+    ```text
+      b       b
+    ┌─┴─┬ ─ ─ ┴─┐
+    a   a       a
+    ```
+
   - `:>` denotes a left-to-right associative delimiter. This will produce a
     chain of binary nodes. The term `a<:b` will produce trees looking like this:
 

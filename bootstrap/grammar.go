@@ -55,7 +55,6 @@ quant   -> op=/{[?*+]}
 atom    -> IDENT | STR | RE | REF | "(" term ")" | "(" ")";
 
 // Terminals
-REF		-> ‵\‵ IDENT;
 IDENT   -> /{@|[A-Za-z_\.]\w*};
 STR     -> /{ " (?: \\. | [^\\"] )* "
             | ' (?: \\. | [^\\'] )* '
@@ -72,6 +71,7 @@ RE      -> /{
                )*)
              \}
            };
+REF		-> ‵\‵ IDENT;
 COMMENT -> /{ //.*$
             | (?s: /\* (?: [^*] | \*+[^*/] ) \*/ )
             };
@@ -105,11 +105,11 @@ var grammarGrammar = Grammar{
 	atom:  Oneof{ident, str, re, ref, Seq{S("("), term, S(")")}, Seq{S("("), S(")")}},
 
 	// Terminals
-	ref:     Seq{S("\\"), ident},
 	ident:   RE(`@|[A-Za-z_\.]\w*`),
 	str:     RE(unfakeBackquote(`"(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*'|‵(?:‵‵|[^‵])*‵`)),
 	intR:    RE(`\d+`),
 	re:      RE(`/{((?:\\.|{(?:(?:\d+(?:,\d*)?|,\d+)\})?|\[(?:\\]|[^\]])+]|[^\\{\}])*)\}`),
+	ref:     Seq{S("\\"), ident},
 	comment: RE(`//.*$|(?s:/\*(?:[^*]|\*+[^*/])\*/)`),
 
 	// Special

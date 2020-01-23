@@ -287,17 +287,17 @@ func (p *seqParser) Parse(input *parser.Scanner, output interface{}) (out error)
 	for _, item := range p.parsers {
 		var v interface{}
 		if ref, ok := item.(*REF); ok {
-			for i := 0; i < len(result); i++ {
+			for i, val := range result {
 				ident := identFromTerm(p.t[i])
 				if ident == string(*ref) {
 					if err := p.parsers[i].Parse(input, &v); err != nil {
 						*input = furthest
 						return err
 					}
-					if !nodesEqual(v, result[i]) {
+					if !nodesEqual(v, val) {
 						*input = furthest
 						return newParseError(p.rule, "Backref not matched",
-							fmt.Errorf("expected: %s", result[i]),
+							fmt.Errorf("expected: %s", val),
 							fmt.Errorf("actual: %s", v))
 					}
 				}

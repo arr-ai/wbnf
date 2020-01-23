@@ -40,5 +40,5 @@ func TestUnitaryPathsSimple(t *testing.T) {
 }
 
 func TestUnitaryPathsStacks(t *testing.T) {
-	assertUnitaryPaths(t, `a -> a:op='x' ^ a:op=('y'?) ^ z='z';`, "a.op.", "a@2.z", "a@2.z.")
+	assertUnitaryPaths(t, `a -> @:op='x' ^ @:op=('y'?) ^ z='z';`, "a.op.", "a@2.z", "a@2.z.")
 }

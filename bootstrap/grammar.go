@@ -43,9 +43,9 @@ var grammarGrammarSrc = unfakeBackquote(`
 grammar -> stmt+;
 stmt    -> COMMENT | prod;
 prod    -> IDENT "->" term+ ";";
-term    -> term:op="^"
-         ^ term:op="|"
-         ^ term+
+term    -> @:op="^"
+         ^ @:op="|"
+         ^ @+
          ^ named quant*;
 named   -> (IDENT op="=")? atom;
 quant   -> op=/{[?*+]}
@@ -54,7 +54,7 @@ quant   -> op=/{[?*+]}
 atom    -> IDENT | STR | RE | "(" term ")" | "(" ")";
 
 // Terminals
-IDENT   -> /{[A-Za-z_\.]\w*};
+IDENT   -> /{@|[A-Za-z_\.]\w*};
 STR     -> /{ " (?: \\. | [^\\"] )* "
             | ' (?: \\. | [^\\'] )* '
             | ‵ (?: ‵‵  | [^‵]   )* ‵
@@ -84,9 +84,9 @@ var grammarGrammar = Grammar{
 	stmt:     Oneof{comment, prod},
 	prod:     Seq{ident, S("->"), Some(term), S(";")},
 	term: Stack{
-		Delim{Term: term, Sep: Eq("op", S("^"))},
-		Delim{Term: term, Sep: Eq("op", S("|"))},
-		Some(term),
+		Delim{Term: at, Sep: Eq("op", S("^"))},
+		Delim{Term: at, Sep: Eq("op", S("|"))},
+		Some(at),
 		Seq{named, Any(quant)},
 	},
 	quant: Oneof{
@@ -103,7 +103,7 @@ var grammarGrammar = Grammar{
 	atom:  Oneof{ident, str, re, Seq{S("("), term, S(")")}, Seq{S("("), S(")")}},
 
 	// Terminals
-	ident:   RE(`[A-Za-z_\.]\w*`),
+	ident:   RE(`@|[A-Za-z_\.]\w*`),
 	str:     RE(unfakeBackquote(`"(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*'|‵(?:‵‵|[^‵])*‵`)),
 	intR:    RE(`\d+`),
 	re:      RE(`/{((?:\\.|{(?:(?:\d+(?:,\d*)?|,\d+)\})?|\[(?:\\]|[^\]])+]|[^\\{\}])*)\}`),

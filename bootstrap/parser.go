@@ -10,6 +10,7 @@ import (
 
 const (
 	stackDelim = "@"
+	at         = Rule(stackDelim)
 
 	seqTag   = "_"
 	oneofTag = "|"
@@ -82,7 +83,7 @@ func (g Grammar) resolveStacks() {
 				if j := (i + 1) % len(stack); j > 0 {
 					newRule = Rule(fmt.Sprintf("%s%s%d", rule, stackDelim, j))
 				}
-				g[oldRule] = layer.Resolve(rule, newRule)
+				g[oldRule] = layer.Resolve(stackDelim, newRule)
 				oldRule = newRule
 			}
 		}

@@ -23,22 +23,22 @@ var expr = Rule("expr")
 
 var exprGrammarSrc = `
 // Simple expression grammar
-expr -> expr:/{([-+])}
-      ^ expr:/{([*/])}
-      ^ "-"? expr
-	  ^ /{(\d+)} | expr
-	  ^ expr<:"**"
-      ^ "(" expr ")";
+expr -> @:/{([-+])}
+      ^ @:/{([*/])}
+      ^ "-"? @
+	  ^ /{(\d+)} | @
+	  ^ @<:"**"
+      ^ "(" @ ")";
 `
 
 var exprGrammar = Grammar{
 	expr: Stack{
-		Delim{Term: expr, Sep: RE(`([-+])`)},
-		Delim{Term: expr, Sep: RE(`([*/])`)},
-		Seq{Opt(S("-")), expr},
-		Oneof{RE(`(\d+)`), expr},
-		R2L(expr, S("**")),
-		Seq{S("("), expr, S(")")},
+		Delim{Term: at, Sep: RE(`([-+])`)},
+		Delim{Term: at, Sep: RE(`([*/])`)},
+		Seq{Opt(S("-")), at},
+		Oneof{RE(`(\d+)`), at},
+		R2L(at, S("**")),
+		Seq{S("("), at, S(")")},
 	},
 }
 
@@ -241,12 +241,12 @@ func TestExprGrammarGrammar(t *testing.T) {
 	assert.NoError(t, parsers.ValidateParse(v))
 	assertUnparse(t,
 		`// Simple expression grammar`+
-			`expr->expr:([-+])`+
-			`^expr:([*/])`+
-			`^"-"?expr`+
-			`^(\d+)|expr`+
-			`^expr<:"**"`+
-			`^"("expr")";`,
+			`expr->@:([-+])`+
+			`^@:([*/])`+
+			`^"-"?@`+
+			`^(\d+)|@`+
+			`^@<:"**"`+
+			`^"("@")";`,
 		parsers,
 		v,
 	)

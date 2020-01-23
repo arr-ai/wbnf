@@ -2,9 +2,9 @@
 grammar -> stmt+;
 stmt    -> COMMENT | prod;
 prod    -> IDENT "->" term+ ";";
-term    -> term:op="^"
-         ^ term:op="|"
-         ^ term+
+term    -> @:op="^"
+         ^ @:op="|"
+         ^ @+
          ^ named quant*;
 quant   -> op=/{[?*+]}
          | "{" min=INT? "," max=INT? "}"

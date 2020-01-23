@@ -16,6 +16,9 @@ func (t S) Unparse(g Grammar, v interface{}, w io.Writer) (n int, err error) {
 func (t RE) Unparse(g Grammar, v interface{}, w io.Writer) (n int, err error) {
 	return w.Write([]byte(v.(parser.Scanner).String()))
 }
+func (t REF) Unparse(g Grammar, v interface{}, w io.Writer) (n int, err error) {
+	return w.Write([]byte("\\" + v.(parser.Scanner).String()))
+}
 
 func unparse(g Grammar, term Term, v interface{}, w io.Writer, N *int) error {
 	n, err := term.Unparse(g, v, w)

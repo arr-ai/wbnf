@@ -84,7 +84,7 @@ func (g Grammar) singletons() PathSet {
 
 func termNodeCardinality(g Grammar, t Term, prefix string, parent cardinality, crs cardinalities) {
 	switch t := t.(type) {
-	case S, RE:
+	case S, RE, REF:
 		crs.add(prefix, parent)
 	case Rule:
 		crs.add(prefix+string(t), parent)

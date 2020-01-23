@@ -17,6 +17,7 @@ var (
 	named    = Rule("named")
 	atom     = Rule("atom")
 	quant    = Rule("quant")
+	ref      = Rule("REF")
 	ident    = Rule("IDENT")
 	str      = Rule("STR")
 	intR     = Rule("INT")
@@ -51,7 +52,7 @@ named   -> (IDENT op="=")? atom;
 quant   -> op=/{[?*+]}
          | "{" min=INT? "," max=INT? "}"
          | op=/{<:|:>?} opt_leading=","? named opt_trailing=","?;
-atom    -> IDENT | STR | RE | "(" term ")" | "(" ")";
+atom    -> IDENT | STR | RE | REF | "(" term ")" | "(" ")";
 
 // Terminals
 IDENT   -> /{@|[A-Za-z_\.]\w*};
@@ -70,6 +71,7 @@ RE      -> /{
                )*)
              \}
            };
+REF		-> ‵\‵ IDENT;
 COMMENT -> /{ //.*$
             | (?s: /\* (?: [^*] | \*+[^*/] ) \*/ )
             };
@@ -100,13 +102,14 @@ var grammarGrammar = Grammar{
 		},
 	},
 	named: Seq{Opt(Seq{ident, Eq("op", S("="))}), atom},
-	atom:  Oneof{ident, str, re, Seq{S("("), term, S(")")}, Seq{S("("), S(")")}},
+	atom:  Oneof{ident, str, re, ref, Seq{S("("), term, S(")")}, Seq{S("("), S(")")}},
 
 	// Terminals
 	ident:   RE(`@|[A-Za-z_\.]\w*`),
 	str:     RE(unfakeBackquote(`"(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*'|‵(?:‵‵|[^‵])*‵`)),
 	intR:    RE(`\d+`),
 	re:      RE(`/{((?:\\.|{(?:(?:\d+(?:,\d*)?|,\d+)\})?|\[(?:\\]|[^\]])+]|[^\\{\}])*)\}`),
+	ref:     Seq{S("\\"), ident},
 	comment: RE(`//.*$|(?s:/\*(?:[^*]|\*+[^*/])\*/)`),
 
 	// Special
@@ -266,6 +269,7 @@ type (
 	Rule  string
 	S     string
 	RE    string
+	REF   string
 	Seq   []Term
 	Oneof []Term
 	Stack []Term
@@ -341,6 +345,7 @@ func (g Grammar) String() string {
 func (t Rule) String() string  { return string(t) }
 func (t S) String() string     { return fmt.Sprintf("%q", string(t)) }
 func (t RE) String() string    { return fmt.Sprintf("/%v/", string(t)) }
+func (t REF) String() string   { return fmt.Sprintf("\\%v", string(t)) }
 func (t Seq) String() string   { return join(t, " ") }
 func (t Oneof) String() string { return join(t, " | ") }
 func (t Stack) String() string { return join(t, " ^ ") }

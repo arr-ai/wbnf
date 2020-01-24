@@ -1,4 +1,4 @@
-package bootstrap
+package ast
 
 import (
 	"fmt"
@@ -7,21 +7,30 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/arr-ai/wbnf/bootstrap"
+	"github.com/arr-ai/wbnf/errors"
 	"github.com/arr-ai/wbnf/parser"
 )
 
-func ParserNodeToASTNode(g Grammar, v interface{}) ASTBranch {
-	rule := NodeRule(v)
+const (
+	seqTag   = "_"
+	oneofTag = "|"
+	delimTag = ":"
+	quantTag = "?"
+)
+
+func ParserNodeToNode(g bootstrap.Grammar, v interface{}) Branch {
+	rule := bootstrap.NodeRule(v)
 	term := g[rule]
-	result := ASTBranch{}
-	result.one("@rule", ASTExtra{extra: rule})
+	result := Branch{}
+	result.one("@rule", Extra{extra: rule})
 	result.fromTerm(g, term, newCounters(term), v)
 	return result
 }
 
-func ASTNodeToParserNode(g Grammar, branch ASTBranch) interface{} {
-	branch = branch.clone().(ASTBranch)
-	rule := branch.pullOne("@rule").(ASTExtra).extra.(Rule)
+func NodeToParserNode(g bootstrap.Grammar, branch Branch) interface{} {
+	branch = branch.clone().(Branch)
+	rule := branch.pullOne("@rule").(Extra).extra.(bootstrap.Rule)
 	term := g[rule]
 	ctrs := newCounters(term)
 	return relabelNode(string(rule), branch.toTerm(g, term, ctrs))
@@ -35,38 +44,38 @@ func relabelNode(name string, v interface{}) interface{} {
 	return v
 }
 
-type ASTChildren interface {
+type Children interface {
 	fmt.Stringer
-	isASTChildren()
-	clone() ASTChildren
+	isChildren()
+	clone() Children
 	narrow() bool
 }
 
-func (ASTOne) isASTChildren()  {}
-func (ASTMany) isASTChildren() {}
+func (One) isChildren()  {}
+func (Many) isChildren() {}
 
-type ASTOne struct {
-	One ASTNode
+type One struct {
+	One Node
 }
 
-type ASTMany []ASTNode
+type Many []Node
 
-type ASTNode interface {
+type Node interface {
 	fmt.Stringer
-	isASTNode()
-	clone() ASTNode
+	isNode()
+	clone() Node
 	narrow() bool
 }
 
-func (ASTBranch) isASTNode() {}
-func (ASTLeaf) isASTNode()   {}
-func (ASTExtra) isASTNode()  {}
+func (Branch) isNode() {}
+func (Leaf) isNode()   {}
+func (Extra) isNode()  {}
 
-type ASTLeaf parser.Scanner
+type Leaf parser.Scanner
 
-type ASTBranch map[string]ASTChildren
+type Branch map[string]Children
 
-type ASTExtra struct {
+type Extra struct {
 	extra interface{}
 }
 
@@ -76,7 +85,7 @@ func unlevel(name string) (string, int) {
 	if m := stackLevelRE.FindStringSubmatch(name); m != nil {
 		i, err := strconv.Atoi(m[2])
 		if err != nil {
-			panic(Inconceivable)
+			panic(errors.Inconceivable)
 		}
 		return m[1], i
 	}
@@ -85,18 +94,18 @@ func unlevel(name string) (string, int) {
 
 const levelTag = "@level"
 
-func (n ASTBranch) add(name string, level int, node ASTNode, ctr counter, childCtrs counters) {
+func (n Branch) add(name string, level int, node Node, ctr counter, childCtrs counters) {
 	if name := childCtrs.singular(); name != nil {
-		node = node.(ASTBranch)[*name].(ASTOne).One
+		node = node.(Branch)[*name].(One).One
 		// TODO: zeroOrOne
 	}
 
 	if level > 0 {
-		if b, ok := node.(ASTBranch); ok {
+		if b, ok := node.(Branch); ok {
 			if children := b.singular(); children != nil {
-				if many, ok := children.(ASTMany); ok {
+				if many, ok := children.(Many); ok {
 					if len(many) == 1 {
-						if b, ok := many[0].(ASTBranch); ok {
+						if b, ok := many[0].(Branch); ok {
 							b.inc(levelTag, 1)
 							node = b
 						}
@@ -108,7 +117,7 @@ func (n ASTBranch) add(name string, level int, node ASTNode, ctr counter, childC
 
 	switch ctr {
 	case counter{}:
-		panic(Inconceivable)
+		panic(errors.Inconceivable)
 	case zeroOrOne, oneOne:
 		n.one(name, node)
 	default:
@@ -116,26 +125,26 @@ func (n ASTBranch) add(name string, level int, node ASTNode, ctr counter, childC
 	}
 }
 
-func (n ASTBranch) one(name string, node ASTNode) {
+func (n Branch) one(name string, node Node) {
 	if _, has := n[name]; has {
-		panic(Inconceivable)
+		panic(errors.Inconceivable)
 	}
-	n[name] = ASTOne{One: node}
+	n[name] = One{One: node}
 }
 
-func (n ASTBranch) put(name string, v interface{}) {
-	n[name] = ASTOne{One: ASTExtra{extra: v}}
+func (n Branch) put(name string, v interface{}) {
+	n[name] = One{One: Extra{extra: v}}
 }
 
-func (n ASTBranch) many(name string, node ASTNode) {
+func (n Branch) many(name string, node Node) {
 	if many, has := n[name]; has {
-		n[name] = append(many.(ASTMany), node)
+		n[name] = append(many.(Many), node)
 	} else {
-		n[name] = ASTMany([]ASTNode{node})
+		n[name] = Many([]Node{node})
 	}
 }
 
-func (n ASTBranch) singular() ASTChildren {
+func (n Branch) singular() Children {
 	switch len(n) {
 	case 1:
 		for _, children := range n {
@@ -153,44 +162,44 @@ func (n ASTBranch) singular() ASTChildren {
 	return nil
 }
 
-func (n ASTBranch) fromTerm(g Grammar, term Term, ctrs counters, v interface{}) {
+func (n Branch) fromTerm(g bootstrap.Grammar, term bootstrap.Term, ctrs counters, v interface{}) {
 	switch t := term.(type) {
-	case S, RE, REF:
-		n.add("", 0, ASTLeaf(v.(parser.Scanner)), ctrs[""], nil)
-	case Rule:
+	case bootstrap.S, bootstrap.RE, bootstrap.REF:
+		n.add("", 0, Leaf(v.(parser.Scanner)), ctrs[""], nil)
+	case bootstrap.Rule:
 		term := g[t]
 		ctrs2 := newCounters(term)
-		b := ASTBranch{}
+		b := Branch{}
 		b.fromTerm(g, term, ctrs2, v)
 		unleveled, level := unlevel(string(t))
 		n.add(unleveled, level, b, ctrs[string(t)], ctrs2)
-	case Seq:
+	case bootstrap.Seq:
 		node := v.(parser.Node)
 		for i, child := range node.Children {
 			n.fromTerm(g, t[i], ctrs, child)
 		}
-	case Oneof:
+	case bootstrap.Oneof:
 		node := v.(parser.Node)
-		n.many("@choice", ASTExtra{extra: node.Extra.(int)})
+		n.many("@choice", Extra{extra: node.Extra.(int)})
 		n.fromTerm(g, t[node.Extra.(int)], ctrs, node.Children[0])
-	case Delim:
+	case bootstrap.Delim:
 		node := v.(parser.Node)
-		if node.Extra.(Associativity) != NonAssociative {
-			panic(Unfinished)
+		if node.Extra.(bootstrap.Associativity) != bootstrap.NonAssociative {
+			panic(errors.Unfinished)
 		}
 		L, R := t.LRTerms(node)
-		terms := [2]Term{L, t.Sep}
+		terms := [2]bootstrap.Term{L, t.Sep}
 		for i, child := range node.Children {
 			n.fromTerm(g, terms[i%2], ctrs, child)
 			terms[0] = R
 		}
-	case Quant:
+	case bootstrap.Quant:
 		node := v.(parser.Node)
 		for _, child := range node.Children {
 			n.fromTerm(g, t.Term, ctrs, child)
 		}
-	case Named:
-		b := ASTBranch{}
+	case bootstrap.Named:
+		b := Branch{}
 		ctrs2 := newCounters(t.Term)
 		b.fromTerm(g, t.Term, ctrs2, v)
 		n.add(t.Name, 0, b, ctrs[t.Name], ctrs2)
@@ -199,11 +208,11 @@ func (n ASTBranch) fromTerm(g Grammar, term Term, ctrs counters, v interface{}) 
 	}
 }
 
-func (n ASTBranch) pull(name string, level int, ctr counter, childCtrs counters) ASTNode {
-	var node ASTNode
+func (n Branch) pull(name string, level int, ctr counter, childCtrs counters) Node {
+	var node Node
 	switch ctr {
 	case counter{}:
-		panic(Inconceivable)
+		panic(errors.Inconceivable)
 	case zeroOrOne, oneOne:
 		node = n.pullOne(name)
 	default:
@@ -211,31 +220,31 @@ func (n ASTBranch) pull(name string, level int, ctr counter, childCtrs counters)
 	}
 
 	if level > 0 {
-		if b, ok := node.(ASTBranch); ok {
+		if b, ok := node.(Branch); ok {
 			if b.inc(levelTag, -1) > 0 {
-				node = ASTBranch{name: ASTMany{b}}
+				node = Branch{name: Many{b}}
 			}
 		}
 	}
 
 	if name := childCtrs.singular(); name != nil {
-		return ASTBranch{*name: ASTOne{One: node}}
+		return Branch{*name: One{One: node}}
 	}
 	return node
 }
 
-func (n ASTBranch) pullOne(name string) ASTNode {
+func (n Branch) pullOne(name string) Node {
 	if child, has := n[name]; has {
 		delete(n, name)
-		return child.(ASTOne).One
+		return child.(One).One
 	}
 	return nil
 }
 
-func (n ASTBranch) inc(name string, delta int) int {
+func (n Branch) inc(name string, delta int) int {
 	i := 0
 	if child, has := n[name]; has {
-		i = child.(ASTOne).One.(ASTExtra).extra.(int)
+		i = child.(One).One.(Extra).extra.(int)
 	}
 	j := i + delta
 	if j > 0 {
@@ -246,9 +255,9 @@ func (n ASTBranch) inc(name string, delta int) int {
 	return i
 }
 
-func (n ASTBranch) pullMany(name string) ASTNode {
+func (n Branch) pullMany(name string) Node {
 	if node, has := n[name]; has {
-		many := node.(ASTMany)
+		many := node.(Many)
 		if len(many) > 0 {
 			result := many[0]
 			if len(many) > 1 {
@@ -262,23 +271,23 @@ func (n ASTBranch) pullMany(name string) ASTNode {
 	return nil
 }
 
-func (n ASTBranch) toTerm(g Grammar, term Term, ctrs counters) (out interface{}) {
+func (n Branch) toTerm(g bootstrap.Grammar, term bootstrap.Term, ctrs counters) (out interface{}) {
 	// defer enterf("%T %[1]v %v", term, ctrs).exitf("%v", &out)
 	switch t := term.(type) {
-	case S, RE:
+	case bootstrap.S, bootstrap.RE:
 		if node := n.pull("", 0, ctrs[""], nil); node != nil {
-			return parser.Scanner(node.(ASTLeaf))
+			return parser.Scanner(node.(Leaf))
 		}
 		return nil
-	case Rule:
+	case bootstrap.Rule:
 		term := g[t]
 		ctrs2 := newCounters(term)
 		unleveled, level := unlevel(string(t))
 		if b := n.pull(unleveled, level, ctrs[string(t)], ctrs2); b != nil {
-			return relabelNode(string(t), b.(ASTBranch).toTerm(g, term, ctrs2))
+			return relabelNode(string(t), b.(Branch).toTerm(g, term, ctrs2))
 		}
 		return nil
-	case Seq:
+	case bootstrap.Seq:
 		result := parser.Node{Tag: seqTag}
 		for _, child := range t {
 			if node := n.toTerm(g, child, ctrs); node != nil {
@@ -288,19 +297,19 @@ func (n ASTBranch) toTerm(g Grammar, term Term, ctrs counters) (out interface{})
 			}
 		}
 		return result
-	case Oneof:
-		extra := n.pullMany("@choice").(ASTExtra).extra.(int)
+	case bootstrap.Oneof:
+		extra := n.pullMany("@choice").(Extra).extra.(int)
 		return parser.Node{
 			Tag:      oneofTag,
 			Extra:    extra,
 			Children: []interface{}{n.toTerm(g, t[extra], ctrs)},
 		}
-	case Delim:
+	case bootstrap.Delim:
 		v := parser.Node{
 			Tag:   delimTag,
-			Extra: NonAssociative,
+			Extra: bootstrap.NonAssociative,
 		}
-		terms := [2]Term{t.Term, t.Sep}
+		terms := [2]bootstrap.Term{t.Term, t.Sep}
 		i := 0
 		for ; ; i++ {
 			if child := n.toTerm(g, terms[i%2], ctrs); child != nil {
@@ -310,10 +319,10 @@ func (n ASTBranch) toTerm(g Grammar, term Term, ctrs counters) (out interface{})
 			}
 		}
 		if i%2 == 0 {
-			panic(Inconceivable)
+			panic(errors.Inconceivable)
 		}
 		return v
-	case Quant:
+	case bootstrap.Quant:
 		result := parser.Node{Tag: quantTag}
 		for {
 			if v := n.toTerm(g, t.Term, ctrs); v != nil {
@@ -323,13 +332,13 @@ func (n ASTBranch) toTerm(g Grammar, term Term, ctrs counters) (out interface{})
 			}
 		}
 		if !t.Contains(len(result.Children)) {
-			panic(Inconceivable)
+			panic(errors.Inconceivable)
 		}
 		return result
-	case Named:
+	case bootstrap.Named:
 		ctrs2 := newCounters(t.Term)
 		if b := n.pull(t.Name, 0, ctrs[t.Name], ctrs2); b != nil {
-			return relabelNode(t.Name, b.(ASTBranch).toTerm(g, t.Term, ctrs2))
+			return relabelNode(t.Name, b.(Branch).toTerm(g, t.Term, ctrs2))
 		}
 		return nil
 	default:
@@ -337,47 +346,47 @@ func (n ASTBranch) toTerm(g Grammar, term Term, ctrs counters) (out interface{})
 	}
 }
 
-func (c ASTOne) clone() ASTChildren {
-	return ASTOne{One: c.One.clone()}
+func (c One) clone() Children {
+	return One{One: c.One.clone()}
 }
 
-func (c ASTMany) clone() ASTChildren {
-	result := make(ASTMany, 0, len(c))
+func (c Many) clone() Children {
+	result := make(Many, 0, len(c))
 	for _, child := range c {
 		result = append(result, child.clone())
 	}
 	return result
 }
 
-func (l ASTLeaf) clone() ASTNode {
+func (l Leaf) clone() Node {
 	return l
 }
 
-func (n ASTBranch) clone() ASTNode {
-	result := ASTBranch{}
+func (n Branch) clone() Node {
+	result := Branch{}
 	for name, node := range n {
 		result[name] = node.clone()
 	}
 	return result
 }
 
-func (c ASTExtra) clone() ASTNode {
+func (c Extra) clone() Node {
 	return c
 }
 
-func (c ASTOne) narrow() bool {
+func (c One) narrow() bool {
 	return c.One.narrow()
 }
 
-func (c ASTMany) narrow() bool {
+func (c Many) narrow() bool {
 	return len(c) == 0 || len(c) == 1 && c[0].narrow()
 }
 
-func (l ASTLeaf) narrow() bool {
+func (l Leaf) narrow() bool {
 	return true
 }
 
-func (n ASTBranch) narrow() bool {
+func (n Branch) narrow() bool {
 	switch len(n) {
 	case 0:
 		return true
@@ -389,18 +398,18 @@ func (n ASTBranch) narrow() bool {
 	return false
 }
 
-func (c ASTExtra) narrow() bool {
+func (c Extra) narrow() bool {
 	return true
 }
 
-func (c ASTOne) String() string {
+func (c One) String() string {
 	if c.One == nil {
-		panic(Inconceivable)
+		panic(errors.Inconceivable)
 	}
 	return c.One.String()
 }
 
-func (c ASTMany) String() string {
+func (c Many) String() string {
 	var sb strings.Builder
 	sb.WriteString("[")
 	pre := ""
@@ -438,15 +447,20 @@ func (c ASTMany) String() string {
 	return sb.String()
 }
 
-func (l ASTLeaf) String() string {
-	s := parser.Scanner(l).String()
+func (l Leaf) String() string {
+	var sb strings.Builder
+	scanner := parser.Scanner(l)
+	s := scanner.String()
+	fmt.Fprintf(&sb, "%d‣", scanner.Offset())
 	if strings.Contains(s, "`") && !strings.Contains(s, `"`) {
-		return fmt.Sprintf("%q", s)
+		fmt.Fprintf(&sb, "%q", s)
+	} else {
+		fmt.Fprintf(&sb, "`%s`", strings.ReplaceAll(s, "`", "``"))
 	}
-	return fmt.Sprintf("`%s`", strings.ReplaceAll(s, "`", "``"))
+	return sb.String()
 }
 
-func (n ASTBranch) String() string {
+func (n Branch) String() string {
 	var sb strings.Builder
 	sb.WriteString("(")
 	pre := ""
@@ -479,6 +493,6 @@ func (n ASTBranch) String() string {
 	return sb.String()
 }
 
-func (c ASTExtra) String() string {
+func (c Extra) String() string {
 	return fmt.Sprintf("%v", c.extra)
 }

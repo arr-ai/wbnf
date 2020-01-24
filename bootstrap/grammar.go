@@ -6,23 +6,24 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/arr-ai/wbnf/errors"
 	"github.com/arr-ai/wbnf/parser"
 )
 
 var (
-	grammarR = Rule("grammar")
-	stmt     = Rule("stmt")
-	prod     = Rule("prod")
-	term     = Rule("term")
-	named    = Rule("named")
-	atom     = Rule("atom")
-	quant    = Rule("quant")
-	ref      = Rule("REF")
-	ident    = Rule("IDENT")
-	str      = Rule("STR")
-	intR     = Rule("INT")
-	re       = Rule("RE")
-	comment  = Rule("COMMENT")
+	GrammarRule = Rule("grammar")
+	stmt        = Rule("stmt")
+	prod        = Rule("prod")
+	term        = Rule("term")
+	named       = Rule("named")
+	atom        = Rule("atom")
+	quant       = Rule("quant")
+	ref         = Rule("REF")
+	ident       = Rule("IDENT")
+	str         = Rule("STR")
+	intR        = Rule("INT")
+	re          = Rule("RE")
+	comment     = Rule("COMMENT")
 
 	// WrapRE is a special rule to indicate a wrapper around all regexps and
 	// strings. When supplied in the form "pre()post", then all regexes will be
@@ -31,7 +32,7 @@ var (
 	WrapRE = Rule(".wrapRE")
 )
 
-var RootRule = grammarR
+var RootRule = GrammarRule
 
 // unfakeBackquote replaces reversed prime with grave accent (backquote) in
 // order to make the grammar below more readable.
@@ -41,9 +42,9 @@ func unfakeBackquote(s string) string {
 
 var grammarGrammar = Grammar{
 	// Non-terminals
-	grammarR: Some(stmt),
-	stmt:     Oneof{comment, prod},
-	prod:     Seq{ident, S("->"), Some(term), S(";")},
+	GrammarRule: Some(stmt),
+	stmt:        Oneof{comment, prod},
+	prod:        Seq{ident, S("->"), Some(term), S(";")},
 	term: Stack{
 		Delim{Term: at, Sep: Eq("op", S("^"))},
 		Delim{Term: at, Sep: Eq("op", S("|"))},
@@ -87,7 +88,7 @@ var core = func() Parsers {
 	parsers := grammarGrammar.Compile()
 
 	r := parser.NewScanner(grammarGrammarSrc)
-	v, err := parsers.Parse(grammarR, r)
+	v, err := parsers.Parse(GrammarRule, r)
 	if err != nil {
 		panic(err)
 	}
@@ -205,7 +206,7 @@ func NewAssociativity(s string) Associativity {
 	case "<:":
 		return RightToLeft
 	}
-	panic(BadInput)
+	panic(errors.BadInput)
 }
 
 func (a Associativity) String() string {
@@ -274,14 +275,6 @@ func (t Quant) Contains(i int) bool {
 	return t.Min <= i && (t.Max == 0 || i <= t.Max)
 }
 
-func (t Quant) counter() counter {
-	max := t.Max
-	if max == 0 {
-		max = 2
-	}
-	return newCounter(t.Min, max)
-}
-
 func (g Grammar) String() string {
 	keys := make([]string, 0, len(g))
 	for key := range g {
@@ -321,7 +314,7 @@ func (t Quant) String() string {
 	case [2]int{1, 0}:
 		sb.WriteString("+")
 	case [2]int{1, 1}:
-		panic(Inconceivable)
+		panic(errors.Inconceivable)
 	default:
 		sb.WriteString("{")
 		if t.Min != 0 {

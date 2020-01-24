@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"io"
 
+	"github.com/arr-ai/wbnf/errors"
 	"github.com/arr-ai/wbnf/parser"
 )
 
@@ -79,7 +80,7 @@ func (t Rule) Unparse(g Grammar, v interface{}, w io.Writer) (n int, err error) 
 //-----------------------------------------------------------------------------
 
 func (t Stack) Unparse(g Grammar, v interface{}, w io.Writer) (n int, err error) {
-	panic(Inconceivable)
+	panic(errors.Inconceivable)
 }
 
 //-----------------------------------------------------------------------------

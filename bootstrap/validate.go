@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"fmt"
 
+	"github.com/arr-ai/wbnf/errors"
 	"github.com/arr-ai/wbnf/parser"
 )
 
@@ -42,7 +43,7 @@ func (t RE) ValidateParse(g Grammar, rule Rule, v interface{}) error {
 }
 
 func (t REF) ValidateParse(g Grammar, rule Rule, v interface{}) error {
-	panic(Inconceivable)
+	panic(errors.Inconceivable)
 }
 
 func (t Seq) ValidateParse(g Grammar, rule Rule, v interface{}) error {
@@ -124,7 +125,7 @@ func (t Rule) ValidateParse(g Grammar, rule Rule, v interface{}) error {
 //-----------------------------------------------------------------------------
 
 func (t Stack) ValidateParse(g Grammar, rule Rule, v interface{}) error {
-	panic(Inconceivable)
+	panic(errors.Inconceivable)
 }
 
 //-----------------------------------------------------------------------------

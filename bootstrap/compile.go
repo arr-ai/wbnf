@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/arr-ai/wbnf/bootstrap/internal"
+	"github.com/arr-ai/wbnf/errors"
 
 	"github.com/arr-ai/wbnf/parser"
 )
@@ -103,7 +104,7 @@ func compileAtomNode(node parser.Node) Term {
 	case 5:
 		return Seq{}
 	default:
-		panic(BadInput)
+		panic(errors.BadInput)
 	}
 }
 
@@ -133,7 +134,7 @@ func compileTermQuantNode(node parser.Node) Term {
 			case "+":
 				term = Some(term)
 			default:
-				panic(BadInput)
+				panic(errors.BadInput)
 			}
 		case 1:
 			seq := quant.GetNode(0)
@@ -163,7 +164,7 @@ func compileTermQuantNode(node parser.Node) Term {
 				Assoc: NewAssociativity(seq.GetString(0)),
 			}
 		default:
-			panic(BadInput)
+			panic(errors.BadInput)
 		}
 	}
 	return term
@@ -233,7 +234,7 @@ func NewFromNode(node parser.Node) Grammar {
 			prod := stmt.GetNode(0)
 			g[Rule(prod.GetString(0))] = compileProdNode(prod)
 		default:
-			panic(BadInput)
+			panic(errors.BadInput)
 		}
 	}
 	return g

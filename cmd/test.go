@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/arr-ai/wbnf/ast"
 	"github.com/arr-ai/wbnf/bootstrap"
 	"github.com/arr-ai/wbnf/parser"
 
@@ -75,7 +76,7 @@ func test(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	ast := bootstrap.ParserNodeToASTNode(g.Grammar(), tree)
+	ast := ast.ParserNodeToNode(g.Grammar(), tree)
 	fmt.Println(ast)
 
 	return nil

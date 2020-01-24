@@ -61,54 +61,12 @@ func assertEqualObjects(t *testing.T, expected, actual interface{}) bool { //nol
 	return false
 }
 
-func assertEqualNodes(t *testing.T, v, u parser.Node) bool {
-	return assertEqualNodesImpl(t, v, u, []interface{}{})
-}
-
-func assertEqualNodesImpl(t *testing.T, v, u parser.Node, path []interface{}) bool {
-	result := true
-	ok := func(ok bool) bool {
-		result = result && ok
-		return ok
-	}
-	ok(assert.Equal(t, v.Tag, u.Tag, "%v", path))
-	ok(assert.Equal(t, v.Extra, u.Extra, "%v", path))
-	ok(assert.Equal(t, len(v.Children), len(u.Children)))
-	n := len(v.Children)
-	if n > len(u.Children) {
-		n = len(u.Children)
-	}
-	for i := 0; i < n; i++ {
-		subpath := append(path, i)
-		vc := v.Children[i]
-		uc := u.Children[i]
-		if ok(assert.IsType(t, vc, uc, "%v", subpath)) {
-			switch vc := vc.(type) {
-			case parser.Node:
-				ok(assertEqualNodesImpl(t, vc, uc.(parser.Node), subpath))
-			case parser.Scanner:
-				ok(assert.Equal(t, vc, uc, subpath))
-			default:
-				ok(false)
-				t.Errorf("%v unexpected type %T: %[1]v %v", vc, uc)
-			}
-		}
-	}
-	for i, c := range v.Children[n:] {
-		t.Errorf("%v expected node not found: %v", append(path, n+i), c)
-	}
-	for i, c := range u.Children[n:] {
-		t.Errorf("%v unexpected node found: %v", append(path, n+i), c)
-	}
-	return result
-}
-
 func assertParseToNode(t *testing.T, expected parser.Node, rule Rule, input *parser.Scanner) bool { //nolint:unparam
 	parsers := Core()
 	v, err := parsers.Parse(rule, input)
 	if assert.NoError(t, err) {
 		if assert.NoError(t, parsers.ValidateParse(v)) {
-			return assertEqualNodes(t, expected, v.(parser.Node))
+			return parser.AssertEqualNodes(t, expected, v.(parser.Node))
 		}
 	} else {
 		t.Logf("input: %s", input.Context())
@@ -122,7 +80,7 @@ type stackBuilder struct {
 	level  int
 }
 
-var stackNamePrefixRE = regexp.MustCompile(`^([a-z\.]*)(?:` + regexp.QuoteMeta(stackDelim) + `(\d+))?\\`)
+var stackNamePrefixRE = regexp.MustCompile(`^([a-z\.]*)(?:` + regexp.QuoteMeta(StackDelim) + `(\d+))?\\`)
 
 func (s *stackBuilder) a(name string, extras ...interface{}) *stackBuilder {
 	var extra interface{}
@@ -235,7 +193,7 @@ func TestExprGrammarGrammar(t *testing.T) {
 
 	parsers := Core()
 	r := parser.NewScanner(exprGrammarSrc)
-	v, err := parsers.Parse(grammarR, r)
+	v, err := parsers.Parse(GrammarRule, r)
 	require.NoError(t, err, "r=%v\nv=%v", r.Context(), v)
 	require.Equal(t, len(exprGrammarSrc), r.Offset(), "r=%v\nv=%v", r.Context(), v)
 	assert.NoError(t, parsers.ValidateParse(v))
@@ -276,7 +234,7 @@ func TestTinyGrammarGrammarGrammar(t *testing.T) {
 
 	parsers := Core()
 	r := parser.NewScanner(tinyGrammarSrc)
-	v, err := parsers.Parse(grammarR, r)
+	v, err := parsers.Parse(GrammarRule, r)
 	require.NoError(t, err)
 	e := v.(parser.Node)
 	assert.NoError(t, parsers.ValidateParse(v))
@@ -290,7 +248,7 @@ func TestExprGrammarGrammarGrammar(t *testing.T) {
 
 	parsers := Core()
 	r := parser.NewScanner(exprGrammarSrc)
-	v, err := parsers.Parse(grammarR, r)
+	v, err := parsers.Parse(GrammarRule, r)
 	require.NoError(t, err)
 	e := v.(parser.Node)
 	assert.NoError(t, parsers.ValidateParse(v))

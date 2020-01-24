@@ -5,29 +5,18 @@ import (
 	"strings"
 )
 
-const (
-	// Inconceivable indicates that a function should never have been called.
-	Inconceivable Error = "How did this happen!?"
-
-	// Unfinished indicates that a function isn't ready for use yet.
-	Unfinished Error = "not yet implemented"
-
-	// BadInput indicates that a function was given bad inputs.
-	BadInput Error = "bad input"
-)
-
-type Error string
-
-var _ error = Error("")
-
-func (p Error) Error() string {
-	return string(p)
-}
-
 type ParseError struct {
 	rule     Rule
 	msg      string
 	children []error
+}
+
+func newParseError(rule Rule, msg string, errors ...error) error {
+	return &ParseError{
+		rule:     rule,
+		msg:      msg,
+		children: errors,
+	}
 }
 
 func (p ParseError) Error() string {
@@ -53,12 +42,4 @@ func (p ParseError) walkErrors(depth int) string {
 		}
 	}
 	return strings.Join(lines, "\n")
-}
-
-func newParseError(rule Rule, msg string, errors ...error) error {
-	return &ParseError{
-		rule:     rule,
-		msg:      msg,
-		children: errors,
-	}
 }

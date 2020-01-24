@@ -6,12 +6,13 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/arr-ai/wbnf/errors"
 	"github.com/arr-ai/wbnf/parser"
 )
 
 const (
-	stackDelim = "@"
-	at         = Rule(stackDelim)
+	StackDelim = "@"
+	at         = Rule(StackDelim)
 
 	seqTag   = "_"
 	oneofTag = "|"
@@ -82,9 +83,9 @@ func (g Grammar) resolveStacks() {
 			for i, layer := range stack {
 				newRule := rule
 				if j := (i + 1) % len(stack); j > 0 {
-					newRule = Rule(fmt.Sprintf("%s%s%d", rule, stackDelim, j))
+					newRule = Rule(fmt.Sprintf("%s%s%d", rule, StackDelim, j))
 				}
-				g[oldRule] = layer.Resolve(stackDelim, newRule)
+				g[oldRule] = layer.Resolve(StackDelim, newRule)
 				oldRule = newRule
 			}
 		}
@@ -126,7 +127,7 @@ func (g Grammar) Compile() Parsers {
 }
 
 func Compile(grammar string) (Parsers, error) {
-	v, err := Core().Parse(grammarR, parser.NewScanner(grammar))
+	v, err := Core().Parse(GrammarRule, parser.NewScanner(grammar))
 	if err != nil {
 		return Parsers{}, err
 	}
@@ -149,7 +150,7 @@ type ruleParser struct {
 }
 
 func (p ruleParser) Parse(input *parser.Scanner, output interface{}) error {
-	panic(Inconceivable)
+	panic(errors.Inconceivable)
 }
 
 func (t Rule) Parser(rule Rule, c cache) parser.Parser {
@@ -507,7 +508,7 @@ func (t Oneof) Parser(rule Rule, c cache) parser.Parser {
 //-----------------------------------------------------------------------------
 
 func (t Stack) Parser(_ Rule, _ cache) parser.Parser {
-	panic(Inconceivable)
+	panic(errors.Inconceivable)
 }
 
 //-----------------------------------------------------------------------------
@@ -519,8 +520,9 @@ func (t Named) Parser(rule Rule, c cache) parser.Parser {
 //-----------------------------------------------------------------------------
 
 func (t *REF) Parse(input *parser.Scanner, output interface{}) (out error) {
-	panic(Inconceivable)
+	panic(errors.Inconceivable)
 }
+
 func (t REF) Parser(rule Rule, c cache) parser.Parser {
 	return &t
 }

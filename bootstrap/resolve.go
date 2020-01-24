@@ -1,5 +1,7 @@
 package bootstrap
 
+import "github.com/arr-ai/wbnf/errors"
+
 func (t Rule) Resolve(oldRule, newRule Rule) Term {
 	if t == oldRule {
 		return newRule
@@ -35,7 +37,7 @@ func (t Oneof) Resolve(oldRule, newRule Rule) Term {
 }
 
 func (t Stack) Resolve(oldRule, newRule Rule) Term {
-	panic(Inconceivable)
+	panic(errors.Inconceivable)
 }
 
 func (t Delim) Resolve(oldRule, newRule Rule) Term {

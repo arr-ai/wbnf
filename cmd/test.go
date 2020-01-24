@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/arr-ai/wbnf/ast"
-	"github.com/arr-ai/wbnf/bootstrap"
+	"github.com/arr-ai/wbnf/wbnf"
 	"github.com/arr-ai/wbnf/parser"
 
 	"github.com/urfave/cli"
@@ -44,12 +44,12 @@ var testCommand = cli.Command{
 	},
 }
 
-func loadTestGrammar() bootstrap.Parsers {
+func loadTestGrammar() wbnf.Parsers {
 	text, err := ioutil.ReadFile(inGrammarFile)
 	if err != nil {
 		panic(err)
 	}
-	return bootstrap.MustCompile(string(text))
+	return wbnf.MustCompile(string(text))
 }
 
 func test(c *cli.Context) error {
@@ -72,7 +72,7 @@ func test(c *cli.Context) error {
 	}
 
 	g := loadTestGrammar()
-	tree, err := g.Parse(bootstrap.Rule(startingRule), parser.NewScanner(input))
+	tree, err := g.Parse(wbnf.Rule(startingRule), parser.NewScanner(input))
 	if err != nil {
 		return err
 	}

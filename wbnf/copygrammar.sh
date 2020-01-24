@@ -3,7 +3,7 @@
 out=wbnfgrammar.go
 echo Generating $out
 cat > $out <<EOF
-package bootstrap
+package wbnf
 
 var grammarGrammarSrc = unfakeBackquote(\`
 $(sed 's/`/‵/g' ../examples/wbnf.txt)

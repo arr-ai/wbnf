@@ -1,4 +1,4 @@
-package bootstrap
+package wbnf
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/arr-ai/wbnf/bootstrap/internal"
+	"github.com/arr-ai/wbnf/wbnf/internal"
 	"github.com/arr-ai/wbnf/errors"
 
 	"github.com/arr-ai/wbnf/parser"

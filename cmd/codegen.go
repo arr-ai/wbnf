@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/arr-ai/wbnf/bootstrap"
+	"github.com/arr-ai/wbnf/wbnf"
 	"github.com/arr-ai/wbnf/parser"
 	"github.com/urfave/cli"
 )
@@ -49,9 +49,9 @@ func codegen(c *cli.Context) error {
 	}
 
 	scanner := parser.NewScanner(string(buf))
-	g := bootstrap.Core()
+	g := wbnf.Core()
 
-	tree, err := g.Parse(bootstrap.RootRule, scanner)
+	tree, err := g.Parse(wbnf.RootRule, scanner)
 	if err != nil {
 		return err
 	}
@@ -60,21 +60,21 @@ func codegen(c *cli.Context) error {
 		return err
 	}
 
-	ast := bootstrap.NewFromNode2(tree.(parser.Node))
+	ast := wbnf.NewFromNode2(tree.(parser.Node))
 	if ast == nil {
 		return nil
 	} /*
 		text := ast.Dump()
 
-		newg := bootstrap.NewFromNode(tree.(parser.Node)).Compile()
+		newg := wbnf.NewFromNode(tree.(parser.Node)).Compile()
 
 		scanner = parser.NewScanner(text)
-		_, err := newg.Parse(bootstrap.RootRule, scanner)
+		_, err := newg.Parse(wbnf.RootRule, scanner)
 		if err != nil {
 			return err
 		}
 	*/
-	fmt.Print(bootstrap.Codegen(ast))
+	fmt.Print(wbnf.Codegen(ast))
 
 	return nil
 }

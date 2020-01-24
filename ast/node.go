@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/arr-ai/wbnf/bootstrap"
+	"github.com/arr-ai/wbnf/wbnf"
 	"github.com/arr-ai/wbnf/errors"
 	"github.com/arr-ai/wbnf/parser"
 )
@@ -19,8 +19,8 @@ const (
 	quantTag = "?"
 )
 
-func ParserNodeToNode(g bootstrap.Grammar, v interface{}) Branch {
-	rule := bootstrap.NodeRule(v)
+func ParserNodeToNode(g wbnf.Grammar, v interface{}) Branch {
+	rule := wbnf.NodeRule(v)
 	term := g[rule]
 	result := Branch{}
 	result.one("@rule", Extra{extra: rule})
@@ -28,9 +28,9 @@ func ParserNodeToNode(g bootstrap.Grammar, v interface{}) Branch {
 	return result
 }
 
-func NodeToParserNode(g bootstrap.Grammar, branch Branch) interface{} {
+func NodeToParserNode(g wbnf.Grammar, branch Branch) interface{} {
 	branch = branch.clone().(Branch)
-	rule := branch.pullOne("@rule").(Extra).extra.(bootstrap.Rule)
+	rule := branch.pullOne("@rule").(Extra).extra.(wbnf.Rule)
 	term := g[rule]
 	ctrs := newCounters(term)
 	return relabelNode(string(rule), branch.toTerm(g, term, ctrs))
@@ -162,43 +162,43 @@ func (n Branch) singular() Children {
 	return nil
 }
 
-func (n Branch) fromTerm(g bootstrap.Grammar, term bootstrap.Term, ctrs counters, v interface{}) {
+func (n Branch) fromTerm(g wbnf.Grammar, term wbnf.Term, ctrs counters, v interface{}) {
 	switch t := term.(type) {
-	case bootstrap.S, bootstrap.RE, bootstrap.REF:
+	case wbnf.S, wbnf.RE, wbnf.REF:
 		n.add("", 0, Leaf(v.(parser.Scanner)), ctrs[""], nil)
-	case bootstrap.Rule:
+	case wbnf.Rule:
 		term := g[t]
 		ctrs2 := newCounters(term)
 		b := Branch{}
 		b.fromTerm(g, term, ctrs2, v)
 		unleveled, level := unlevel(string(t))
 		n.add(unleveled, level, b, ctrs[string(t)], ctrs2)
-	case bootstrap.Seq:
+	case wbnf.Seq:
 		node := v.(parser.Node)
 		for i, child := range node.Children {
 			n.fromTerm(g, t[i], ctrs, child)
 		}
-	case bootstrap.Oneof:
+	case wbnf.Oneof:
 		node := v.(parser.Node)
 		n.many("@choice", Extra{extra: node.Extra.(int)})
 		n.fromTerm(g, t[node.Extra.(int)], ctrs, node.Children[0])
-	case bootstrap.Delim:
+	case wbnf.Delim:
 		node := v.(parser.Node)
-		if node.Extra.(bootstrap.Associativity) != bootstrap.NonAssociative {
+		if node.Extra.(wbnf.Associativity) != wbnf.NonAssociative {
 			panic(errors.Unfinished)
 		}
 		L, R := t.LRTerms(node)
-		terms := [2]bootstrap.Term{L, t.Sep}
+		terms := [2]wbnf.Term{L, t.Sep}
 		for i, child := range node.Children {
 			n.fromTerm(g, terms[i%2], ctrs, child)
 			terms[0] = R
 		}
-	case bootstrap.Quant:
+	case wbnf.Quant:
 		node := v.(parser.Node)
 		for _, child := range node.Children {
 			n.fromTerm(g, t.Term, ctrs, child)
 		}
-	case bootstrap.Named:
+	case wbnf.Named:
 		b := Branch{}
 		ctrs2 := newCounters(t.Term)
 		b.fromTerm(g, t.Term, ctrs2, v)
@@ -271,15 +271,15 @@ func (n Branch) pullMany(name string) Node {
 	return nil
 }
 
-func (n Branch) toTerm(g bootstrap.Grammar, term bootstrap.Term, ctrs counters) (out interface{}) {
+func (n Branch) toTerm(g wbnf.Grammar, term wbnf.Term, ctrs counters) (out interface{}) {
 	// defer enterf("%T %[1]v %v", term, ctrs).exitf("%v", &out)
 	switch t := term.(type) {
-	case bootstrap.S, bootstrap.RE:
+	case wbnf.S, wbnf.RE:
 		if node := n.pull("", 0, ctrs[""], nil); node != nil {
 			return parser.Scanner(node.(Leaf))
 		}
 		return nil
-	case bootstrap.Rule:
+	case wbnf.Rule:
 		term := g[t]
 		ctrs2 := newCounters(term)
 		unleveled, level := unlevel(string(t))
@@ -287,7 +287,7 @@ func (n Branch) toTerm(g bootstrap.Grammar, term bootstrap.Term, ctrs counters) 
 			return relabelNode(string(t), b.(Branch).toTerm(g, term, ctrs2))
 		}
 		return nil
-	case bootstrap.Seq:
+	case wbnf.Seq:
 		result := parser.Node{Tag: seqTag}
 		for _, child := range t {
 			if node := n.toTerm(g, child, ctrs); node != nil {
@@ -297,19 +297,19 @@ func (n Branch) toTerm(g bootstrap.Grammar, term bootstrap.Term, ctrs counters) 
 			}
 		}
 		return result
-	case bootstrap.Oneof:
+	case wbnf.Oneof:
 		extra := n.pullMany("@choice").(Extra).extra.(int)
 		return parser.Node{
 			Tag:      oneofTag,
 			Extra:    extra,
 			Children: []interface{}{n.toTerm(g, t[extra], ctrs)},
 		}
-	case bootstrap.Delim:
+	case wbnf.Delim:
 		v := parser.Node{
 			Tag:   delimTag,
-			Extra: bootstrap.NonAssociative,
+			Extra: wbnf.NonAssociative,
 		}
-		terms := [2]bootstrap.Term{t.Term, t.Sep}
+		terms := [2]wbnf.Term{t.Term, t.Sep}
 		i := 0
 		for ; ; i++ {
 			if child := n.toTerm(g, terms[i%2], ctrs); child != nil {
@@ -322,7 +322,7 @@ func (n Branch) toTerm(g bootstrap.Grammar, term bootstrap.Term, ctrs counters) 
 			panic(errors.Inconceivable)
 		}
 		return v
-	case bootstrap.Quant:
+	case wbnf.Quant:
 		result := parser.Node{Tag: quantTag}
 		for {
 			if v := n.toTerm(g, t.Term, ctrs); v != nil {
@@ -335,7 +335,7 @@ func (n Branch) toTerm(g bootstrap.Grammar, term bootstrap.Term, ctrs counters) 
 			panic(errors.Inconceivable)
 		}
 		return result
-	case bootstrap.Named:
+	case wbnf.Named:
 		ctrs2 := newCounters(t.Term)
 		if b := n.pull(t.Name, 0, ctrs[t.Name], ctrs2); b != nil {
 			return relabelNode(t.Name, b.(Branch).toTerm(g, t.Term, ctrs2))

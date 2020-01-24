@@ -1,5 +1,5 @@
 //nolint:lll
-package bootstrap
+package wbnf
 
 import (
 	"testing"

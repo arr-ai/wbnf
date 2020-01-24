@@ -3,7 +3,7 @@ package ast
 import (
 	"fmt"
 
-	"github.com/arr-ai/wbnf/bootstrap"
+	"github.com/arr-ai/wbnf/wbnf"
 )
 
 type counter struct {
@@ -14,7 +14,7 @@ func newCounter(lo, hi int) counter {
 	return counter{lo: lo, hi: hi}
 }
 
-func newCounterFromQuant(q bootstrap.Quant) counter {
+func newCounterFromQuant(q wbnf.Quant) counter {
 	max := q.Max
 	if max == 0 {
 		max = 2
@@ -49,7 +49,7 @@ func (c counter) union(d counter) counter {
 
 type counters map[string]counter
 
-func newCounters(t bootstrap.Term) counters {
+func newCounters(t wbnf.Term) counters {
 	result := counters{}
 	result.termCountChildren(t, oneOne)
 	return result
@@ -83,28 +83,28 @@ func (ctrs counters) union(o counters) {
 	}
 }
 
-func (ctrs counters) termCountChildren(term bootstrap.Term, parent counter) {
+func (ctrs counters) termCountChildren(term wbnf.Term, parent counter) {
 	switch t := term.(type) {
-	case bootstrap.S, bootstrap.RE, bootstrap.REF:
+	case wbnf.S, wbnf.RE, wbnf.REF:
 		ctrs.count("", parent)
-	case bootstrap.Rule:
+	case wbnf.Rule:
 		ctrs.count(string(t), parent)
-	case bootstrap.Seq:
+	case wbnf.Seq:
 		for _, child := range t {
 			ctrs.termCountChildren(child, parent)
 		}
-	case bootstrap.Oneof:
+	case wbnf.Oneof:
 		ds := counters{}
 		for _, child := range t {
 			ds.union(newCounters(child))
 		}
 		ctrs.mul(ds, parent)
-	case bootstrap.Delim:
+	case wbnf.Delim:
 		ctrs.termCountChildren(t.Term, parent.mul(oneOrMore))
 		ctrs.termCountChildren(t.Sep, parent.mul(zeroOrMore))
-	case bootstrap.Quant:
+	case wbnf.Quant:
 		ctrs.termCountChildren(t.Term, parent.mul(newCounterFromQuant(t)))
-	case bootstrap.Named:
+	case wbnf.Named:
 		ctrs.count(t.Name, parent)
 	default:
 		panic(fmt.Errorf("unexpected term type: %v %[1]T", t))

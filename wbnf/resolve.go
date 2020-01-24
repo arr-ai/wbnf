@@ -1,4 +1,4 @@
-package bootstrap
+package wbnf
 
 import "github.com/arr-ai/wbnf/errors"
 

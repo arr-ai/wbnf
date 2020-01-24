@@ -1,4 +1,4 @@
-package bootstrap
+package wbnf
 
 var grammarGrammarSrc = unfakeBackquote(`
 // Non-terminals

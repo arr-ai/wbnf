@@ -1,18 +1,42 @@
 package bootstrap
-import "encoding/base64"
 
-//go:generate sh copygrammar.sh
+var grammarGrammarSrc = unfakeBackquote(`
+// Non-terminals
+grammar -> stmt+;
+stmt    -> COMMENT | prod;
+prod    -> IDENT "->" term+ ";";
+term    -> @:op="^"
+         ^ @:op="|"
+         ^ @+
+         ^ named quant*;
+named   -> (IDENT op="=")? atom;
+quant   -> op=/{[?*+]}
+         | "{" min=INT? "," max=INT? "}"
+         | op=/{<:|:>?} opt_leading=","? named opt_trailing=","?;
+atom    -> IDENT | STR | RE | REF | "(" term ")" | "(" ")";
 
-const grammarGrammarBase64 = `
-Ly8gTm9uLXRlcm1pbmFscwpncmFtbWFyIC0+IHN0bXQrOwpzdG10ICAgIC0+IENPTU1FTlQgfCBwcm9kOwpwcm9kICAgIC0+IElERU5UICItPiIgdGVybSsgIjsiOwp0ZXJtICAgIC0+IEA6b3A9Il4iCiAgICAgICAgIF4gQDpvcD0ifCIKICAgICAgICAgXiBAKwogICAgICAgICBeIG5hbWVkIHF1YW50KjsKbmFtZWQgICAtPiAoSURFTlQgb3A9Ij0iKT8gYXRvbTsKcXVhbnQgICAtPiBvcD0ve1s/KitdfQogICAgICAgICB8ICJ7IiBtaW49SU5UPyAiLCIgbWF4PUlOVD8gIn0iCiAgICAgICAgIHwgb3A9L3s8Onw6Pj99IG9wdF9sZWFkaW5nPSIsIj8gbmFtZWQgb3B0X3RyYWlsaW5nPSIsIj87CmF0b20gICAgLT4gSURFTlQgfCBTVFIgfCBSRSB8IFJFRiB8ICIoIiB0ZXJtICIpIiB8ICIoIiAiKSI7CgovLyBUZXJtaW5hbHMKSURFTlQgICAtPiAve0B8W0EtWmEtel9cLl1cdyp9OwpTVFIgICAgIC0+IC97ICIgKD86IFxcLiB8IFteXFwiXSApKiAiCiAgICAgICAgICAgIHwgJyAoPzogXFwuIHwgW15cXCddICkqICcKICAgICAgICAgICAgfCBgICg/OiBgYCAgfCBbXmBdICAgKSogYAogICAgICAgICAgICB9OwpJTlQgICAgIC0+IC97XGQrfTsKUkUgICAgICAtPiAvewogICAgICAgICAgICAgL3sKICAgICAgICAgICAgICAgKCg/OgogICAgICAgICAgICAgICAgIFxcLgogICAgICAgICAgICAgICAgIHwgeyAoPzogKD86IFxkKyg/OixcZCopPyB8ICxcZCsgKSBcfSApPwogICAgICAgICAgICAgICAgIHwgXFsgKD86IFxcXSB8IFteXF1dICkrIF0KICAgICAgICAgICAgICAgICB8IFteXFx7XH1dCiAgICAgICAgICAgICAgICkqKQogICAgICAgICAgICAgXH0KICAgICAgICAgICB9OwpSRUYJCS0+ICJcXCIgSURFTlQ7CkNPTU1FTlQgLT4gL3sgLy8uKiQKICAgICAgICAgICAgfCAoP3M6IC9cKiAoPzogW14qXSB8IFwqK1teKi9dICkgXCovICkKICAgICAgICAgICAgfTsKCi8vIFNwZWNpYWwKLndyYXBSRSAtPiAve1xzKigpXHMqfTs=
-`
+// Terminals
+IDENT   -> /{@|[A-Za-z_\.]\w*};
+STR     -> /{ " (?: \\. | [^\\"] )* "
+            | ' (?: \\. | [^\\'] )* '
+            | ‵ (?: ‵‵  | [^‵]   )* ‵
+            };
+INT     -> /{\d+};
+RE      -> /{
+             /{
+               ((?:
+                 \\.
+                 | { (?: (?: \d+(?:,\d*)? | ,\d+ ) \} )?
+                 | \[ (?: \\] | [^\]] )+ ]
+                 | [^\\{\}]
+               )*)
+             \}
+           };
+REF		-> "\\" IDENT;
+COMMENT -> /{ //.*$
+            | (?s: /\* (?: [^*] | \*+[^*/] ) \*/ )
+            };
 
-func grammarGrammarSrc() string {
-	text, err := base64.StdEncoding.DecodeString(grammarGrammarBase64)
-	if err != nil {
-		panic(err)
-	}
-	return string(text)
-}
-
-
+// Special
+.wrapRE -> /{\s*()\s*};
+`)

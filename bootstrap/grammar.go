@@ -86,7 +86,7 @@ type Grammar map[Rule]Term
 var core = func() Parsers {
 	parsers := grammarGrammar.Compile()
 
-	r := parser.NewScanner(grammarGrammarSrc())
+	r := parser.NewScanner(grammarGrammarSrc)
 	v, err := parsers.Parse(grammarR, r)
 	if err != nil {
 		panic(err)

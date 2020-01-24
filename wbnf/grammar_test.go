@@ -256,3 +256,15 @@ func TestExprGrammarGrammarGrammar(t *testing.T) {
 	grammar2 := NewFromNode(e)
 	assertEqualObjects(t, exprGrammar, grammar2)
 }
+
+func TestBacktrackGrammar(t *testing.T) {
+	t.Parallel()
+
+	parsers := MustCompile(`a -> ("x" ":" "x"+ ";"?)+;`)
+	_, err := parsers.Parse(Rule("a"), parser.NewScanner(`x:x;x:x`))
+	assert.NoError(t, err)
+
+	// TODO: Make this work. Probably requires an LL(k) or LL(*) parser.
+	// _, err = parsers.Parse(Rule("a"), parser.NewScanner(`x:xx:x`))
+	// assert.NoError(t, err)
+}

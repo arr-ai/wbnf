@@ -6,6 +6,7 @@
 
 ωBNF is self describing!
 
+<!-- INJECT: ```text\n${examples/wbnf.txt}\n``` -->
 ```text
 // Non-terminals
 grammar -> stmt+;
@@ -26,11 +27,11 @@ COMMENT -> /{ //.*$
             | (?s: /\* (?: [^*] | \*+[^*/] ) \*/ )
             };
 IDENT   -> /{@|[A-Za-z_\.]\w*};
+INT     -> /{\d+};
 STR     -> /{ " (?: \\. | [^\\"] )* "
             | ' (?: \\. | [^\\'] )* '
-            | ` (?: ``  | [^‵]   )* `
+            | ` (?: ``  | [^`]   )* `
             };
-INT     -> /{\d+};
 RE      -> /{
              /{
                ((?:
@@ -41,11 +42,12 @@ RE      -> /{
                )*)
              \}
            };
-REF     -> `\` IDENT;
+REF     -> "\\" IDENT;
 
 // Special
 .wrapRE -> /{\s*()\s*};
 ```
+<!-- /INJECT -->
 
 ## The basics
 

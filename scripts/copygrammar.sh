@@ -1,7 +1,9 @@
-#!/bin/bash
+#!/bin/sh
 
 out=wbnfgrammar.go
+
 echo Generating $out
+
 cat > $out <<EOF
 package wbnf
 

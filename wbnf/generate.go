@@ -1,3 +1,3 @@
 package wbnf
 
-//go:generate sh copygrammar.sh
+//go:generate ../scripts/copygrammar.sh

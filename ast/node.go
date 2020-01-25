@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/arr-ai/wbnf/wbnf"
 	"github.com/arr-ai/wbnf/errors"
 	"github.com/arr-ai/wbnf/parser"
+	"github.com/arr-ai/wbnf/wbnf"
 )
 
 const (
@@ -46,6 +46,7 @@ func relabelNode(name string, v interface{}) interface{} {
 
 type Children interface {
 	fmt.Stringer
+	Scanner() parser.Scanner
 	isChildren()
 	clone() Children
 	narrow() bool
@@ -55,13 +56,14 @@ func (One) isChildren()  {}
 func (Many) isChildren() {}
 
 type One struct {
-	One Node
+	Node Node
 }
 
 type Many []Node
 
 type Node interface {
 	fmt.Stringer
+	Scanner() parser.Scanner
 	isNode()
 	clone() Node
 	narrow() bool
@@ -96,7 +98,7 @@ const levelTag = "@level"
 
 func (n Branch) add(name string, level int, node Node, ctr counter, childCtrs counters) {
 	if name := childCtrs.singular(); name != nil {
-		node = node.(Branch)[*name].(One).One
+		node = node.(Branch)[*name].(One).Node
 		// TODO: zeroOrOne
 	}
 
@@ -129,11 +131,11 @@ func (n Branch) one(name string, node Node) {
 	if _, has := n[name]; has {
 		panic(errors.Inconceivable)
 	}
-	n[name] = One{One: node}
+	n[name] = One{Node: node}
 }
 
 func (n Branch) put(name string, v interface{}) {
-	n[name] = One{One: Extra{extra: v}}
+	n[name] = One{Node: Extra{extra: v}}
 }
 
 func (n Branch) many(name string, node Node) {
@@ -228,7 +230,7 @@ func (n Branch) pull(name string, level int, ctr counter, childCtrs counters) No
 	}
 
 	if name := childCtrs.singular(); name != nil {
-		return Branch{*name: One{One: node}}
+		return Branch{*name: One{Node: node}}
 	}
 	return node
 }
@@ -236,7 +238,7 @@ func (n Branch) pull(name string, level int, ctr counter, childCtrs counters) No
 func (n Branch) pullOne(name string) Node {
 	if child, has := n[name]; has {
 		delete(n, name)
-		return child.(One).One
+		return child.(One).Node
 	}
 	return nil
 }
@@ -244,7 +246,7 @@ func (n Branch) pullOne(name string) Node {
 func (n Branch) inc(name string, delta int) int {
 	i := 0
 	if child, has := n[name]; has {
-		i = child.(One).One.(Extra).extra.(int)
+		i = child.(One).Node.(Extra).extra.(int)
 	}
 	j := i + delta
 	if j > 0 {
@@ -347,7 +349,7 @@ func (n Branch) toTerm(g wbnf.Grammar, term wbnf.Term, ctrs counters) (out inter
 }
 
 func (c One) clone() Children {
-	return One{One: c.One.clone()}
+	return One{Node: c.Node.clone()}
 }
 
 func (c Many) clone() Children {
@@ -375,7 +377,7 @@ func (c Extra) clone() Node {
 }
 
 func (c One) narrow() bool {
-	return c.One.narrow()
+	return c.Node.narrow()
 }
 
 func (c Many) narrow() bool {
@@ -403,10 +405,10 @@ func (c Extra) narrow() bool {
 }
 
 func (c One) String() string {
-	if c.One == nil {
+	if c.Node == nil {
 		panic(errors.Inconceivable)
 	}
-	return c.One.String()
+	return c.Node.String()
 }
 
 func (c Many) String() string {
@@ -495,4 +497,24 @@ func (n Branch) String() string {
 
 func (c Extra) String() string {
 	return fmt.Sprintf("%v", c.extra)
+}
+
+func (c One) Scanner() parser.Scanner {
+	return c.Node.Scanner()
+}
+
+func (c Many) Scanner() parser.Scanner {
+	panic("Scanner() not valid for Many")
+}
+
+func (c Extra) Scanner() parser.Scanner {
+	panic("Scanner() not valid for Extra")
+}
+
+func (l Leaf) Scanner() parser.Scanner {
+	return parser.Scanner(l)
+}
+
+func (n Branch) Scanner() parser.Scanner {
+	panic("Scanner() not valid for Branch")
 }

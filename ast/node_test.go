@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/arr-ai/wbnf/wbnf"
 	"github.com/arr-ai/wbnf/parser"
+	"github.com/arr-ai/wbnf/wbnf"
 	"github.com/stretchr/testify/assert"
 )
 

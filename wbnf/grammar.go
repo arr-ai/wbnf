@@ -46,7 +46,7 @@ var grammarGrammar = Grammar{
 	stmt:        Oneof{comment, prod},
 	prod:        Seq{ident, S("->"), Some(term), S(";")},
 	term: Stack{
-		Delim{Term: at, Sep: Eq("op", S("^"))},
+		Delim{Term: at, Sep: Eq("op", S(">"))},
 		Delim{Term: at, Sep: Eq("op", S("|"))},
 		Some(at),
 		Seq{named, Any(quant)},
@@ -298,11 +298,23 @@ func (t Rule) String() string  { return string(t) }
 func (t S) String() string     { return fmt.Sprintf("%q", string(t)) }
 func (t RE) String() string    { return fmt.Sprintf("/%v/", string(t)) }
 func (t REF) String() string   { return fmt.Sprintf("\\%v", string(t)) }
-func (t Seq) String() string   { return join(t, " ") }
+func (t Seq) String() string   { return "(" + join(t, " ") + ")" }
 func (t Oneof) String() string { return join(t, " | ") }
-func (t Stack) String() string { return join(t, " ^ ") }
-func (t Delim) String() string { return fmt.Sprintf("%v%s%v", t.Term, t.Assoc, t.Sep) }
+func (t Stack) String() string { return join(t, " > ") }
 func (t Named) String() string { return fmt.Sprintf("%s=%v", t.Name, t.Term) }
+
+func (t Delim) String() string {
+	leading := ""
+	if t.CanStartWithSep {
+		leading = ","
+	}
+	trailing := ""
+	if t.CanEndWithSep {
+		trailing = ","
+	}
+	return fmt.Sprintf("%v%s%s%v%s", t.Term, t.Assoc, leading, t.Sep, trailing)
+}
+
 func (t Quant) String() string {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "%v", t.Term)

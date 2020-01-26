@@ -3,6 +3,7 @@ package wbnf
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"reflect"
 	"regexp"
 	"strings"
@@ -24,11 +25,11 @@ var expr = Rule("expr")
 var exprGrammarSrc = `
 // Simple expression grammar
 expr -> @:/{([-+])}
-      ^ @:/{([*/])}
-      ^ "-"? @
-	  ^ /{(\d+)} | @
-	  ^ @<:"**"
-      ^ "(" @ ")";
+      > @:/{([*/])}
+      > "-"? @
+      > /{(\d+)} | @
+      > @<:"**"
+      > "(" @ ")";
 `
 
 var exprGrammar = Grammar{
@@ -200,11 +201,11 @@ func TestExprGrammarGrammar(t *testing.T) {
 	assertUnparse(t,
 		`// Simple expression grammar`+
 			`expr->@:([-+])`+
-			`^@:([*/])`+
-			`^"-"?@`+
-			`^(\d+)|@`+
-			`^@<:"**"`+
-			`^"("@")";`,
+			`>@:([*/])`+
+			`>"-"?@`+
+			`>(\d+)|@`+
+			`>@<:"**"`+
+			`>"("@")";`,
 		parsers,
 		v,
 	)
@@ -267,4 +268,20 @@ func TestBacktrackGrammar(t *testing.T) {
 	// TODO: Make this work. Probably requires an LL(k) or LL(*) parser.
 	// _, err = parsers.Parse(Rule("a"), parser.NewScanner(`x:xx:x`))
 	// assert.NoError(t, err)
+}
+
+func TestCombo1(t *testing.T) {
+	t.Parallel()
+
+	p, err := Compile(`x -> tuple=("(" "1":",",? ")");`)
+	assert.NoError(t, err)
+	log.Print(p.Grammar())
+}
+
+func TestCombo2(t *testing.T) {
+	t.Parallel()
+
+	p, err := Compile(`x -> rel=("{" names ("(" @:",", ")"):",",? "}");`)
+	assert.NoError(t, err)
+	log.Print(p.Grammar())
 }

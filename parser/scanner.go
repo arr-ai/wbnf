@@ -20,6 +20,10 @@ func NewScannerAt(src string, offset, size int) *Scanner {
 	return &Scanner{src: src, slice: src[offset : offset+size], offset: offset}
 }
 
+func NewBareScanner(offset int, slice string) *Scanner {
+	return &Scanner{slice: slice, offset: offset}
+}
+
 func (r Scanner) String() string {
 	return r.slice
 }

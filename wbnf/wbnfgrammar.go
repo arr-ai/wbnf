@@ -5,10 +5,10 @@ var grammarGrammarSrc = unfakeBackquote(`
 grammar -> stmt+;
 stmt    -> COMMENT | prod;
 prod    -> IDENT "->" term+ ";";
-term    -> @:op="^"
-         ^ @:op="|"
-         ^ @+
-         ^ named quant*;
+term    -> @:op=">"
+         > @:op="|"
+         > @+
+         > named quant*;
 named   -> (IDENT op="=")? atom;
 quant   -> op=/{[?*+]}
          | "{" min=INT? "," max=INT? "}"

@@ -1,4 +1,5 @@
-package wbnf
+//nolint:unused,deadcode
+package ast
 
 import (
 	"reflect"
@@ -29,4 +30,18 @@ func (enterexit) exitf(format string, ptrs ...interface{}) { //nolint:unparam
 		args = append(args, reflect.ValueOf(ptr).Elem().Interface())
 	}
 	indentf("<-- "+format, args...)
+}
+
+type tracing struct {
+	oldLevel logrus.Level
+}
+
+func trace() tracing {
+	t := tracing{oldLevel: logrus.GetLevel()}
+	logrus.SetLevel(logrus.TraceLevel)
+	return t
+}
+
+func (t tracing) revert() {
+	logrus.SetLevel(t.oldLevel)
 }

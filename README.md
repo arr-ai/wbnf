@@ -12,10 +12,10 @@
 grammar -> stmt+;
 stmt    -> COMMENT | prod;
 prod    -> IDENT "->" term+ ";";
-term    -> @:op="^"
-         ^ @:op="|"
-         ^ @+
-         ^ named quant*;
+term    -> @:op=">"
+         > @:op="|"
+         > @+
+         > named quant*;
 named   -> (IDENT op="=")? atom;
 quant   -> op=/{[?*+]}
          | "{" min=INT? "," max=INT? "}"
@@ -154,14 +154,14 @@ TERM+ ;`:
   This again has heaps of repetition both in each *rule* and between *rules* (as
   each refers to the next in the precedence order).
 
-  The `^` operator can help with this (newlines are generally ignored by the
+  The `>` operator can help with this (newlines are generally ignored by the
   parser).
 
   ```text
   expr -> @:/{[+-]}
-        ^ @:/{[*/]}
-        ^ "(" @ ")"
-        ^ /{\d+};
+        > @:/{[*/]}
+        > "(" @ ")"
+        > /{\d+};
   ```
 
   In each line of the stack, the @ *term* implicitly refers to the next line
@@ -186,9 +186,9 @@ TERM+ ;`:
 
   ```text
   expr -> @:op=/{[+-]}
-        ^ @:op=/{[*/]}
-        ^ "(" @ ")"
-        ^ /{\d+};
+        > @:op=/{[*/]}
+        > "(" @ ")"
+        > /{\d+};
   ```
 
   This is the same math grammar as above, except two lines have `op=` for the

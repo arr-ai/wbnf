@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/arr-ai/wbnf/wbnf/internal"
 	"github.com/arr-ai/wbnf/errors"
+	"github.com/arr-ai/wbnf/wbnf/internal"
 
 	"github.com/arr-ai/wbnf/parser"
 )
@@ -122,8 +122,8 @@ func compileTermNamedNode(node parser.Node) Term {
 func compileTermQuantNode(node parser.Node) Term {
 	term := compileTermNamedNode(node.GetNode(0))
 	opt := node.GetNode(1)
-	if opt.Count() == 1 {
-		quant := opt.GetNode(0)
+	for _, child := range opt.Children {
+		quant := child.(parser.Node)
 		switch quant.Extra.(int) {
 		case 0:
 			switch quant.GetString(0) {
@@ -159,9 +159,11 @@ func compileTermQuantNode(node parser.Node) Term {
 		case 2:
 			seq := quant.GetNode(0)
 			term = Delim{
-				Term:  term,
-				Sep:   compileTermNamedNode(seq.GetNode(2)),
-				Assoc: NewAssociativity(seq.GetString(0)),
+				Term:            term,
+				Sep:             compileTermNamedNode(seq.GetNode(2)),
+				Assoc:           NewAssociativity(seq.GetString(0)),
+				CanStartWithSep: seq.GetNode(1).Count() == 1,
+				CanEndWithSep:   seq.GetNode(3).Count() == 1,
 			}
 		default:
 			panic(errors.BadInput)

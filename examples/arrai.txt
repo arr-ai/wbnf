@@ -6,15 +6,15 @@ nest       -> "nest" name_list ident;
 unnest     -> "unnest" ident;
 
 expr       -> expr:("with"|"without")
-            ^ expr:("||")
-            ^ expr:("&&")
-            ^ expr:/{!?(?:<>?=?|>=?)}
-            ^ "if" expr2 "then" expr "else" expr;
+            > expr:("||")
+            > expr:("&&")
+            > expr:/{!?(?:<>?=?|>=?)}
+            > "if" expr2 "then" expr "else" expr;
 expr2      -> expr2:(/{[&]} | JOIN)
-            ^ expr2:/{[-+|]}
-            ^ expr2:/{[\*/%]|-%|//}
-            ^ expr2<:"**"
-            ^ /{[-+!]|\*\*?} touch;
+            > expr2:/{[-+|]}
+            > expr2:/{[\*/%]|-%|//}
+            > expr2<:"**"
+            > /{[-+!]|\*\*?} touch;
 touch      -> suffix touch_tail;
 touch_tail -> ("->*" );
 suffix     -> (); // FIXME: this shouldn't actually be empty

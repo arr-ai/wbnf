@@ -534,7 +534,9 @@ func (l Leaf) String() string {
 	scanner := parser.Scanner(l)
 	s := scanner.String()
 	fmt.Fprintf(&sb, "%d‣", scanner.Offset())
-	if strings.Contains(s, "`") && !strings.Contains(s, `"`) {
+	if !strings.ContainsAny(s, "\"`,)") {
+		fmt.Fprintf(&sb, "%s", s)
+	} else if strings.Contains(s, "`") && !strings.Contains(s, `"`) {
 		fmt.Fprintf(&sb, "%q", s)
 	} else {
 		fmt.Fprintf(&sb, "`%s`", strings.ReplaceAll(s, "`", "``"))

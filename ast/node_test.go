@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
@@ -16,7 +17,9 @@ type nodeParseScenario struct {
 }
 
 func (s nodeParseScenario) String() string {
-	return strings.ReplaceAll(s.grammar+s.input, " ", "")
+	return fmt.Sprintf("%s/%s",
+		strings.TrimRight(s.grammar, " "),
+		strings.TrimRight(s.input, " "))
 }
 
 var endIndentRE = regexp.MustCompile(`(\()\n *|,\n *(\))|(,)\n( ) *`)
@@ -104,6 +107,20 @@ func TestNodeStack(t *testing.T) {
 
 		// {`('': Many{many(0, `1`)}},
 		// 	`a -> @:op="+" > @:op="*" > "1";`, `a`, `1+1`},
+	} {
+		s := s
+		t.Run(s.String(), func(t *testing.T) {
+			t.Parallel()
+			assertNodeParsesAs(t, s)
+		})
+	}
+}
+
+func TestNodeInnerOuterName(t *testing.T) {
+	t.Parallel()
+
+	for _, s := range []nodeParseScenario{
+		{`('': [0‣"(", 2‣")"], sum: ('': [1‣1]))`, `a -> "(" sum=("1":"+") ")";`, `a`, `(1)`},
 	} {
 		s := s
 		t.Run(s.String(), func(t *testing.T) {

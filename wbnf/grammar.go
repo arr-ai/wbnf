@@ -85,7 +85,7 @@ type Grammar map[Rule]Term
 // Build the grammar grammar from grammarGrammarSrc and check that it matches
 // grammarGrammar.
 var core = func() Parsers {
-	parsers := grammarGrammar.Compile()
+	parsers := grammarGrammar.Compile(nil)
 
 	r := parser.NewScanner(grammarGrammarSrc)
 	v, err := parsers.Parse(GrammarRule, r)
@@ -95,9 +95,9 @@ var core = func() Parsers {
 	if err := parsers.Grammar().ValidateParse(v); err != nil {
 		panic(err)
 	}
-	g := v.(parser.Node)
+	coreNode := v.(parser.Node)
 
-	newGrammarGrammar := NewFromNode(g)
+	newGrammarGrammar := NewFromNode(coreNode)
 
 	if diff := DiffGrammars(grammarGrammar, newGrammarGrammar); !diff.Equal() {
 		panic(fmt.Errorf(
@@ -109,7 +109,7 @@ var core = func() Parsers {
 		))
 	}
 
-	return newGrammarGrammar.Compile()
+	return newGrammarGrammar.Compile(&coreNode)
 }()
 
 func Core() Parsers {
@@ -136,11 +136,16 @@ func (g Grammar) Unparse(v interface{}, w io.Writer) (n int, err error) {
 type Parsers struct {
 	parsers    map[Rule]parser.Parser
 	grammar    Grammar
+	node       *parser.Node
 	singletons PathSet
 }
 
 func (p Parsers) Grammar() Grammar {
 	return p.grammar
+}
+
+func (p Parsers) Node() *parser.Node {
+	return p.node
 }
 
 func (p Parsers) ValidateParse(v interface{}) error {

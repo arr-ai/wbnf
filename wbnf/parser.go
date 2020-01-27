@@ -94,7 +94,7 @@ func (g Grammar) resolveStacks() {
 
 // Compile prepares a grammar for parsing. The parser holds a copy of the
 // grammar modified to support parser execution.
-func (g Grammar) Compile() Parsers {
+func (g Grammar) Compile(node *parser.Node) Parsers {
 	for _, term := range g {
 		if _, ok := term.(Stack); ok {
 			g = g.clone()
@@ -122,6 +122,7 @@ func (g Grammar) Compile() Parsers {
 	return Parsers{
 		parsers:    c.parsers,
 		grammar:    g,
+		node:       node,
 		singletons: g.singletons(),
 	}
 }
@@ -131,7 +132,8 @@ func Compile(grammar string) (Parsers, error) {
 	if err != nil {
 		return Parsers{}, err
 	}
-	return NewFromNode(v.(parser.Node)).Compile(), nil
+	node := v.(parser.Node)
+	return NewFromNode(node).Compile(&node), nil
 }
 
 func MustCompile(grammar string) Parsers {

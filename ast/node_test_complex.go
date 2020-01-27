@@ -17,7 +17,7 @@ func TestParserNodeToNode(t *testing.T) {
 	u := NodeToParserNode(g, n).(parser.Node)
 	parser.AssertEqualNodes(t, v, u)
 
-	p = wbnf.NewFromNode(v).Compile()
+	p = wbnf.NewFromNode(v).Compile(&v)
 	v = p.MustParse(wbnf.Rule("expr"), parser.NewScanner(`1+2*3`)).(parser.Node)
 	g = p.Grammar()
 	n = ParserNodeToNode(g, v)
@@ -36,7 +36,8 @@ func TestTinyXMLGrammar(t *testing.T) {
 	`))
 	assert.NoError(t, err)
 
-	xmlParser := wbnf.NewFromNode(v.(parser.Node)).Compile()
+	node := v.(parser.Node)
+	xmlParser := wbnf.NewFromNode(node).Compile(&node)
 
 	src := parser.NewScanner(`<a x="1">hello <b>world!</b></a>`)
 	orig := *src

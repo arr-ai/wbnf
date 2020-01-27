@@ -155,7 +155,7 @@ func TestParseNamedTermInDelim(t *testing.T) {
 func TestGrammarParser(t *testing.T) {
 	t.Parallel()
 
-	parsers := exprGrammar.Compile()
+	parsers := exprGrammar.Compile(nil)
 
 	r := parser.NewScanner("1+2*3")
 	v, err := parsers.Parse(expr, r)

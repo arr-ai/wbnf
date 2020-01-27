@@ -23,6 +23,14 @@ const (
 	SkipTag   = "@skip"
 )
 
+var coreNode = func() Node {
+	return ParserNodeToNode(wbnf.Core().Grammar(), *wbnf.Core().Node())
+}()
+
+func CoreNode() Node {
+	return coreNode
+}
+
 func ParserNodeToNode(g wbnf.Grammar, v interface{}) Branch {
 	rule := wbnf.NodeRule(v)
 	term := g[rule]

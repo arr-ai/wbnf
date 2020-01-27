@@ -529,17 +529,20 @@ func (c Many) String() string {
 	return sb.String()
 }
 
+var specialCharRE = regexp.MustCompile("[[:cntrl:]:,'`(){}[\\]]")
+
 func (l Leaf) String() string {
 	var sb strings.Builder
 	scanner := parser.Scanner(l)
 	s := scanner.String()
 	fmt.Fprintf(&sb, "%d‣", scanner.Offset())
-	if !strings.ContainsAny(s, "\"`,)") {
-		fmt.Fprintf(&sb, "%s", s)
-	} else if strings.Contains(s, "`") && !strings.Contains(s, `"`) {
+	switch {
+	case specialCharRE.MatchString(s):
 		fmt.Fprintf(&sb, "%q", s)
-	} else {
+	case strings.Contains(s, `"`):
 		fmt.Fprintf(&sb, "`%s`", strings.ReplaceAll(s, "`", "``"))
+	default:
+		fmt.Fprintf(&sb, "%s", s)
 	}
 	return sb.String()
 }

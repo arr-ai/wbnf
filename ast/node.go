@@ -232,10 +232,6 @@ func (n Branch) one(name string, node Node) {
 	n[name] = One{Node: node}
 }
 
-func (n Branch) put(name string, v interface{}) {
-	n[name] = One{Node: Extra{Data: v}}
-}
-
 func (n Branch) many(name string, node Node) {
 	if many, has := n[name]; has {
 		n[name] = append(many.(Many), node)
@@ -374,7 +370,7 @@ func (n Branch) inc(name string, delta int) int {
 	}
 	j := i + delta
 	if j > 0 {
-		n.put(name, j)
+		n[name] = One{Node: Extra{Data: j}}
 	} else {
 		delete(n, name)
 	}

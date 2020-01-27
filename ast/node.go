@@ -67,7 +67,9 @@ type Many []Node
 
 type Node interface {
 	fmt.Stringer
+	One(name string) Node
 	MustOne(name string) Node
+	Many(name string) []Node
 	MustMany(name string) []Node
 	Scanner() parser.Scanner
 	collapse(level int) Node
@@ -82,8 +84,16 @@ func (Extra) isNode()  {}
 
 type Leaf parser.Scanner
 
+func (Leaf) One(_ string) Node {
+	return nil
+}
+
 func (Leaf) MustOne(_ string) Node {
 	panic(errors.Inconceivable)
+}
+
+func (Leaf) Many(_ string) []Node {
+	return nil
 }
 
 func (Leaf) MustMany(_ string) []Node {
@@ -96,14 +106,32 @@ func (l Leaf) collapse(level int) Node {
 
 type Branch map[string]Children
 
+func (n Branch) One(name string) Node {
+	if c, has := n[name]; has {
+		if one, ok := c.(One); ok {
+			return one.Node
+		}
+	}
+	return nil
+}
+
 func (n Branch) MustOne(name string) Node {
 	if c, has := n[name]; has {
 		if one, ok := c.(One); ok {
 			return one.Node
 		}
-		panic("not a One")
+		panic(fmt.Errorf("not a One"))
 	}
 	panic(fmt.Errorf("name %q not found", name))
+}
+
+func (n Branch) Many(name string) []Node {
+	if c, has := n[name]; has {
+		if many, ok := c.(Many); ok {
+			return many
+		}
+	}
+	return nil
 }
 
 func (n Branch) MustMany(name string) []Node {
@@ -111,7 +139,7 @@ func (n Branch) MustMany(name string) []Node {
 		if many, ok := c.(Many); ok {
 			return many
 		}
-		panic("not a Many")
+		panic(fmt.Errorf("not a Many"))
 	}
 	panic(fmt.Errorf("name %q not found", name))
 }
@@ -120,16 +148,24 @@ type Extra struct {
 	Data interface{}
 }
 
+func (Extra) One(_ string) Node {
+	return nil
+}
+
 func (Extra) MustOne(_ string) Node {
 	panic(errors.Inconceivable)
+}
+
+func (Extra) Many(_ string) []Node {
+	return nil
 }
 
 func (Extra) MustMany(_ string) []Node {
 	panic(errors.Inconceivable)
 }
 
-func (e Extra) collapse(level int) Node {
-	return e
+func (c Extra) collapse(level int) Node {
+	return c
 }
 
 var stackLevelRE = regexp.MustCompile(`^(\w+)@(\d+)$`)
@@ -170,7 +206,7 @@ func (n Branch) collapse(level int) Node {
 	return n
 }
 
-func (n Branch) add(name string, level int, node Node, ctr counter, childCtrs counters) {
+func (n Branch) add(name string, node Node, ctr counter) {
 	switch ctr {
 	case counter{}:
 		panic(errors.Inconceivable)
@@ -229,7 +265,7 @@ func (n Branch) fromTerm(g wbnf.Grammar, term wbnf.Term, ctrs counters, v interf
 	defer enterf("term=%v, v=%v", term, v).exitf("tag=%q, n=%v", &tag, &n)
 	switch t := term.(type) {
 	case wbnf.S, wbnf.RE, wbnf.REF:
-		n.add("", -1, Leaf(v.(parser.Scanner)), ctrs[""], nil)
+		n.add("", Leaf(v.(parser.Scanner)), ctrs[""])
 	case wbnf.Rule:
 		term := g[t]
 		childCtrs := newCounters(term)
@@ -242,7 +278,7 @@ func (n Branch) fromTerm(g wbnf.Grammar, term wbnf.Term, ctrs counters, v interf
 			// TODO: zeroOrOne
 		}
 		node = node.collapse(level)
-		n.add(unleveled, level, node, ctrs[string(t)], childCtrs)
+		n.add(unleveled, node, ctrs[string(t)])
 	case wbnf.Seq:
 		node := v.(parser.Node)
 		tag = node.Tag
@@ -284,7 +320,7 @@ func (n Branch) fromTerm(g wbnf.Grammar, term wbnf.Term, ctrs counters, v interf
 			}
 			// TODO: zeroOrOne
 		}
-		n.add(t.Name, -1, node, ctrs[t.Name], childCtrs)
+		n.add(t.Name, node, ctrs[t.Name])
 	default:
 		panic(fmt.Errorf("unexpected term type: %v %[1]T", t))
 	}

@@ -6,7 +6,7 @@
 
 ωBNF is self describing!
 
-<!-- INJECT: ```text\n${examples/wbnf.txt}\n``` -->
+<!-- INJECT: ```text\n${examples/wbnf.wbnf}\n``` -->
 ```text
 // Non-terminals
 grammar -> stmt+;

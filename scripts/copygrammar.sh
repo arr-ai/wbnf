@@ -8,6 +8,6 @@ cat > $out <<EOF
 package wbnf
 
 var grammarGrammarSrc = unfakeBackquote(\`
-$(sed 's/`/‵/g' ../examples/wbnf.txt)
+$(sed 's/`/‵/g' ../examples/wbnf.wbnf)
 \`)
 EOF

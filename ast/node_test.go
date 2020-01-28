@@ -121,6 +121,13 @@ func TestNodeInnerOuterName(t *testing.T) {
 
 	for _, s := range []nodeParseScenario{
 		{`('': [0‣"(", 2‣")"], sum: ('': [1‣1]))`, `a -> "(" sum=("1":"+") ")";`, `a`, `(1)`},
+		{`('': [0‣"(", 4‣")"], sum: ('': [1‣1, 2‣+, 3‣1]))`, `a -> "(" sum=("1":"+") ")";`, `a`, `(1+1)`},
+
+		// {Branch{"a": many(0, `1`, 1, `1`)},
+		// 	`a -> @:op="+" > @:op="*" > "1";`, `a`, `1+1`},
+
+		// {`('': Many{many(0, `1`)}},
+		// 	`a -> @:op="+" > @:op="*" > "1";`, `a`, `1+1`},
 	} {
 		s := s
 		t.Run(s.String(), func(t *testing.T) {

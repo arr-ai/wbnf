@@ -28,6 +28,11 @@ func (r Scanner) String() string {
 	return r.slice
 }
 
+func (r Scanner) StripSource() Scanner {
+	r.src = ""
+	return r
+}
+
 func (r Scanner) Format(state fmt.State, c rune) {
 	if c == 'q' {
 		fmt.Fprintf(state, "%q", r.String())

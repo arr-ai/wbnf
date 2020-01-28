@@ -82,6 +82,10 @@ func NodeRule(v interface{}) Rule {
 
 type Grammar map[Rule]Term
 
+func GrammarGrammar() string {
+	return grammarGrammarSrc
+}
+
 // Build the grammar grammar from grammarGrammarSrc and check that it matches
 // grammarGrammar.
 var core = func() Parsers {

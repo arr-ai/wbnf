@@ -42,7 +42,7 @@ RE      -> /{
                )*)
              \}
            };
-REF     -> "%" IDENT ("=" default=atom)?;
+REF     -> "%" IDENT ("=" default=STR)?;
 
 // Special
 .wrapRE -> /{\s*()\s*};

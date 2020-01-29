@@ -268,7 +268,7 @@ func (n Branch) fromTerm(g wbnf.Grammar, term wbnf.Term, ctrs counters, v interf
 	var tag string
 	defer enterf("term=%v, v=%v", term, v).exitf("tag=%q, n=%v", &tag, &n)
 	switch t := term.(type) {
-	case wbnf.S, wbnf.RE, wbnf.REF:
+	case wbnf.S, wbnf.RE:
 		n.add("", Leaf(v.(parser.Scanner)), ctrs[""])
 	case wbnf.Rule:
 		term := g[t]
@@ -325,9 +325,22 @@ func (n Branch) fromTerm(g wbnf.Grammar, term wbnf.Term, ctrs counters, v interf
 			// TODO: zeroOrOne
 		}
 		n.add(t.Name, node, ctrs[t.Name])
+	case wbnf.REF:
+		n.add(t.Ident, n.fromRefNode(v), ctrs[t.Ident])
 	default:
 		panic(fmt.Errorf("unexpected term type: %v %[1]T", t))
 	}
+}
+
+func (n Branch) fromRefNode(v interface{}) Node {
+	if s, ok := v.(parser.Scanner); ok {
+		return Leaf(s)
+	}
+	b := Branch{}
+	for _, child := range v.(parser.Node).Children {
+		b.many("", n.fromRefNode(child))
+	}
+	return b
 }
 
 func (n Branch) pull(name string, level int, ctr counter, childCtrs counters) Node {

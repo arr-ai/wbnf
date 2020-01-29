@@ -64,6 +64,9 @@ type scopeVal struct {
 }
 
 func NewScopeWith(s frozen.Map, ident string, p parser.Parser, val interface{}) frozen.Map {
+	if ident == "" {
+		return s
+	}
 	return s.With(ident, &scopeVal{p, val})
 }
 func GetFrom(s frozen.Map, ident string) (*scopeVal, bool) {
@@ -278,27 +281,6 @@ func identFromTerm(term Term) string {
 	return ""
 }
 
-func nodesEqual(a, b interface{}) bool {
-	aType := reflect.TypeOf(a)
-	bType := reflect.TypeOf(b)
-	if aType == bType {
-		switch a := a.(type) {
-		case parser.Node:
-			b := b.(parser.Node)
-			diff := parser.NewNodeDiff(&a, &b)
-			if diff.Equal() {
-				return true
-			}
-		case parser.Scanner:
-			b := b.(parser.Scanner)
-			if a.String() == b.String() {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func (p *seqParser) Parse(scope frozen.Map, input *parser.Scanner, output interface{}) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	result := make([]interface{}, 0, len(p.parsers))
@@ -361,6 +343,7 @@ func (p *delimParser) Parse(scope frozen.Map, input *parser.Scanner, output inte
 		if !parseAppend(p.sep, scope, input, &result, &parseErr) {
 			return parseErr
 		}
+		scope = NewScopeWith(scope, identFromTerm(p.t.Sep), p.sep, result[len(result)-1])
 		if !parseAppend(p.term, scope, input, &result, &parseErr) {
 			return parseErr
 		}
@@ -368,9 +351,11 @@ func (p *delimParser) Parse(scope frozen.Map, input *parser.Scanner, output inte
 		return parseErr
 	}
 
+	scope = NewScopeWith(scope, identFromTerm(p.t.Term), p.term, result[len(result)-1])
 	start := *input
 	for parseAppend(p.sep, scope, input, &result, &parseErr) {
 		start = *input
+		scope = NewScopeWith(scope, identFromTerm(p.t.Sep), p.sep, result[len(result)-1])
 		if !parseAppend(p.term, scope, input, &result, &parseErr) {
 			if p.t.CanEndWithSep {
 				result = append(result, Empty{})
@@ -379,6 +364,7 @@ func (p *delimParser) Parse(scope frozen.Map, input *parser.Scanner, output inte
 			}
 			break
 		}
+		scope = NewScopeWith(scope, identFromTerm(p.t.Term), p.term, result[len(result)-1])
 		start = *input
 	}
 	*input = start
@@ -522,24 +508,71 @@ func (t Named) Parser(rule Rule, c cache) parser.Parser {
 
 //-----------------------------------------------------------------------------
 
-func (t *REF) Parse(scope frozen.Map, input *parser.Scanner, output interface{}) (out error) {
-	var v interface{}
-	expected, ok := GetFrom(scope, t.Ident)
-	if !ok && t.Default != nil {
-		expected = &scopeVal{
-			p:   t.Default.Parser(Rule(t.Ident), cache{}),
-			val: nil,
+func termFromRefVal(from interface{}) Term {
+	var term Term
+	switch n := from.(type) {
+	case parser.Node:
+		s := Seq{}
+		for _, v := range n.Children {
+			s = append(s, termFromRefVal(v))
+		}
+		term = s
+	case parser.Scanner:
+		term = S(n.String())
+	}
+	return term
+}
+
+func nodesEqual(a, b interface{}) bool {
+	aType := reflect.TypeOf(a)
+	bType := reflect.TypeOf(b)
+	if aType == bType {
+		switch a := a.(type) {
+		case parser.Node:
+			b := b.(parser.Node)
+			switch a.Tag {
+			case seqTag:
+			case b.Tag:
+			default:
+				return false
+			}
+			if a.Count() == b.Count() {
+				for i := range a.Children {
+					if !nodesEqual(a.Children[i], b.Children[i]) {
+						return false
+					}
+				}
+			}
+			return true
+		case parser.Scanner:
+			b := b.(parser.Scanner)
+			if a.String() == b.String() {
+				return true
+			}
 		}
 	}
-	if err := expected.p.Parse(scope, input, &v); err != nil {
-		return err
+	return false
+}
+func (t *REF) Parse(scope frozen.Map, input *parser.Scanner, output interface{}) (out error) {
+	var v interface{}
+	if expected, ok := GetFrom(scope, t.Ident); ok {
+		term := termFromRefVal(expected.val)
+		if err := term.Parser(Rule(t.Ident), cache{}).Parse(scope, input, &v); err != nil {
+			return err
+		}
+		if !nodesEqual(v, expected.val) {
+			return newParseError(Rule(t.Ident), "Backref not matched",
+				fmt.Errorf("expected: %s", expected),
+				fmt.Errorf("actual: %s", v))
+		}
+	} else if t.Default != nil {
+		if err := t.Default.Parser(Rule(t.Ident), cache{}).Parse(scope, input, &v); err != nil {
+			return err
+		}
+	} else {
+		panic("should not get here")
 	}
-	if expected.val != nil && !nodesEqual(v, expected.val) {
-		return newParseError(Rule(t.Ident), "Backref not matched",
-			fmt.Errorf("expected: %s", expected),
-			fmt.Errorf("actual: %s", v))
-	}
-	output = v
+	*output.(*interface{}) = v
 	return nil
 }
 

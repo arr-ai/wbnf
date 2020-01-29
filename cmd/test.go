@@ -73,6 +73,7 @@ func test(c *cli.Context) error {
 		input = string(buf)
 	}
 
+	//	logrus.SetLevel(logrus.TraceLevel)
 	tree, err := g.Parse(wbnf.Rule(startingRule), parser.NewScanner(input))
 	if err != nil {
 		return err

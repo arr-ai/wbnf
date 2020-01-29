@@ -71,7 +71,7 @@ var grammarGrammar = Grammar{
 	str:     RE(unfakeBackquote(`"(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*'|‵(?:‵‵|[^‵])*‵`)),
 	intR:    RE(`\d+`),
 	re:      RE(`/{((?:\\.|{(?:(?:\d+(?:,\d*)?|,\d+)\})?|\[(?:\\]|[^\]])+]|[^\\{\}])*)\}`),
-	ref:     Seq{S("%"), ident, Opt(Seq{S("="), Eq("default", atom)})},
+	ref:     Seq{S("%"), ident, Opt(Seq{S("="), Eq("default", str)})},
 	comment: RE(`//.*$|(?s:/\*(?:[^*]|\*+[^*/])\*/)`),
 
 	// Special
@@ -311,7 +311,7 @@ func (g Grammar) String() string {
 func (t Rule) String() string  { return string(t) }
 func (t S) String() string     { return fmt.Sprintf("%q", string(t)) }
 func (t RE) String() string    { return fmt.Sprintf("/%v/", string(t)) }
-func (t REF) String() string   { return fmt.Sprintf("\\%v=%v", t.Ident, t.Default) }
+func (t REF) String() string   { return fmt.Sprintf("%%%v=%v", t.Ident, t.Default) }
 func (t Seq) String() string   { return "(" + join(t, " ") + ")" }
 func (t Oneof) String() string { return join(t, " | ") }
 func (t Stack) String() string { return join(t, " > ") }

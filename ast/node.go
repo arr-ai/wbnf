@@ -42,7 +42,7 @@ func ParserNodeToNode(g wbnf.Grammar, v interface{}) Branch {
 
 func NodeToParserNode(g wbnf.Grammar, branch Branch) interface{} {
 	branch = branch.clone().(Branch)
-	rule := branch.pullOne(RuleTag).(Extra).Data.(wbnf.Rule)
+	rule := branch.pullFromOne(RuleTag).(Extra).Data.(wbnf.Rule)
 	term := g[rule]
 	ctrs := newCounters(term)
 	return relabelNode(string(rule), branch.toTerm(g, term, ctrs))
@@ -336,9 +336,9 @@ func (n Branch) pull(name string, level int, ctr counter, childCtrs counters) No
 	case counter{}:
 		panic(errors.Inconceivable)
 	case zeroOrOne, oneOne:
-		node = n.pullOne(name)
+		node = n.pullFromOne(name)
 	default:
-		node = n.pullMany(name)
+		node = n.pullFromMany(name)
 	}
 
 	if level >= 0 {
@@ -355,7 +355,7 @@ func (n Branch) pull(name string, level int, ctr counter, childCtrs counters) No
 	return node
 }
 
-func (n Branch) pullOne(name string) Node {
+func (n Branch) pullFromOne(name string) Node {
 	if child, has := n[name]; has {
 		delete(n, name)
 		return child.(One).Node
@@ -377,7 +377,7 @@ func (n Branch) inc(name string, delta int) int {
 	return i
 }
 
-func (n Branch) pullMany(name string) Node {
+func (n Branch) pullFromMany(name string) Node {
 	if node, has := n[name]; has {
 		many := node.(Many)
 		if len(many) > 0 {
@@ -420,7 +420,7 @@ func (n Branch) toTerm(g wbnf.Grammar, term wbnf.Term, ctrs counters) (out inter
 		}
 		return result
 	case wbnf.Oneof:
-		extra := n.pullMany(ChoiceTag).(Extra).Data.(int)
+		extra := n.pullFromMany(ChoiceTag).(Extra).Data.(int)
 		return parser.Node{
 			Tag:      oneofTag,
 			Extra:    extra,

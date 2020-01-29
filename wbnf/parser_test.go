@@ -91,7 +91,8 @@ func Test_seqParser(t *testing.T) {
 		{name: "simple-fail", term: Seq{S("1"), S("2")}, input: "BLAA", success: false},
 		{name: "pass-with-more-text", term: Seq{S("1"), S("2")}, input: "123abcTest1234", success: true, nextSlice: 2},
 		{name: "partial-success", term: Seq{S("1"), S("2")}, input: "1BLAA", success: false, nextSlice: 1},
-		{name: "simple-back-ref", term: Seq{Eq("a", S("1")), REF("a")}, input: "11", success: true, nextSlice: 2},
+		{name: "simple-back-ref", term: Seq{Eq("a", S("1")), REF{Ident: "a"}}, input: "11", success: true, nextSlice: 2},
+		{name: "default-ref-val", term: Seq{Eq("a", S("1")), REF{Ident: "b", Default: S("2")}}, input: "123", success: true, nextSlice: 2},
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {

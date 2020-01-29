@@ -98,7 +98,7 @@ func compileAtomNode(node parser.Node) Term {
 		s = escapedSpaceRE.ReplaceAllString(s, " ")
 		return RE(s)
 	case 3:
-		return REF(Rule(node.GetString(0, 1)))
+		return REF{Ident: node.GetString(0, 1), Default: compileTermNode(node.GetNode(0, 2))}
 	case 4:
 		return compileTermNode(node.GetNode(0, 1))
 	case 5:

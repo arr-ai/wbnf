@@ -42,7 +42,7 @@ RE      -> /{
                )*)
              \}
            };
-REF     -> "%" IDENT;
+REF     -> "%" IDENT ("=" default=atom)?;
 
 // Special
 .wrapRE -> /{\s*()\s*};
@@ -193,6 +193,10 @@ TERM+ ;`:
 
   This is the same math grammar as above, except two lines have `op=` for the
   *delimiter* term name.
+
+- Referenced Terms
+
+  TODO: Fill in, not sure how to word this
 
 ### Further Details
 

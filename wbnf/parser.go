@@ -524,15 +524,20 @@ func (t Named) Parser(rule Rule, c cache) parser.Parser {
 
 func (t *REF) Parse(scope frozen.Map, input *parser.Scanner, output interface{}) (out error) {
 	var v interface{}
-	if expected, ok := GetFrom(scope, string(*t)); ok {
-		if err := expected.p.Parse(scope, input, &v); err != nil {
-			return err
+	expected, ok := GetFrom(scope, t.Ident)
+	if !ok && t.Default != nil {
+		expected = &scopeVal{
+			p:   t.Default.Parser(Rule(t.Ident), cache{}),
+			val: nil,
 		}
-		if !nodesEqual(v, expected.val) {
-			return newParseError(Rule(*t), "Backref not matched",
-				fmt.Errorf("expected: %s", expected),
-				fmt.Errorf("actual: %s", v))
-		}
+	}
+	if err := expected.p.Parse(scope, input, &v); err != nil {
+		return err
+	}
+	if expected.val != nil && !nodesEqual(v, expected.val) {
+		return newParseError(Rule(t.Ident), "Backref not matched",
+			fmt.Errorf("expected: %s", expected),
+			fmt.Errorf("actual: %s", v))
 	}
 	output = v
 	return nil

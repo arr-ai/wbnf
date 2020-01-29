@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/arr-ai/frozen"
+
 	"github.com/arr-ai/wbnf/errors"
 	"github.com/arr-ai/wbnf/parser"
 )
@@ -69,7 +71,7 @@ var grammarGrammar = Grammar{
 	str:     RE(unfakeBackquote(`"(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*'|‵(?:‵‵|[^‵])*‵`)),
 	intR:    RE(`\d+`),
 	re:      RE(`/{((?:\\.|{(?:(?:\d+(?:,\d*)?|,\d+)\})?|\[(?:\\]|[^\]])+]|[^\\{\}])*)\}`),
-	ref:     Seq{S("\\"), ident},
+	ref:     Seq{S("%"), ident},
 	comment: RE(`//.*$|(?s:/\*(?:[^*]|\*+[^*/])\*/)`),
 
 	// Special
@@ -165,7 +167,7 @@ func (p Parsers) Parse(rule Rule, input *parser.Scanner) (interface{}, error) {
 	start := *input
 	for {
 		var v interface{}
-		if err := p.parsers[rule].Parse(input, &v); err != nil {
+		if err := p.parsers[rule].Parse(frozen.NewMap(), input, &v); err != nil {
 			return nil, err
 		}
 

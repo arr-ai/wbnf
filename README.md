@@ -42,7 +42,7 @@ RE      -> /{
                )*)
              \}
            };
-REF     -> "\\" IDENT;
+REF     -> "%" IDENT;
 
 // Special
 .wrapRE -> /{\s*()\s*};

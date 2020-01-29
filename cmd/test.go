@@ -6,8 +6,8 @@ import (
 	"os"
 
 	"github.com/arr-ai/wbnf/ast"
-	"github.com/arr-ai/wbnf/wbnf"
 	"github.com/arr-ai/wbnf/parser"
+	"github.com/arr-ai/wbnf/wbnf"
 
 	"github.com/urfave/cli"
 )
@@ -55,6 +55,8 @@ func loadTestGrammar() wbnf.Parsers {
 func test(c *cli.Context) error {
 	source := inFile
 
+	g := loadTestGrammar()
+
 	var input string
 	switch source {
 	case "", "-":
@@ -71,7 +73,6 @@ func test(c *cli.Context) error {
 		input = string(buf)
 	}
 
-	g := loadTestGrammar()
 	tree, err := g.Parse(wbnf.Rule(startingRule), parser.NewScanner(input))
 	if err != nil {
 		return err

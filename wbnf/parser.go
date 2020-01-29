@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/arr-ai/frozen"
+
 	"github.com/arr-ai/wbnf/errors"
 	"github.com/arr-ai/wbnf/parser"
 )
@@ -151,7 +153,7 @@ type ruleParser struct {
 	t    Rule
 }
 
-func (p ruleParser) Parse(input *parser.Scanner, output interface{}) error {
+func (p ruleParser) Parse(scope frozen.Map, input *parser.Scanner, output interface{}) error {
 	panic(errors.Inconceivable)
 }
 
@@ -188,7 +190,7 @@ type sParser struct {
 	re   *regexp.Regexp
 }
 
-func (p *sParser) Parse(input *parser.Scanner, output interface{}) error {
+func (p *sParser) Parse(_ frozen.Map, input *parser.Scanner, output interface{}) error {
 	if ok := eatRegexp(input, p.re, output); !ok {
 
 		return newParseError(p.rule, "",
@@ -216,7 +218,7 @@ type reParser struct {
 	re   *regexp.Regexp
 }
 
-func (p *reParser) Parse(input *parser.Scanner, output interface{}) error {
+func (p *reParser) Parse(_ frozen.Map, input *parser.Scanner, output interface{}) error {
 	if ok := eatRegexp(input, p.re, output); !ok {
 		return newParseError(p.rule, "",
 			fmt.Errorf("expect: %s", parser.NewScanner(p.re.String()).Context()),
@@ -282,7 +284,7 @@ func nodesEqual(a, b interface{}) bool {
 	return false
 }
 
-func (p *seqParser) Parse(input *parser.Scanner, output interface{}) (out error) {
+func (p *seqParser) Parse(scope frozen.Map, input *parser.Scanner, output interface{}) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	result := make([]interface{}, 0, len(p.parsers))
 	furthest := *input
@@ -293,7 +295,7 @@ func (p *seqParser) Parse(input *parser.Scanner, output interface{}) (out error)
 			for i, val := range result {
 				ident := identFromTerm(p.t[i])
 				if ident == string(*ref) {
-					if err := p.parsers[i].Parse(input, &v); err != nil {
+					if err := p.parsers[i].Parse(scope, input, &v); err != nil {
 						*input = furthest
 						return err
 					}
@@ -306,7 +308,7 @@ func (p *seqParser) Parse(input *parser.Scanner, output interface{}) (out error)
 				}
 			}
 		} else {
-			if err := item.Parse(input, &v); err != nil {
+			if err := item.Parse(scope, input, &v); err != nil {
 				*input = furthest
 				return err
 			}
@@ -336,9 +338,9 @@ type delimParser struct {
 	put  putter
 }
 
-func parseAppend(p parser.Parser, input *parser.Scanner, slice *[]interface{}, errOut *error) bool {
+func parseAppend(p parser.Parser, scope frozen.Map, input *parser.Scanner, slice *[]interface{}, errOut *error) bool {
 	var v interface{}
-	if err := p.Parse(input, &v); err != nil {
+	if err := p.Parse(scope, input, &v); err != nil {
 		*errOut = err
 		return false
 	}
@@ -348,19 +350,19 @@ func parseAppend(p parser.Parser, input *parser.Scanner, slice *[]interface{}, e
 
 type Empty struct{}
 
-func (p *delimParser) Parse(input *parser.Scanner, output interface{}) (out error) {
+func (p *delimParser) Parse(scope frozen.Map, input *parser.Scanner, output interface{}) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	var result []interface{}
 
 	var parseErr error
 	switch {
-	case parseAppend(p.term, input, &result, &parseErr):
+	case parseAppend(p.term, scope, input, &result, &parseErr):
 	case p.t.CanStartWithSep:
 		result = append(result, Empty{})
-		if !parseAppend(p.sep, input, &result, &parseErr) {
+		if !parseAppend(p.sep, scope, input, &result, &parseErr) {
 			return parseErr
 		}
-		if !parseAppend(p.term, input, &result, &parseErr) {
+		if !parseAppend(p.term, scope, input, &result, &parseErr) {
 			return parseErr
 		}
 	default:
@@ -368,9 +370,9 @@ func (p *delimParser) Parse(input *parser.Scanner, output interface{}) (out erro
 	}
 
 	start := *input
-	for parseAppend(p.sep, input, &result, &parseErr) {
+	for parseAppend(p.sep, scope, input, &result, &parseErr) {
 		start = *input
-		if !parseAppend(p.term, input, &result, &parseErr) {
+		if !parseAppend(p.term, scope, input, &result, &parseErr) {
 			if p.t.CanEndWithSep {
 				result = append(result, Empty{})
 			} else {
@@ -436,13 +438,13 @@ type quantParser struct {
 	put  putter
 }
 
-func (p *quantParser) Parse(input *parser.Scanner, output interface{}) (out error) {
+func (p *quantParser) Parse(scope frozen.Map, input *parser.Scanner, output interface{}) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	result := make([]interface{}, 0, p.t.Min)
 	var v interface{}
 	start := *input
 	for i := 0; p.t.Max == 0 || i < p.t.Max; i++ {
-		if out = p.term.Parse(&start, &v); out != nil {
+		if out = p.term.Parse(scope, &start, &v); out != nil {
 			break
 		}
 		result = append(result, v)
@@ -475,7 +477,7 @@ type oneofParser struct {
 	put     putter
 }
 
-func (p *oneofParser) Parse(input *parser.Scanner, output interface{}) (out error) {
+func (p *oneofParser) Parse(scope frozen.Map, input *parser.Scanner, output interface{}) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	furthest := *input
 
@@ -483,7 +485,7 @@ func (p *oneofParser) Parse(input *parser.Scanner, output interface{}) (out erro
 	for i, parser := range p.parsers {
 		var v interface{}
 		start := *input
-		if err := parser.Parse(&start, &v); err != nil {
+		if err := parser.Parse(scope, &start, &v); err != nil {
 			errors = append(errors, err)
 
 			if furthest.Offset() < start.Offset() {
@@ -521,7 +523,7 @@ func (t Named) Parser(rule Rule, c cache) parser.Parser {
 
 //-----------------------------------------------------------------------------
 
-func (t *REF) Parse(input *parser.Scanner, output interface{}) (out error) {
+func (t *REF) Parse(scope frozen.Map, input *parser.Scanner, output interface{}) (out error) {
 	panic(errors.Inconceivable)
 }
 

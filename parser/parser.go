@@ -5,6 +5,8 @@ import (
 	"io"
 	"reflect"
 	"strings"
+
+	"github.com/arr-ai/frozen"
 )
 
 type Node struct {
@@ -62,23 +64,23 @@ func (n Node) Format(state fmt.State, c rune) {
 }
 
 type Parser interface {
-	Parse(input *Scanner, output interface{}) error
+	Parse(scope frozen.Map, input *Scanner, output interface{}) error
 }
 
 func PtrAssign(output, input interface{}) {
 	*output.(*interface{}) = input
 }
 
-type Func func(input *Scanner, output interface{}) error
+type Func func(scope frozen.Map, input *Scanner, output interface{}) error
 
-func (f Func) Parse(input *Scanner, output interface{}) error {
-	return f(input, output)
+func (f Func) Parse(scope frozen.Map, input *Scanner, output interface{}) error {
+	return f(scope, input, output)
 }
 
 func Transform(parser Parser, transform func(Node) Node) Parser {
-	return Func(func(input *Scanner, output interface{}) error {
+	return Func(func(scope frozen.Map, input *Scanner, output interface{}) error {
 		var v Node
-		if err := parser.Parse(input, &v); err != nil {
+		if err := parser.Parse(scope, input, &v); err != nil {
 			return err
 		}
 		PtrAssign(output, transform(v))

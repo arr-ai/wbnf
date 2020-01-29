@@ -4,6 +4,8 @@ package wbnf
 import (
 	"testing"
 
+	"github.com/arr-ai/frozen"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/arr-ai/wbnf/parser"
@@ -30,7 +32,7 @@ func testParser(t *testing.T, test data) {
 	p := test.term.Parser("rule", newCache())
 	var v interface{}
 	scanner := parser.NewScanner(test.input)
-	err := p.Parse(scanner, &v)
+	err := p.Parse(frozen.NewMap(), scanner, &v)
 	if test.success {
 		require.NoError(t, err)
 		require.NotNil(t, v)
@@ -89,6 +91,7 @@ func Test_seqParser(t *testing.T) {
 		{name: "simple-fail", term: Seq{S("1"), S("2")}, input: "BLAA", success: false},
 		{name: "pass-with-more-text", term: Seq{S("1"), S("2")}, input: "123abcTest1234", success: true, nextSlice: 2},
 		{name: "partial-success", term: Seq{S("1"), S("2")}, input: "1BLAA", success: false, nextSlice: 1},
+		{name: "simple-back-ref", term: Seq{Eq("a", S("1")), REF("a")}, input: "11", success: true, nextSlice: 2},
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {

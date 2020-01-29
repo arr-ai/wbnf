@@ -58,6 +58,21 @@ func ruleOrAlt(rule Rule, alt Rule) Rule {
 
 type putter func(output interface{}, extra interface{}, children ...interface{}) error
 
+type scopeVal struct {
+	p   parser.Parser
+	val interface{}
+}
+
+func NewScopeWith(s frozen.Map, ident string, p parser.Parser, val interface{}) frozen.Map {
+	return s.With(ident, &scopeVal{p, val})
+}
+func GetFrom(s frozen.Map, ident string) (*scopeVal, bool) {
+	if val, ok := s.Get(ident); ok {
+		return val.(*scopeVal), ok
+	}
+	return nil, false
+}
+
 func tag(rule Rule, alt Rule) putter {
 	rule = ruleOrAlt(rule, alt)
 	return func(output interface{}, extra interface{}, children ...interface{}) error {
@@ -289,30 +304,14 @@ func (p *seqParser) Parse(scope frozen.Map, input *parser.Scanner, output interf
 	result := make([]interface{}, 0, len(p.parsers))
 	furthest := *input
 
-	for _, item := range p.parsers {
+	for i, item := range p.parsers {
 		var v interface{}
-		if ref, ok := item.(*REF); ok {
-			for i, val := range result {
-				ident := identFromTerm(p.t[i])
-				if ident == string(*ref) {
-					if err := p.parsers[i].Parse(scope, input, &v); err != nil {
-						*input = furthest
-						return err
-					}
-					if !nodesEqual(v, val) {
-						*input = furthest
-						return newParseError(p.rule, "Backref not matched",
-							fmt.Errorf("expected: %s", val),
-							fmt.Errorf("actual: %s", v))
-					}
-				}
-			}
-		} else {
-			if err := item.Parse(scope, input, &v); err != nil {
-				*input = furthest
-				return err
-			}
+		ident := identFromTerm(p.t[i])
+		if err := item.Parse(scope, input, &v); err != nil {
+			*input = furthest
+			return err
 		}
+		scope = NewScopeWith(scope, ident, p.parsers[i], v)
 		furthest = *input
 		result = append(result, v)
 	}
@@ -524,7 +523,19 @@ func (t Named) Parser(rule Rule, c cache) parser.Parser {
 //-----------------------------------------------------------------------------
 
 func (t *REF) Parse(scope frozen.Map, input *parser.Scanner, output interface{}) (out error) {
-	panic(errors.Inconceivable)
+	var v interface{}
+	if expected, ok := GetFrom(scope, string(*t)); ok {
+		if err := expected.p.Parse(scope, input, &v); err != nil {
+			return err
+		}
+		if !nodesEqual(v, expected.val) {
+			return newParseError(Rule(*t), "Backref not matched",
+				fmt.Errorf("expected: %s", expected),
+				fmt.Errorf("actual: %s", v))
+		}
+	}
+	output = v
+	return nil
 }
 
 func (t REF) Parser(rule Rule, c cache) parser.Parser {

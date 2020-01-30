@@ -84,7 +84,7 @@ var whitespaceRE = regexp.MustCompile(`\s`)
 var escapedSpaceRE = regexp.MustCompile(`((?:\A|[^\\])(?:\\\\)*)\\_`)
 
 func compileAtomNode(node parser.Node) Term {
-	switch node.Extra.(int) {
+	switch node.Extra.(Choice) {
 	case 0:
 		return Rule(node.GetString(0))
 	case 1:
@@ -122,7 +122,7 @@ func compileTermQuantNode(node parser.Node) Term {
 	opt := node.GetNode(1)
 	for _, child := range opt.Children {
 		quant := child.(parser.Node)
-		switch quant.Extra.(int) {
+		switch quant.Extra.(Choice) {
 		case 0:
 			switch quant.GetString(0) {
 			case "?":
@@ -227,7 +227,7 @@ func NewFromNode(node parser.Node) Grammar {
 	g := Grammar{}
 	for _, v := range node.Children {
 		stmt := v.(parser.Node)
-		switch stmt.Extra.(int) {
+		switch stmt.Extra.(Choice) {
 		case 0:
 		// 	comment := v.(parse.Node).GetString(0)
 		case 1:

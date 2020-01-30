@@ -1,10 +1,8 @@
 package wbnf
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
-	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -14,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func assertUnparse(t *testing.T, expected string, parsers Parsers, v interface{}) bool { //nolint:unparam
+func assertUnparse(t *testing.T, expected string, parsers Parsers, v parser.TreeElement) bool { //nolint:unparam
 	var sb strings.Builder
 	_, err := parsers.Unparse(v, &sb)
 	return assert.NoError(t, err) && assert.Equal(t, expected, sb.String())
@@ -43,25 +41,6 @@ var exprGrammar = Grammar{
 	},
 }
 
-func assertEqualObjects(t *testing.T, expected, actual interface{}) bool { //nolint:unparam
-	if assert.True(t, reflect.DeepEqual(expected, actual)) {
-		return true
-	}
-	t.Logf("raw expected: %#v", expected)
-	t.Logf("raw actual:   %#v", actual)
-
-	expectedJSON, err := json.Marshal(expected)
-	require.NoError(t, err)
-	actualJSON, err := json.Marshal(actual)
-	require.NoError(t, err)
-	t.Log("JSON(expected): ", string(expectedJSON))
-	t.Log("JSON(actual):   ", string(actualJSON))
-
-	assert.JSONEq(t, string(expectedJSON), string(actualJSON))
-
-	return false
-}
-
 func assertParseToNode(t *testing.T, expected parser.Node, rule Rule, input *parser.Scanner) bool { //nolint:unparam
 	parsers := Core()
 	v, err := parsers.Parse(rule, input)
@@ -83,8 +62,8 @@ type stackBuilder struct {
 
 var stackNamePrefixRE = regexp.MustCompile(`^([a-z\.]*)(?:` + regexp.QuoteMeta(StackDelim) + `(\d+))?\\`)
 
-func (s *stackBuilder) a(name string, extras ...interface{}) *stackBuilder {
-	var extra interface{}
+func (s *stackBuilder) a(name string, extras ...parser.Extra) *stackBuilder {
+	var extra parser.Extra
 	switch len(extras) {
 	case 0:
 	case 1:
@@ -105,18 +84,18 @@ func (s *stackBuilder) a(name string, extras ...interface{}) *stackBuilder {
 	return s
 }
 
-func (s *stackBuilder) z(children ...interface{}) parser.Node {
+func (s *stackBuilder) z(children ...parser.TreeElement) parser.Node {
 	if children == nil {
-		children = []interface{}{}
+		children = []parser.TreeElement{}
 	}
 	s.stack[len(s.stack)-1].Children = children
 	for i := len(s.stack) - 1; i > 0; i-- {
-		s.stack[i-1].Children = []interface{}{*s.stack[i]}
+		s.stack[i-1].Children = []parser.TreeElement{*s.stack[i]}
 	}
 	return *s.stack[0]
 }
 
-func stack(name string, extras ...interface{}) *stackBuilder {
+func stack(name string, extras ...parser.Extra) *stackBuilder {
 	return (&stackBuilder{}).a(name, extras...)
 }
 
@@ -125,7 +104,7 @@ func TestParseNamedTerm(t *testing.T) {
 	x := stack(`term`, NonAssociative).a(`term@1`, NonAssociative).a(`term@2`).a(`term@3`).z(
 		stack(`named`).z(
 			stack(`?`).a(`_`).z(*r.Slice(0, 3), *r.Slice(3, 4)),
-			stack(`atom`, 1).z(*r.Slice(4, 6)),
+			stack(`atom`, Choice(1)).z(*r.Slice(4, 6)),
 		),
 		stack(`?`).z(),
 	)
@@ -137,14 +116,14 @@ func TestParseNamedTermInDelim(t *testing.T) {
 	x := stack(`term`, NonAssociative).a(`term@1`, NonAssociative).a(`term@2`).a(`term@3`).z(
 		stack(`named`).z(
 			stack(`?`).z(),
-			stack(`atom`, 1).z(*r.Slice(0, 3)),
+			stack(`atom`, Choice(1)).z(*r.Slice(0, 3)),
 		),
-		stack(`?`).a(`quant`, 2).a(`_`).z(
+		stack(`?`).a(`quant`, Choice(2)).a(`_`).z(
 			*r.Slice(3, 4),
 			stack(`?`).z(),
 			stack(`named`).z(
 				stack(`?`).a(`_`).z(*r.Slice(4, 6), *r.Slice(6, 7)),
-				stack(`atom`, 1).z(*r.Slice(7, 10)),
+				stack(`atom`, Choice(1)).z(*r.Slice(7, 10)),
 			),
 			stack(`?`).z(),
 		),
@@ -241,7 +220,7 @@ func TestTinyGrammarGrammarGrammar(t *testing.T) {
 	assert.NoError(t, parsers.ValidateParse(v))
 
 	grammar2 := NewFromNode(e)
-	assertEqualObjects(t, tinyGrammar, grammar2)
+	assert.EqualValues(t, tinyGrammar, grammar2)
 }
 
 func TestExprGrammarGrammarGrammar(t *testing.T) {
@@ -255,7 +234,7 @@ func TestExprGrammarGrammarGrammar(t *testing.T) {
 	assert.NoError(t, parsers.ValidateParse(v))
 
 	grammar2 := NewFromNode(e)
-	assertEqualObjects(t, exprGrammar, grammar2)
+	assert.EqualValues(t, exprGrammar, grammar2)
 }
 
 func TestBacktrackGrammar(t *testing.T) {

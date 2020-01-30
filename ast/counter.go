@@ -47,6 +47,29 @@ func (c counter) union(d counter) counter {
 	return c
 }
 
+func (c counter) String() string {
+	switch c.lo {
+	case 0:
+		switch c.hi {
+		case 0:
+			return "0"
+		case 1:
+			return "?"
+		default:
+			return "*"
+		}
+	case 1:
+		switch c.hi {
+		case 1:
+			return "1"
+		default:
+			return "+"
+		}
+	default:
+		return "⧺"
+	}
+}
+
 type counters map[string]counter
 
 func newCounters(t wbnf.Term) counters {

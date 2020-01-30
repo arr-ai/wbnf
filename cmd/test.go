@@ -77,7 +77,7 @@ func test(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	ast := ast.ParserNodeToNode(g.Grammar(), tree)
+	ast := ast.FromParserNode(g.Grammar(), tree)
 	fmt.Println(ast)
 
 	return nil

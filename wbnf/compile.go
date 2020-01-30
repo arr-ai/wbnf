@@ -94,8 +94,8 @@ func compileAtomNode(node parser.Node) Term {
 	case 2:
 		s := whitespaceRE.ReplaceAllString(node.GetString(0), "")
 		// Do this twice to cover adjacent escaped spaces `\_\_`.
-		s = escapedSpaceRE.ReplaceAllString(s, " ")
-		s = escapedSpaceRE.ReplaceAllString(s, " ")
+		s = escapedSpaceRE.ReplaceAllString(s, "$1 ")
+		s = escapedSpaceRE.ReplaceAllString(s, "$1 ")
 		return RE(s)
 	case 3:
 		return compileRefNode(node.GetNode(0))
@@ -153,7 +153,7 @@ func compileTermQuantNode(node parser.Node) Term {
 			minOpt := seq.GetNode(1)
 			if minOpt.Count() == 1 {
 				var err error
-				min, err = strconv.Atoi(minOpt.GetString(0, 0))
+				min, err = strconv.Atoi(minOpt.GetString(0))
 				if err != nil {
 					panic(err)
 				}
@@ -161,7 +161,7 @@ func compileTermQuantNode(node parser.Node) Term {
 			maxOpt := seq.GetNode(3)
 			if maxOpt.Count() == 1 {
 				var err error
-				max, err = strconv.Atoi(maxOpt.GetString(0, 0))
+				max, err = strconv.Atoi(maxOpt.GetString(0))
 				if err != nil {
 					panic(err)
 				}

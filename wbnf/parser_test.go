@@ -28,11 +28,11 @@ type data struct {
 	nextSlice int
 }
 
-func testParser(t *testing.T, test data) {
+func testParser(t *testing.T, test data, scope frozen.Map) {
 	p := test.term.Parser("rule", newCache())
 	var v interface{}
 	scanner := parser.NewScanner(test.input)
-	err := p.Parse(frozen.NewMap(), scanner, &v)
+	err := p.Parse(scope, scanner, &v)
 	if test.success {
 		require.NoError(t, err)
 		require.NotNil(t, v)
@@ -65,7 +65,7 @@ func Test_sParser(t *testing.T) {
 			if test.success {
 				test.nextSlice = len(string(s))
 			}
-			testParser(t, test)
+			testParser(t, test, frozen.NewMap())
 		})
 	}
 }
@@ -80,7 +80,7 @@ func Test_reParser(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			var s RE = `\d*[a-z]+`
 			test.term = s
-			testParser(t, test)
+			testParser(t, test, frozen.NewMap())
 		})
 	}
 }
@@ -96,7 +96,7 @@ func Test_seqParser(t *testing.T) {
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			testParser(t, test)
+			testParser(t, test, frozen.NewMap())
 		})
 	}
 }
@@ -110,7 +110,7 @@ func Test_oneOfParser(t *testing.T) {
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			testParser(t, test)
+			testParser(t, test, frozen.NewMap())
 		})
 	}
 }
@@ -132,7 +132,7 @@ func Test_quantParser(t *testing.T) {
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			testParser(t, test)
+			testParser(t, test, frozen.NewMap())
 		})
 	}
 }
@@ -162,7 +162,45 @@ func Test_delimParser(t *testing.T) {
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			testParser(t, test)
+			testParser(t, test, frozen.NewMap())
+		})
+	}
+}
+
+func Test_refParser(t *testing.T) {
+	// Need to build up some data in the test scope
+	scope := frozen.NewMap()
+	for _, val := range []struct {
+		ident string
+		t     Term
+		input string
+	}{
+		{ident: "a", t: S("a"), input: "a"},
+		{ident: "b", t: Seq{S("a"), S("x")}, input: "ax"},
+		{ident: "z", t: Delim{Term: S("a"), Sep: S("x")}, input: "axaxaxa"},
+	} {
+		p := val.t.Parser("rule", newCache())
+		var v interface{}
+		scanner := parser.NewScanner(val.input)
+		err := p.Parse(scope, scanner, &v)
+		require.NoError(t, err)
+
+		scope = NewScopeWith(scope, val.ident, p, v)
+	}
+	for _, test := range []data{
+		{name: "ref-a-pass", term: REF{Ident: "a", Default: nil}, input: "ababa", success: true, nextSlice: 1},
+		{name: "ref-b-pass", term: REF{Ident: "b", Default: nil}, input: "axaba", success: true, nextSlice: 2},
+		{name: "ref-z-pass", term: REF{Ident: "z", Default: nil}, input: "axaxaxaaxaba", success: true, nextSlice: 7},
+		{name: "ref-a-fail", term: REF{Ident: "a", Default: nil}, input: "xaba", success: false},
+		{name: "ref-b-fail", term: REF{Ident: "b", Default: nil}, input: "abxaba", success: false, nextSlice: 1},
+		{name: "ref-b-fail-dont-take-default", term: REF{Ident: "b", Default: S("hello")}, input: "abxaba", success: false, nextSlice: 1},
+		{name: "missing-ref-no-default", term: REF{Ident: "c", Default: nil}, input: "abxaba", success: false},
+		{name: "missing-ref-default", term: REF{Ident: "c", Default: S("foo")}, input: "fooabxaba", success: true, nextSlice: 3},
+	} {
+		test := test
+
+		t.Run(test.name, func(t *testing.T) {
+			testParser(t, test, scope)
 		})
 	}
 }

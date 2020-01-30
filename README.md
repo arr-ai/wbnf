@@ -274,3 +274,10 @@ Example:
 
 - `.wrapRE -> /{\s*()\s*};` ignore all whitespace surrounded every token in the
   grammar.
+
+
+#### Useful recipes
+
+Below are a collection of helpful rules which can be dropped into your grammar.
+
+ - `block -> indent=(%indent="\n" /{\s+}) stmt:%indent;` Accept an indented `stmt` node.

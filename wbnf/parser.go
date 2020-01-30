@@ -530,12 +530,6 @@ func nodesEqual(a, b interface{}) bool {
 		switch a := a.(type) {
 		case parser.Node:
 			b := b.(parser.Node)
-			switch a.Tag {
-			case seqTag:
-			case b.Tag:
-			default:
-				return false
-			}
 			if a.Count() == b.Count() {
 				for i := range a.Children {
 					if !nodesEqual(a.Children[i], b.Children[i]) {
@@ -570,7 +564,7 @@ func (t *REF) Parse(scope frozen.Map, input *parser.Scanner, output interface{})
 			return err
 		}
 	} else {
-		panic("should not get here")
+		return newParseError(Rule(t.Ident), "Backref not found")
 	}
 	*output.(*interface{}) = v
 	return nil

@@ -25,7 +25,7 @@ func (r cardinality) Times(s cardinality) cardinality {
 type cardinalityKey string
 type cardinalities map[cardinalityKey]cardinality
 
-func (rs cardinalities) add(name string, r cardinality) cardinality {
+func (rs cardinalities) add(name string, r cardinality) cardinality { //nolint:unparam
 	s := rs[cardinalityKey(name)].Plus(r)
 	rs[cardinalityKey(name)] = s
 	return s
@@ -71,7 +71,7 @@ func (ps PathSet) keys() []string {
 func (g Grammar) singletons() PathSet {
 	ranges := cardinalities{}
 	for rule, term := range g {
-		termNodeCardinality(g, term, string(rule)+".", cardinality{lo: 1, hi: 1}, ranges)
+		termNodeCardinality(term, string(rule)+".", cardinality{lo: 1, hi: 1}, ranges)
 	}
 	ps := PathSet{}
 	for name, cr := range ranges {
@@ -82,7 +82,7 @@ func (g Grammar) singletons() PathSet {
 	return ps
 }
 
-func termNodeCardinality(g Grammar, t Term, prefix string, parent cardinality, crs cardinalities) {
+func termNodeCardinality(t Term, prefix string, parent cardinality, crs cardinalities) {
 	switch t := t.(type) {
 	case S, RE, REF:
 		crs.add(prefix, parent)
@@ -90,25 +90,25 @@ func termNodeCardinality(g Grammar, t Term, prefix string, parent cardinality, c
 		crs.add(prefix+string(t), parent)
 	case Named:
 		crs.add(prefix+t.Name, parent)
-		termNodeCardinality(g, t.Term, prefix+t.Name+".", cardinality{lo: 1, hi: 1}, crs)
+		termNodeCardinality(t.Term, prefix+t.Name+".", cardinality{lo: 1, hi: 1}, crs)
 	case Seq:
 		for _, term := range t {
-			termNodeCardinality(g, term, prefix, parent, crs)
+			termNodeCardinality(term, prefix, parent, crs)
 		}
 	case Oneof:
 		for _, term := range t {
-			termNodeCardinality(g, term, prefix, parent, crs)
+			termNodeCardinality(term, prefix, parent, crs)
 		}
 	case Delim:
 		// TODO: Deal with side-to-side associativity.
-		termNodeCardinality(g, t.Term, prefix, parent.Times(newCardinality(1, 2)), crs)
-		termNodeCardinality(g, t.Sep, prefix, parent.Times(newCardinality(0, 2)), crs)
+		termNodeCardinality(t.Term, prefix, parent.Times(newCardinality(1, 2)), crs)
+		termNodeCardinality(t.Sep, prefix, parent.Times(newCardinality(0, 2)), crs)
 	case Quant:
 		max := t.Max
 		if max == 0 {
 			max = 2
 		}
-		termNodeCardinality(g, t.Term, prefix, parent.Times(newCardinality(t.Min, max)), crs)
+		termNodeCardinality(t.Term, prefix, parent.Times(newCardinality(t.Min, max)), crs)
 	default:
 		panic(fmt.Errorf("unexpected term type: %v %[1]T", t))
 	}

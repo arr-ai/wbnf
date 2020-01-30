@@ -6,12 +6,13 @@ import (
 	"os"
 
 	"github.com/arr-ai/wbnf/ast"
-	"github.com/arr-ai/wbnf/wbnf"
 	"github.com/arr-ai/wbnf/parser"
+	"github.com/arr-ai/wbnf/wbnf"
 
 	"github.com/urfave/cli"
 )
 
+var inFile string
 var inGrammarFile string
 var startingRule string
 var testCommand = cli.Command{

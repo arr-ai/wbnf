@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	"github.com/arr-ai/wbnf/errors"
-	"github.com/arr-ai/wbnf/wbnf/internal"
-
 	"github.com/arr-ai/wbnf/parser"
 )
 
@@ -240,19 +238,4 @@ func NewFromNode(node parser.Node) Grammar {
 		}
 	}
 	return g
-}
-
-func NewFromNode2(node parser.Node) *internal.Grammar {
-	return internal.FromNodes(node)
-}
-
-func Codegen(g *internal.Grammar) string {
-	return `package internal
-
-import (
-	"reflect"
-
-	"github.com/arr-ai/wbnf/parser"
-)
-` + internal.Codegen(g)
 }

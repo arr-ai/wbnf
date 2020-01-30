@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func assertUnitaryPaths(t *testing.T, grammar string, paths ...string) bool {
+func assertUnitaryPaths(t *testing.T, grammar string, paths ...string) {
 	expected := append([]string{}, paths...)
 	sort.Strings(expected)
 
@@ -17,7 +17,7 @@ func assertUnitaryPaths(t *testing.T, grammar string, paths ...string) bool {
 	actual := p.Singletons().keys()
 	sort.Strings(actual)
 
-	return assert.Equal(t, expected, actual)
+	assert.Equal(t, expected, actual)
 }
 
 func TestUnitaryPathsSimple(t *testing.T) {

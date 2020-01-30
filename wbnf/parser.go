@@ -190,7 +190,6 @@ type sParser struct {
 
 func (p *sParser) Parse(input *parser.Scanner, output interface{}) error {
 	if ok := eatRegexp(input, p.re, output); !ok {
-
 		return newParseError(p.rule, "",
 			fmt.Errorf("expect: %s", parser.NewScanner(p.t.String()).Context()),
 			fmt.Errorf("actual: %s", getErrorStrings(input)))

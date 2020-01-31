@@ -17,15 +17,7 @@ const (
 	SkipTag   = "@skip"
 )
 
-var coreNode = func() Node {
-	return ParserNodeToNode(Core().Grammar(), *Core().Node())
-}()
-
-func CoreNode() Node {
-	return coreNode
-}
-
-func ParserNodeToNode(g Grammar, v interface{}) Branch {
+func ParserNodeToAst(g Grammar, v interface{}) Branch {
 	rule := NodeRule(v)
 	term := g[rule]
 	result := Branch{}

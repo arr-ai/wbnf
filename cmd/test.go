@@ -76,7 +76,7 @@ func test(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	ast := wbnf.ParserNodeToNode(g.Grammar(), tree)
+	ast := wbnf.ParserNodeToAst(g.Grammar(), tree)
 	fmt.Println(ast)
 
 	return nil

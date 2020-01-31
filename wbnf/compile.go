@@ -5,9 +5,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-
-	"github.com/arr-ai/wbnf/errors"
-	"github.com/arr-ai/wbnf/wbnf/parser"
 )
 
 func parseString(s string) string {
@@ -83,158 +80,145 @@ func parseString(s string) string {
 var whitespaceRE = regexp.MustCompile(`\s`)
 var escapedSpaceRE = regexp.MustCompile(`((?:\A|[^\\])(?:\\\\)*)\\_`)
 
-func compileAtomNode(node parser.Node) Term {
-	switch node.Extra.(int) {
-	case 0:
-		return Rule(node.GetString(0))
-	case 1:
-		return S(parseString(node.GetString(0)))
-	case 2:
-		s := whitespaceRE.ReplaceAllString(node.GetString(0), "")
+func compileAtomNode(node Node) Term {
+	atom := node.(Branch)
+	x, _ := Which(atom, "RE", "STR", "IDENT", "REF", "term")
+	name := ""
+	switch x {
+	case "term", "":
+	case "REF":
+		name = atom.MustOne(x).MustOne("IDENT").Scanner().String()
+	default:
+		name = atom.MustOne(x).Scanner().String()
+	}
+	switch x {
+	case "IDENT":
+		return Rule(name)
+	case "STR":
+		return S(parseString(name))
+	case "RE":
+		s := whitespaceRE.ReplaceAllString(name, "")
 		// Do this twice to cover adjacent escaped spaces `\_\_`.
 		s = escapedSpaceRE.ReplaceAllString(s, "$1 ")
 		s = escapedSpaceRE.ReplaceAllString(s, "$1 ")
 		return RE(s)
-	case 3:
-		return REF(Rule(node.GetString(0, 1)))
-	case 4:
-		return compileTermNode(node.GetNode(0, 1))
-	case 5:
-		return Seq{}
-	default:
-		panic(errors.BadInput)
+	case "REF":
+		return REF(name)
+	case "term":
+		return compileTermNode(atom.MustOne(x))
 	}
+	panic("bad input")
 }
 
-func compileTermNamedNode(node parser.Node) Term {
-	term := compileAtomNode(node.GetNode(1))
-	if quant := node.GetNode(0); quant.Count() == 1 {
-		return Named{
-			Name: quant.GetString(0, 0),
-			Term: term,
+func compileTermNamedNode(node Node) Term {
+	named := node.(Branch)
+	atom := compileAtomNode(named.MustOne("atom"))
+
+	if named.One("IDENT") != nil {
+		return Eq(named.MustOne("IDENT").Scanner().String(), atom)
+	}
+	return atom
+}
+
+func compileQuantNode(node Node, term Term) Term {
+	switch node.MustMany(ChoiceTag)[0].(Extra).Data.(int) {
+	case 0:
+		switch node.MustOne("op").Scanner().String() {
+		case "*":
+			return Any(term)
+		case "?":
+			return Opt(term)
+		case "+":
+			return Some(term)
 		}
-	}
-	return term
-}
-
-func compileTermQuantNode(node parser.Node) Term {
-	term := compileTermNamedNode(node.GetNode(0))
-	opt := node.GetNode(1)
-	for _, child := range opt.Children {
-		quant := child.(parser.Node)
-		switch quant.Extra.(int) {
-		case 0:
-			switch quant.GetString(0) {
-			case "?":
-				term = Opt(term)
-			case "*":
-				term = Any(term)
-			case "+":
-				term = Some(term)
-			default:
-				panic(errors.BadInput)
+	case 1:
+		min := 0
+		max := 0
+		if x := node.One("min"); x != nil {
+			val, err := strconv.Atoi(x.Scanner().String())
+			if err != nil {
+				panic(err)
 			}
-		case 1:
-			seq := quant.GetNode(0)
-			min, max := 0, 0
-			minOpt := seq.GetNode(1)
-			if minOpt.Count() == 1 {
-				var err error
-				min, err = strconv.Atoi(minOpt.GetString(0))
-				if err != nil {
-					panic(err)
-				}
-			}
-			maxOpt := seq.GetNode(3)
-			if maxOpt.Count() == 1 {
-				var err error
-				max, err = strconv.Atoi(maxOpt.GetString(0))
-				if err != nil {
-					panic(err)
-				}
-			}
-			term = Quant{Term: term, Min: min, Max: max}
-		case 2:
-			seq := quant.GetNode(0)
-			term = Delim{
-				Term:            term,
-				Sep:             compileTermNamedNode(seq.GetNode(2)),
-				Assoc:           NewAssociativity(seq.GetString(0)),
-				CanStartWithSep: seq.GetNode(1).Count() == 1,
-				CanEndWithSep:   seq.GetNode(3).Count() == 1,
-			}
-		default:
-			panic(errors.BadInput)
+			min = val
 		}
+		if x := node.One("max"); x != nil {
+			val, err := strconv.Atoi(x.Scanner().String())
+			if err != nil {
+				panic(err)
+			}
+			max = val
+		}
+		return Quant{Term: term, Min: min, Max: max}
+	case 2:
+		assoc := NewAssociativity(node.MustOne("op").Scanner().String())
+		sep := compileTermNamedNode(node.MustOne("named"))
+		delim := Delim{Term: term, Sep: sep, Assoc: assoc}
+		if node.One("opt_leading") != nil {
+			delim.CanStartWithSep = true
+		}
+		if node.One("opt_trailing") != nil {
+			delim.CanEndWithSep = true
+		}
+		return delim
 	}
-	return term
+	panic("bad input")
 }
 
-func compileTermSeqNode(node parser.Node) Term {
-	n := node.Count()
-	if n == 1 {
-		return compileTermQuantNode(node.Children[0].(parser.Node))
+func compileTermNode(node Node) Term {
+	term := node.(Branch)
+	x, _ := Which(term, "term", "atom", "named")
+	switch x {
+	case "term":
+		var terms []Term
+		for _, t := range term.MustMany("term") {
+			terms = append(terms, compileTermNode(t))
+		}
+		if ops := term.Many("op"); len(ops) > 0 {
+			switch ops[0].Scanner().String() {
+			case "|":
+				return append(Oneof{}, terms...)
+			case ">":
+				return append(Stack{}, terms...)
+			}
+		}
+		return append(Seq{}, terms...)
+
+	case "atom": // FIXME: This shouldnt actually be here,
+		// there is a bug in the node collapse() which causes the `named` term to be @skip-eed
+		return compileTermNamedNode(term)
+	case "named":
+		// named and quants need to be added backwards
+		// "a":","*     ->   Any(Delim(... S("a")))
+		next := compileTermNamedNode(term.MustOne("named"))
+		quants := term.Many("quant")
+		for i := range quants {
+			next = compileQuantNode(quants[len(quants)-1-i], next)
+		}
+		return next
+
 	}
-	seq := make(Seq, 0, node.Count())
-	for _, child := range node.Children {
-		seq = append(seq, compileTermQuantNode(child.(parser.Node)))
-	}
-	return seq
+	return nil
 }
 
-func compileTermOneofNode(node parser.Node) Term {
-	n := node.Count()
-	if n == 1 {
-		return compileTermSeqNode(node.GetNode(0))
+func compileProdNode(node Node) Term {
+	prod := Seq{}
+	terms := node.MustMany("term")
+	for _, t := range terms {
+		prod = append(prod, compileTermNode(t))
 	}
-	oneof := make(Oneof, 0, n/2+1)
-	for i := 0; i < n; i += 2 {
-		oneof = append(oneof, compileTermSeqNode(node.GetNode(i)))
+	if len(prod) == 1 {
+		return prod[0]
 	}
-	return oneof
-}
-
-func compileTermStackNode(node parser.Node) Term {
-	if node.Count() == 1 {
-		return compileTermOneofNode(node.GetNode(0))
-	}
-	var stack Stack
-	for i := 0; i < node.Count(); i += 2 {
-		stack = append(stack, compileTermOneofNode(node.GetNode(i)))
-	}
-	return stack
-}
-
-func compileTermNode(node parser.Node) Term {
-	return compileTermStackNode(node)
-}
-
-func compileProdNode(node parser.Node) Term {
-	children := node.GetNode(2).Children
-	if len(children) == 1 {
-		return compileTermNode(children[0].(parser.Node))
-	}
-	seq := make(Seq, 0, node.Count())
-	for _, child := range children {
-		seq = append(seq, compileTermNode(child.(parser.Node)))
-	}
-	return seq
+	return prod
 }
 
 // NewFromNode converts the output from parsing an input via GrammarGrammar into
 // a Grammar, which can then be used to generate parsers.
-func NewFromNode(node parser.Node) Grammar {
+func NewFromAst(node Node) Grammar {
 	g := Grammar{}
-	for _, v := range node.Children {
-		stmt := v.(parser.Node)
-		switch stmt.Extra.(int) {
-		case 0:
-		// 	comment := v.(parse.Node).GetString(0)
-		case 1:
-			prod := stmt.GetNode(0)
-			g[Rule(prod.GetString(0))] = compileProdNode(prod)
-		default:
-			panic(errors.BadInput)
+	for _, stmt := range node.MustMany("stmt") {
+		if p := stmt.One("prod"); p != nil {
+			g[Rule(p.MustOne("IDENT").Scanner().String())] = compileProdNode(p)
 		}
 	}
 	return g

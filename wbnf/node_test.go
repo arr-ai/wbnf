@@ -33,7 +33,7 @@ func assertNodeParsesAs(t *testing.T, s nodeParseScenario) bool { //nolint:unpar
 	require.NoError(t, err)
 	require.Empty(t, src.String())
 
-	ast := ParserNodeToNode(parsers.Grammar(), node)
+	ast := ParserNodeToAst(parsers.Grammar(), node)
 	if assert.Equal(t, Rule(s.rule), ast[RuleTag].(One).Node.(Extra).Data) {
 		delete(ast, RuleTag)
 	}

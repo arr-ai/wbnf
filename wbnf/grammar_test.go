@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/arr-ai/wbnf/parser"
+	"github.com/arr-ai/wbnf/wbnf/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

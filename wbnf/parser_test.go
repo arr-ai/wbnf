@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/arr-ai/wbnf/parser"
+	"github.com/arr-ai/wbnf/wbnf/parser"
 	"github.com/stretchr/testify/assert"
 )
 

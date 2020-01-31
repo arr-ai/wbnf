@@ -1,4 +1,4 @@
-package ast
+package wbnf
 
 import (
 	"fmt"
@@ -6,8 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/arr-ai/wbnf/parser"
-	"github.com/arr-ai/wbnf/wbnf"
+	"github.com/arr-ai/wbnf/wbnf/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,17 +24,17 @@ func (s nodeParseScenario) String() string {
 var endIndentRE = regexp.MustCompile(`(\()\n *|,\n *(\))|(,)\n( ) *`)
 
 func assertNodeParsesAs(t *testing.T, s nodeParseScenario) bool { //nolint:unparam
-	parsers, err := wbnf.Compile(s.grammar)
+	parsers, err := Compile(s.grammar)
 	require.NoError(t, err)
 
 	src := parser.NewScanner(strings.TrimRight(s.input, " "))
 
-	node, err := parsers.Parse(wbnf.Rule(s.rule), src)
+	node, err := parsers.Parse(Rule(s.rule), src)
 	require.NoError(t, err)
 	require.Empty(t, src.String())
 
 	ast := ParserNodeToNode(parsers.Grammar(), node)
-	if assert.Equal(t, wbnf.Rule(s.rule), ast[RuleTag].(One).Node.(Extra).Data) {
+	if assert.Equal(t, Rule(s.rule), ast[RuleTag].(One).Node.(Extra).Data) {
 		delete(ast, RuleTag)
 	}
 	return assert.Equal(t,

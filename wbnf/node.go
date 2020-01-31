@@ -1,4 +1,4 @@
-package ast
+package wbnf
 
 import (
 	"fmt"
@@ -8,31 +8,25 @@ import (
 	"strings"
 
 	"github.com/arr-ai/wbnf/errors"
-	"github.com/arr-ai/wbnf/parser"
-	"github.com/arr-ai/wbnf/wbnf"
+	"github.com/arr-ai/wbnf/wbnf/parser"
 )
 
 const (
-	seqTag   = "_"
-	oneofTag = "|"
-	delimTag = ":"
-	quantTag = "?"
-
 	RuleTag   = "@rule"
 	ChoiceTag = "@choice"
 	SkipTag   = "@skip"
 )
 
 var coreNode = func() Node {
-	return ParserNodeToNode(wbnf.Core().Grammar(), *wbnf.Core().Node())
+	return ParserNodeToNode(Core().Grammar(), *Core().Node())
 }()
 
 func CoreNode() Node {
 	return coreNode
 }
 
-func ParserNodeToNode(g wbnf.Grammar, v interface{}) Branch {
-	rule := wbnf.NodeRule(v)
+func ParserNodeToNode(g Grammar, v interface{}) Branch {
+	rule := NodeRule(v)
 	term := g[rule]
 	result := Branch{}
 	result.one("@rule", Extra{rule})
@@ -40,9 +34,9 @@ func ParserNodeToNode(g wbnf.Grammar, v interface{}) Branch {
 	return result
 }
 
-func NodeToParserNode(g wbnf.Grammar, branch Branch) interface{} {
+func NodeToParserNode(g Grammar, branch Branch) interface{} {
 	branch = branch.clone().(Branch)
-	rule := branch.pullOne(RuleTag).(Extra).Data.(wbnf.Rule)
+	rule := branch.pullOne(RuleTag).(Extra).Data.(Rule)
 	term := g[rule]
 	ctrs := newCounters(term)
 	return relabelNode(string(rule), branch.toTerm(g, term, ctrs))
@@ -178,7 +172,7 @@ func (c Extra) collapse(level int) Node {
 
 var stackLevelRE = regexp.MustCompile(`^(\w+)@(\d+)$`)
 
-func unlevel(name string, g wbnf.Grammar) (string, int) {
+func unlevel(name string, g Grammar) (string, int) {
 	if m := stackLevelRE.FindStringSubmatch(name); m != nil {
 		i, err := strconv.Atoi(m[2])
 		if err != nil {
@@ -186,8 +180,8 @@ func unlevel(name string, g wbnf.Grammar) (string, int) {
 		}
 		return m[1], i
 	}
-	if !strings.Contains(name, wbnf.StackDelim) {
-		if _, has := g[wbnf.Rule(name+"@1")]; has {
+	if !strings.Contains(name, StackDelim) {
+		if _, has := g[Rule(name+"@1")]; has {
 			return name, 0
 		}
 	}
@@ -264,13 +258,13 @@ func (n Branch) oneBranch() Branch {
 	return b
 }
 
-func (n Branch) fromTerm(g wbnf.Grammar, term wbnf.Term, ctrs counters, v interface{}) {
+func (n Branch) fromTerm(g Grammar, term Term, ctrs counters, v interface{}) {
 	var tag string
 	defer enterf("term=%v, v=%v", term, v).exitf("tag=%q, n=%v", &tag, &n)
 	switch t := term.(type) {
-	case wbnf.S, wbnf.RE, wbnf.REF:
+	case S, RE, REF:
 		n.add("", Leaf(v.(parser.Scanner)), ctrs[""])
-	case wbnf.Rule:
+	case Rule:
 		term := g[t]
 		childCtrs := newCounters(term)
 		b := Branch{}
@@ -283,36 +277,36 @@ func (n Branch) fromTerm(g wbnf.Grammar, term wbnf.Term, ctrs counters, v interf
 		}
 		node = node.collapse(level)
 		n.add(unleveled, node, ctrs[string(t)])
-	case wbnf.Seq:
+	case Seq:
 		node := v.(parser.Node)
 		tag = node.Tag
 		for i, child := range node.Children {
 			n.fromTerm(g, t[i], ctrs, child)
 		}
-	case wbnf.Oneof:
+	case Oneof:
 		node := v.(parser.Node)
 		tag = node.Tag
 		n.many(ChoiceTag, Extra{Data: node.Extra.(int)})
 		n.fromTerm(g, t[node.Extra.(int)], ctrs, node.Children[0])
-	case wbnf.Delim:
+	case Delim:
 		node := v.(parser.Node)
 		tag = node.Tag
-		if node.Extra.(wbnf.Associativity) != wbnf.NonAssociative {
+		if node.Extra.(Associativity) != NonAssociative {
 			panic(errors.Unfinished)
 		}
 		L, R := t.LRTerms(node)
-		terms := [2]wbnf.Term{L, t.Sep}
+		terms := [2]Term{L, t.Sep}
 		for i, child := range node.Children {
 			n.fromTerm(g, terms[i%2], ctrs, child)
 			terms[0] = R
 		}
-	case wbnf.Quant:
+	case Quant:
 		node := v.(parser.Node)
 		tag = node.Tag
 		for _, child := range node.Children {
 			n.fromTerm(g, t.Term, ctrs, child)
 		}
-	case wbnf.Named:
+	case Named:
 		b := Branch{}
 		childCtrs := newCounters(t.Term)
 		b.fromTerm(g, t.Term, childCtrs, v)
@@ -393,15 +387,15 @@ func (n Branch) pullMany(name string) Node {
 	return nil
 }
 
-func (n Branch) toTerm(g wbnf.Grammar, term wbnf.Term, ctrs counters) (out interface{}) {
+func (n Branch) toTerm(g Grammar, term Term, ctrs counters) (out interface{}) {
 	// defer enterf("%T %[1]v %v", term, ctrs).exitf("%v", &out)
 	switch t := term.(type) {
-	case wbnf.S, wbnf.RE:
+	case S, RE:
 		if node := n.pull("", 0, ctrs[""], nil); node != nil {
 			return parser.Scanner(node.(Leaf))
 		}
 		return nil
-	case wbnf.Rule:
+	case Rule:
 		term := g[t]
 		ctrs2 := newCounters(term)
 		unleveled, level := unlevel(string(t), g)
@@ -409,7 +403,7 @@ func (n Branch) toTerm(g wbnf.Grammar, term wbnf.Term, ctrs counters) (out inter
 			return relabelNode(string(t), b.(Branch).toTerm(g, term, ctrs2))
 		}
 		return nil
-	case wbnf.Seq:
+	case Seq:
 		result := parser.Node{Tag: seqTag}
 		for _, child := range t {
 			if node := n.toTerm(g, child, ctrs); node != nil {
@@ -419,19 +413,19 @@ func (n Branch) toTerm(g wbnf.Grammar, term wbnf.Term, ctrs counters) (out inter
 			}
 		}
 		return result
-	case wbnf.Oneof:
+	case Oneof:
 		extra := n.pullMany(ChoiceTag).(Extra).Data.(int)
 		return parser.Node{
 			Tag:      oneofTag,
 			Extra:    extra,
 			Children: []interface{}{n.toTerm(g, t[extra], ctrs)},
 		}
-	case wbnf.Delim:
+	case Delim:
 		v := parser.Node{
 			Tag:   delimTag,
-			Extra: wbnf.NonAssociative,
+			Extra: NonAssociative,
 		}
-		terms := [2]wbnf.Term{t.Term, t.Sep}
+		terms := [2]Term{t.Term, t.Sep}
 		i := 0
 		for ; ; i++ {
 			if child := n.toTerm(g, terms[i%2], ctrs); child != nil {
@@ -444,7 +438,7 @@ func (n Branch) toTerm(g wbnf.Grammar, term wbnf.Term, ctrs counters) (out inter
 			panic(errors.Inconceivable)
 		}
 		return v
-	case wbnf.Quant:
+	case Quant:
 		result := parser.Node{Tag: quantTag}
 		for {
 			if v := n.toTerm(g, t.Term, ctrs); v != nil {
@@ -457,7 +451,7 @@ func (n Branch) toTerm(g wbnf.Grammar, term wbnf.Term, ctrs counters) (out inter
 			panic(errors.Inconceivable)
 		}
 		return result
-	case wbnf.Named:
+	case Named:
 		ctrs2 := newCounters(t.Term)
 		if b := n.pull(t.Name, 0, ctrs[t.Name], ctrs2); b != nil {
 			return relabelNode(t.Name, b.(Branch).toTerm(g, t.Term, ctrs2))

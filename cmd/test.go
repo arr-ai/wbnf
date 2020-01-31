@@ -5,9 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/arr-ai/wbnf/ast"
-	"github.com/arr-ai/wbnf/parser"
 	"github.com/arr-ai/wbnf/wbnf"
+	"github.com/arr-ai/wbnf/wbnf/parser"
 
 	"github.com/urfave/cli"
 )
@@ -77,7 +76,7 @@ func test(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	ast := ast.ParserNodeToNode(g.Grammar(), tree)
+	ast := wbnf.ParserNodeToNode(g.Grammar(), tree)
 	fmt.Println(ast)
 
 	return nil

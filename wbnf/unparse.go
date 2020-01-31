@@ -4,7 +4,7 @@ import (
 	"io"
 
 	"github.com/arr-ai/wbnf/errors"
-	"github.com/arr-ai/wbnf/parser"
+	"github.com/arr-ai/wbnf/wbnf/parser"
 )
 
 // The following methods assume a valid parse. Call (Term).ValidateParse first if

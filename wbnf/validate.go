@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/arr-ai/wbnf/errors"
-	"github.com/arr-ai/wbnf/parser"
+	"github.com/arr-ai/wbnf/wbnf/parser"
 )
 
 func validationErrorf(format string, args ...interface{}) error {

@@ -14,6 +14,7 @@ import (
 
 type nodeParseScenario struct {
 	expected, grammar, rule, input string
+	reversible                     bool
 }
 
 func (s nodeParseScenario) String() string {
@@ -22,59 +23,85 @@ func (s nodeParseScenario) String() string {
 		strings.TrimRight(s.input, " "))
 }
 
-var endIndentRE = regexp.MustCompile(`(\()\n *|,\n *(\))|(,)\n( ) *`)
+var endIndentRE = regexp.MustCompile(`([([])\n *|,\n *([)\]])|(,)\n( ) *`)
 
-func assertNodeParsesAs(t *testing.T, s nodeParseScenario) bool { //nolint:unparam
-	parsers, err := wbnf.Compile(s.grammar)
+func assertNodeParsesAs(
+	t *testing.T,
+	expected, grammar, rule, input string,
+	reversible bool,
+) bool {
+	return assertNodeParsesAsScenario(t, nodeParseScenario{expected, grammar, rule, input, reversible})
+}
+
+func assertNodeParsesAsScenario(t *testing.T, s nodeParseScenario) bool { //nolint:unparam
+	p, err := wbnf.Compile(s.grammar)
+	g := p.Grammar()
 	require.NoError(t, err)
 
 	src := parser.NewScanner(strings.TrimRight(s.input, " "))
 
-	node, err := parsers.Parse(wbnf.Rule(s.rule), src)
+	node, err := p.Parse(wbnf.Rule(s.rule), src)
 	require.NoError(t, err)
 	require.Empty(t, src.String())
+	// log.Print(node)
 
-	ast := ParserNodeToNode(parsers.Grammar(), node)
+	ast := FromParserNode(g, node)
+	// log.Print(ast)
+	reversalOK := true
+	if s.reversible {
+		node2 := ToParserNode(g, ast)
+		// log.Print(node2)
+		ok := parser.AssertEqualNodes(t, node.(parser.Node), node2.(parser.Node))
+		if !ok {
+			t.Error(s)
+			ToParserNode(g, ast)
+		}
+	}
 	if assert.Equal(t, wbnf.Rule(s.rule), ast[RuleTag].(One).Node.(Extra).Data) {
 		delete(ast, RuleTag)
 	}
-	return assert.Equal(t,
+	expectedOK := s.expected == "" || assert.Equal(t,
 		strings.TrimRight(s.expected, " "),
-		endIndentRE.ReplaceAllString(ast.String(), "$1$2$3$4"))
+		endIndentRE.ReplaceAllString(ast.String(), "$1$2$3$4"),
+		"%v", s,
+	)
+	return reversalOK && expectedOK
 }
 
 func TestNodeOneRule(t *testing.T) {
 	t.Parallel()
 
 	for _, s := range []nodeParseScenario{
-		// {`('': 0‣1)                      `, `a -> "1";       `, `a`, `1    `},
-		{`()                             `, `a -> "1"?;      `, `a`, `     `},
-		{`('': 0‣1)                      `, `a -> "1"?;      `, `a`, `1    `},
+		// {`('': 0‣1)                      `, `a -> "1";       `, `a`, `1    `, true},
+		// {`()                             `, `a -> "1"?;      `, `a`, `     `, true},
+		// {`('': 0‣1)                      `, `a -> "1"?;      `, `a`, `1    `, true},
 
-		{`()                             `, `a -> "1"*;      `, `a`, `     `},
-		{`('': [0‣1])                    `, `a -> "1"*;      `, `a`, `1    `},
-		{`('': [0‣1, 1‣1])               `, `a -> "1"*;      `, `a`, `11   `},
+		{`()                             `, `a -> "1"*;      `, `a`, `     `, true},
+		{`('': [0‣1])                    `, `a -> "1"*;      `, `a`, `1    `, true},
+		{`('': [0‣1, 1‣1])               `, `a -> "1"*;      `, `a`, `11   `, true},
 
-		{`('': [0‣1, 1‣2])               `, `a -> "1" "2";   `, `a`, `12   `},
-		{`('': [0‣1])                    `, `a -> "1" "2"?;  `, `a`, `1    `},
-		{`('': [0‣1, 1‣2, 2‣2])          `, `a -> "1" "2"*;  `, `a`, `122  `},
+		{`('': [0‣1, 1‣2])               `, `a -> "1" "2";   `, `a`, `12   `, true},
+		{`('': [0‣1])                    `, `a -> "1" "2"?;  `, `a`, `1    `, true},
+		{`('': [0‣1, 1‣2, 2‣2])          `, `a -> "1" "2"*;  `, `a`, `122  `, true},
 
-		{`()                             `, `a -> "1"? "2"?; `, `a`, `     `},
-		{`('': [0‣1])                    `, `a -> "1"? "2"?; `, `a`, `1    `},
-		{`('': [0‣2])                    `, `a -> "1"? "2"?; `, `a`, `2    `},
-		{`('': [0‣1, 1‣2])               `, `a -> "1"? "2"?; `, `a`, `12   `},
+		{`()                             `, `a -> "1"* "2"*; `, `a`, `     `, true},
 
-		{`()                             `, `a -> "1"* "2"*; `, `a`, `     `},
-		{`('': [0‣1, 1‣1, 2‣2, 3‣2])     `, `a -> "1"* "2"*; `, `a`, `1122 `},
+		// Reversibility needs reparsing of quant children.
+		{`()                             `, `a -> "1"? "2"?; `, `a`, `     `, false},
+		{`('': [0‣1])                    `, `a -> "1"? "2"?; `, `a`, `1    `, false},
+		{`('': [0‣2])                    `, `a -> "1"? "2"?; `, `a`, `2    `, false},
+		{`('': [0‣1, 1‣2])               `, `a -> "1"? "2"?; `, `a`, `12   `, false},
+		{`('': [0‣1, 1‣1, 2‣2, 3‣2])     `, `a -> "1"* "2"*; `, `a`, `1122 `, false},
 
-		{`('': [0‣1])                    `, `a -> "1":"2";   `, `a`, `1    `},
-		{`('': [0‣1, 1‣2, 2‣1])          `, `a -> "1":"2";   `, `a`, `121  `},
-		{`('': [0‣1, 1‣2, 2‣1, 3‣2, 4‣1])`, `a -> "1":"2";   `, `a`, `12121`},
+		{`('': [0‣1])                    `, `a -> "1":"2";   `, `a`, `1    `, false},
+		{`('': [0‣1, 1‣2, 2‣1])          `, `a -> "1":"2";   `, `a`, `121  `, false},
+		{`('': [0‣1, 1‣2, 2‣1, 3‣2, 4‣1])`, `a -> "1":"2";   `, `a`, `12121`, false},
 	} {
 		s := s
 		t.Run(s.String(), func(t *testing.T) {
-			t.Parallel()
-			assertNodeParsesAs(t, s)
+			// assert.NotPanics(t, func() {
+			assertNodeParsesAsScenario(t, s)
+			// })
 		})
 	}
 }
@@ -83,15 +110,22 @@ func TestNodeOneRuleWithNames(t *testing.T) {
 	t.Parallel()
 
 	for _, s := range []nodeParseScenario{
-		{`(x: [0‣1, 1‣1], y: [2‣2, 3‣2])                       `, `a -> x="1"* y="2"*; `, `a`, `1122`},
-		{`(@choice: [0, 1, 0, 1], x: [0‣1, 2‣1], y: [1‣2, 3‣2])`, `a -> (x="1"|y="2")*;`, `a`, `1212`},
-		{`(@choice: [1, 0, 1, 0], x: [1‣1, 3‣1], y: [0‣2, 2‣2])`, `a -> (x="1"|y="2")*;`, `a`, `2121`},
-		{`(x: [0‣1, 2‣1, 4‣1], y: [1‣2, 3‣2])                  `, `a -> x="1":y="2";   `, `a`, `12121`},
+		{`(x: ('': 0‣1), y: ('': 1‣2))`,
+			`a -> x="1" y="2";`, `a`, `12`, true},
+		{`(x: [('': 0‣1), ('': 1‣1)], y: [('': 2‣2), ('': 3‣2)])`,
+			`a -> x="1"* y="2"*;`, `a`, `1122`, true},
+		{`(@choice: [0, 1, 0, 1], x: [('': 0‣1), ('': 2‣1)], y: [('': 1‣2), ('': 3‣2)])`,
+			`a -> (x="1"|y="2")*;`, `a`, `1212`, true},
+		{`(@choice: [1, 0, 1, 0], x: [('': 1‣1), ('': 3‣1)], y: [('': 0‣2), ('': 2‣2)])`,
+			`a -> (x="1"|y="2")*;`, `a`, `2121`, true},
+		{`(x: [('': 0‣1), ('': 2‣1), ('': 4‣1)], y: [('': 1‣2), ('': 3‣2)])`,
+			`a -> x="1":y="2";`, `a`, `12121`, true},
 	} {
 		s := s
 		t.Run(s.String(), func(t *testing.T) {
-			t.Parallel()
-			assertNodeParsesAs(t, s)
+			// assert.NotPanics(t, func() {
+			assertNodeParsesAsScenario(t, s)
+			// })
 		})
 	}
 }
@@ -99,19 +133,29 @@ func TestNodeOneRuleWithNames(t *testing.T) {
 func TestNodeStack(t *testing.T) {
 	t.Parallel()
 
-	for _, s := range []nodeParseScenario{
-		{`(a: [0‣1])`, `a -> @:"+" > "1";`, `a`, `1`},
+	exprGrammar2 := `a -> @:op="+" > @:op="*" > /{[0-9]};`
+	exprGrammar3 := `a -> @:op="+" > @:op="*" > @:"**" > /{[0-9]};`
 
-		// {Branch{"a": many(0, `1`, 1, `1`)},
-		// 	`a -> @:op="+" > @:op="*" > "1";`, `a`, `1+1`},
+	for _, s := range []nodeParseScenario{
+		{`(a: [('': 0‣1)])`, `a -> @:op="+" > /{[0-9]};`, `a`, `1`, true},
+		{`(a: [('': 0‣4), ('': 2‣5)], op: [('': 1‣+)])`, `a -> @:op="+" > /{[0-9]};`, `a`, `4+5`, true},
+		{`(a: [(a: [('': 0‣5)])])`, exprGrammar2, `a`, `5`, true},
+		{`(a: [(a: [('': 0‣6), ('': 2‣7)], op: [('': 1‣*)])])`, exprGrammar2, `a`, `6*7`, true},
+		{`(a: [(a: [('': 0‣5)]), (a: [('': 2‣6), ('': 4‣7)], op: [('': 3‣*)])], op: [('': 1‣+)])`,
+			exprGrammar2, `a`, `5+6*7`, true},
+		{`(a: [(a: [(a: [('': 0‣5)])])])`, exprGrammar3, `a`, `5`, true},
+		{`(a: [(a: [(a: [('': 0‣6)]), (a: [('': 2‣7)])], op: [('': 1‣*)])])`, exprGrammar3, `a`, `6*7`, true},
+		{`(a: [(a: [(a: [('': 0‣5)])]), (a: [(a: [('': 2‣6)]), (a: [('': 4‣7)])], op: [('': 3‣*)])], op: [('': 1‣+)])`,
+			exprGrammar3, `a`, `5+6*7`, true},
 
 		// {`('': Many{many(0, `1`)}},
-		// 	`a -> @:op="+" > @:op="*" > "1";`, `a`, `1+1`},
+		// 	`a -> @:op="+" > @:op="*" > "1";`, `a`, `1+1`, true},
 	} {
 		s := s
 		t.Run(s.String(), func(t *testing.T) {
-			t.Parallel()
-			assertNodeParsesAs(t, s)
+			// assert.NotPanics(t, func() {
+			assertNodeParsesAsScenario(t, s)
+			// })
 		})
 	}
 }
@@ -120,19 +164,49 @@ func TestNodeInnerOuterName(t *testing.T) {
 	t.Parallel()
 
 	for _, s := range []nodeParseScenario{
-		{`('': [0‣"(", 2‣")"], sum: ('': [1‣1]))`, `a -> "(" sum=("1":"+") ")";`, `a`, `(1)`},
-		{`('': [0‣"(", 4‣")"], sum: ('': [1‣1, 2‣+, 3‣1]))`, `a -> "(" sum=("1":"+") ")";`, `a`, `(1+1)`},
-
-		// {Branch{"a": many(0, `1`, 1, `1`)},
-		// 	`a -> @:op="+" > @:op="*" > "1";`, `a`, `1+1`},
-
-		// {`('': Many{many(0, `1`)}},
-		// 	`a -> @:op="+" > @:op="*" > "1";`, `a`, `1+1`},
+		{`('': [0‣"(", 2‣")"], sum: ('': [1‣1]))`, `a -> "(" sum=("1":"+") ")";`, `a`, `(1)`, true},
+		{`('': [0‣"(", 4‣")"], sum: ('': [1‣1, 2‣+, 3‣1]))`, `a -> "(" sum=("1":"+") ")";`, `a`, `(1+1)`, true},
 	} {
 		s := s
 		t.Run(s.String(), func(t *testing.T) {
 			t.Parallel()
-			assertNodeParsesAs(t, s)
+			assertNodeParsesAsScenario(t, s)
 		})
 	}
+}
+
+func TestNodeCoreSubsets(t *testing.T) {
+	t.Parallel()
+
+	assertNodeParsesAs(t, `(a: [(b: ('': 0‣1))])`, `a -> @+ > b; b -> "1";`, "a", `1`, true)
+	assertNodeParsesAs(t, `(b: ('': [0‣1]))`, `a -> b; b -> "1"+;`, "a", `1`, true)
+	assertNodeParsesAs(t, `(a: [(b: [('': [0‣5])])])`, `a -> @+ > b+; b -> "5"+;`, "a", `5`, true)
+}
+
+func TestNodeBacktrack(t *testing.T) {
+	t.Parallel()
+
+	assertNodeParsesAs(t, ``, `p -> @ ("->" @)* > @:"-" > "i";`, "p", `i->i`, true)
+}
+
+func TestNodeCoreGrammarTrivial(t *testing.T) {
+	t.Parallel()
+
+	assertNodeParsesAsScenario(t, nodeParseScenario{
+		grammar:    wbnf.GrammarGrammar(),
+		rule:       "term",
+		input:      `a`,
+		reversible: true,
+	})
+}
+
+func TestNodeCoreGrammarCoreGrammar(t *testing.T) {
+	t.Parallel()
+
+	assertNodeParsesAsScenario(t, nodeParseScenario{
+		grammar:    wbnf.GrammarGrammar(),
+		rule:       "grammar",
+		input:      wbnf.GrammarGrammar(),
+		reversible: true,
+	})
 }

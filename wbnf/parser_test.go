@@ -30,7 +30,7 @@ type data struct {
 
 func testParser(t *testing.T, test data, scope frozen.Map) {
 	p := test.term.Parser("rule", newCache())
-	var v interface{}
+	var v parser.TreeElement
 	scanner := parser.NewScanner(test.input)
 	err := p.Parse(scope, scanner, &v)
 	if test.success {
@@ -138,27 +138,32 @@ func Test_quantParser(t *testing.T) {
 }
 
 func Test_delimParser(t *testing.T) {
+	ab := Delim{Term: S("a"), Sep: S("b")}
+	acb := Delim{Term: S("a"), Sep: S("b"), CanStartWithSep: true}
+	abc := Delim{Term: S("a"), Sep: S("b"), CanEndWithSep: true}
+	acbc := Delim{Term: S("a"), Sep: S("b"), CanStartWithSep: true, CanEndWithSep: true}
+
 	for _, test := range []data{
-		{name: "a:b-pass", term: Delim{Term: S("a"), Sep: S("b")}, input: "ababa", success: true, nextSlice: 5},
-		{name: "a:b-pass-no-b", term: Delim{Term: S("a"), Sep: S("b")}, input: "a", success: true, nextSlice: 1},
-		{name: "a:b-fail-leading-b", term: Delim{Term: S("a"), Sep: S("b")}, input: "bababa", success: false},
-		{name: "a:b-fail-trailing-b", term: Delim{Term: S("a"), Sep: S("b")}, input: "ababab", success: false, nextSlice: 6},
+		{name: "a:b-pass", term: ab, input: "ababa", success: true, nextSlice: 5},
+		{name: "a:b-pass-no-b", term: ab, input: "a", success: true, nextSlice: 1},
+		{name: "a:b-fail-leading-b", term: ab, input: "bababa", success: false},
+		{name: "a:b-ignore-trailing-b", term: ab, input: "ababab", success: true, nextSlice: 5},
 
-		{name: "a:,b-pass", term: Delim{Term: S("a"), Sep: S("b"), CanStartWithSep: true}, input: "ababa", success: true, nextSlice: 5},
-		{name: "a:,b-pass-no-b", term: Delim{Term: S("a"), Sep: S("b"), CanStartWithSep: true}, input: "a", success: true, nextSlice: 1},
-		{name: "a:,b-pass-leading-b", term: Delim{Term: S("a"), Sep: S("b"), CanStartWithSep: true}, input: "bababa", success: true, nextSlice: 6},
-		{name: "a:,b-fail-trailing-b", term: Delim{Term: S("a"), Sep: S("b"), CanStartWithSep: true}, input: "ababab", success: false, nextSlice: 6},
+		{name: "a:,b-pass", term: acb, input: "ababa", success: true, nextSlice: 5},
+		{name: "a:,b-pass-no-b", term: acb, input: "a", success: true, nextSlice: 1},
+		{name: "a:,b-pass-leading-b", term: acb, input: "bababa", success: true, nextSlice: 6},
+		{name: "a:,b-ignore-trailing-b", term: acb, input: "ababab", success: true, nextSlice: 5},
 
-		{name: "a:b,-pass", term: Delim{Term: S("a"), Sep: S("b"), CanEndWithSep: true}, input: "ababa", success: true, nextSlice: 5},
-		{name: "a:b,-pass-no-b", term: Delim{Term: S("a"), Sep: S("b"), CanEndWithSep: true}, input: "a", success: true, nextSlice: 1},
-		{name: "a:b,-fail-leading-b", term: Delim{Term: S("a"), Sep: S("b"), CanEndWithSep: true}, input: "bababa", success: false},
-		{name: "a:b,-pass-trailing-b", term: Delim{Term: S("a"), Sep: S("b"), CanEndWithSep: true}, input: "ababab", success: true, nextSlice: 6},
+		{name: "a:b,-pass", term: abc, input: "ababa", success: true, nextSlice: 5},
+		{name: "a:b,-pass-no-b", term: abc, input: "a", success: true, nextSlice: 1},
+		{name: "a:b,-fail-leading-b", term: abc, input: "bababa", success: false},
+		{name: "a:b,-pass-trailing-b", term: abc, input: "ababab", success: true, nextSlice: 6},
 
-		{name: "a:,b,-pass", term: Delim{Term: S("a"), Sep: S("b"), CanStartWithSep: true, CanEndWithSep: true}, input: "ababa", success: true, nextSlice: 5},
-		{name: "a:,b,-pass-no-b", term: Delim{Term: S("a"), Sep: S("b"), CanStartWithSep: true, CanEndWithSep: true}, input: "a", success: true, nextSlice: 1},
-		{name: "a:,b,-pass-leading-b", term: Delim{Term: S("a"), Sep: S("b"), CanStartWithSep: true, CanEndWithSep: true}, input: "bababa", success: true, nextSlice: 6},
-		{name: "a:,b,-pass-trailing-b", term: Delim{Term: S("a"), Sep: S("b"), CanStartWithSep: true, CanEndWithSep: true}, input: "ababab", success: true, nextSlice: 6},
-		{name: "a:,b,-pass-surrounding-b", term: Delim{Term: S("a"), Sep: S("b"), CanStartWithSep: true, CanEndWithSep: true}, input: "bababab", success: true, nextSlice: 7},
+		{name: "a:,b,-pass", term: acbc, input: "ababa", success: true, nextSlice: 5},
+		{name: "a:,b,-pass-no-b", term: acbc, input: "a", success: true, nextSlice: 1},
+		{name: "a:,b,-pass-leading-b", term: acbc, input: "bababa", success: true, nextSlice: 6},
+		{name: "a:,b,-pass-trailing-b", term: acbc, input: "ababab", success: true, nextSlice: 6},
+		{name: "a:,b,-pass-surrounding-b", term: acbc, input: "bababab", success: true, nextSlice: 7},
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
@@ -180,7 +185,7 @@ func Test_refParser(t *testing.T) {
 		{ident: "z", t: Delim{Term: S("a"), Sep: S("x")}, input: "axaxaxa"},
 	} {
 		p := val.t.Parser("rule", newCache())
-		var v interface{}
+		var v parser.TreeElement
 		scanner := parser.NewScanner(val.input)
 		err := p.Parse(scope, scanner, &v)
 		require.NoError(t, err)

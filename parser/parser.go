@@ -9,13 +9,24 @@ import (
 	"github.com/arr-ai/frozen"
 )
 
-type Node struct {
-	Tag      string        `json:"tag"`
-	Extra    interface{}   `json:"extra"`
-	Children []interface{} `json:"nodes"`
+type TreeElement interface {
+	IsTreeElement()
 }
 
-func NewNode(tag string, extra interface{}, children ...interface{}) *Node {
+func (Node) IsTreeElement()    {}
+func (Scanner) IsTreeElement() {}
+
+type Extra interface {
+	IsExtra()
+}
+
+type Node struct {
+	Tag      string        `json:"tag"`
+	Extra    Extra         `json:"extra"`
+	Children []TreeElement `json:"nodes"`
+}
+
+func NewNode(tag string, extra Extra, children ...TreeElement) *Node {
 	return &Node{Tag: tag, Extra: extra, Children: children}
 }
 
@@ -23,8 +34,23 @@ func (n Node) Count() int {
 	return len(n.Children)
 }
 
-func (n Node) Get(path ...int) interface{} {
-	var v interface{} = n
+func (n Node) Normalize() Node {
+	children := make([]TreeElement, 0, len(n.Children))
+	for _, v := range n.Children {
+		if node, ok := v.(Node); ok {
+			v = node.Normalize()
+		}
+		children = append(children, v)
+	}
+	return Node{
+		Tag:      n.Tag,
+		Extra:    n.Extra,
+		Children: children,
+	}
+}
+
+func (n Node) Get(path ...int) TreeElement {
+	var v TreeElement = n
 	for _, i := range path {
 		v = v.(Node).Children[i]
 	}
@@ -64,26 +90,22 @@ func (n Node) Format(state fmt.State, c rune) {
 }
 
 type Parser interface {
-	Parse(scope frozen.Map, input *Scanner, output interface{}) error
+	Parse(scope frozen.Map, input *Scanner, output *TreeElement) error
 }
 
-func PtrAssign(output, input interface{}) {
-	*output.(*interface{}) = input
-}
+type Func func(scope frozen.Map, input *Scanner, output *TreeElement) error
 
-type Func func(scope frozen.Map, input *Scanner, output interface{}) error
-
-func (f Func) Parse(scope frozen.Map, input *Scanner, output interface{}) error {
+func (f Func) Parse(scope frozen.Map, input *Scanner, output *TreeElement) error {
 	return f(scope, input, output)
 }
 
 func Transform(parser Parser, transform func(Node) Node) Parser {
-	return Func(func(scope frozen.Map, input *Scanner, output interface{}) error {
-		var v Node
+	return Func(func(scope frozen.Map, input *Scanner, output *TreeElement) error {
+		var v TreeElement
 		if err := parser.Parse(scope, input, &v); err != nil {
 			return err
 		}
-		PtrAssign(output, transform(v))
+		*output = transform(v.(Node))
 		return nil
 	})
 }

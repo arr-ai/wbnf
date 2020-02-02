@@ -12,6 +12,7 @@ import (
 	"github.com/urfave/cli"
 )
 
+var inFile string
 var inGrammarFile string
 var startingRule string
 var testCommand = cli.Command{
@@ -78,7 +79,7 @@ func test(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	ast := ast.ParserNodeToNode(g.Grammar(), tree)
+	ast := ast.FromParserNode(g.Grammar(), tree)
 	fmt.Println(ast)
 
 	return nil

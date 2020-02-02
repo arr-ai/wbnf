@@ -56,20 +56,20 @@ func ruleOrAlt(rule Rule, alt Rule) Rule {
 	return rule
 }
 
-type putter func(output interface{}, extra interface{}, children ...interface{}) error
+type putter func(output *parser.TreeElement, extra parser.Extra, children ...parser.TreeElement) error
 
 type scopeVal struct {
 	p   parser.Parser
-	val interface{}
+	val parser.TreeElement
 }
 
-func NewScopeWith(s frozen.Map, ident string, p parser.Parser, val interface{}) frozen.Map {
+func NewScopeWith(s frozen.Map, ident string, p parser.Parser, val parser.TreeElement) frozen.Map {
 	if ident == "" {
 		return s
 	}
 	return s.With(ident, &scopeVal{p, val})
 }
-func GetFrom(s frozen.Map, ident string) (*scopeVal, bool) {
+func valFrom(s frozen.Map, ident string) (*scopeVal, bool) {
 	if val, ok := s.Get(ident); ok {
 		return val.(*scopeVal), ok
 	}
@@ -78,12 +78,12 @@ func GetFrom(s frozen.Map, ident string) (*scopeVal, bool) {
 
 func tag(rule Rule, alt Rule) putter {
 	rule = ruleOrAlt(rule, alt)
-	return func(output interface{}, extra interface{}, children ...interface{}) error {
-		parser.PtrAssign(output, parser.Node{
+	return func(output *parser.TreeElement, extra parser.Extra, children ...parser.TreeElement) error {
+		*output = parser.Node{
 			Tag:      string(rule),
 			Extra:    extra,
 			Children: children,
-		})
+		}
 		return nil
 	}
 }
@@ -129,13 +129,21 @@ func (g Grammar) Compile(node *parser.Node) Parsers {
 		rulePtrses: map[Rule][]*parser.Parser{},
 	}
 	for rule, term := range g {
+		for {
+			switch r := term.(type) {
+			case Rule:
+				term = g[r]
+				continue
+			}
+			break
+		}
 		c.parsers[rule] = term.Parser(rule, c)
 	}
 
 	for rule, rulePtrs := range c.rulePtrses {
-		term := c.parsers[rule]
+		p := c.parsers[rule]
 		for _, rulePtr := range rulePtrs {
-			*rulePtr = term
+			*rulePtr = p
 		}
 	}
 
@@ -171,7 +179,7 @@ type ruleParser struct {
 	t    Rule
 }
 
-func (p ruleParser) Parse(scope frozen.Map, input *parser.Scanner, output interface{}) error {
+func (p ruleParser) Parse(scope frozen.Map, input *parser.Scanner, output *parser.TreeElement) error {
 	panic(errors.Inconceivable)
 }
 
@@ -193,10 +201,10 @@ func getErrorStrings(input *parser.Scanner) string {
 	return parser.NewScanner(text).Context()
 }
 
-func eatRegexp(input *parser.Scanner, re *regexp.Regexp, output interface{}) bool {
+func eatRegexp(input *parser.Scanner, re *regexp.Regexp, output *parser.TreeElement) bool {
 	var eaten [2]parser.Scanner
 	if n, ok := input.EatRegexp(re, nil, eaten[:]); ok {
-		parser.PtrAssign(output, eaten[n-1])
+		*output = eaten[n-1]
 		return true
 	}
 	return false
@@ -208,9 +216,8 @@ type sParser struct {
 	re   *regexp.Regexp
 }
 
-func (p *sParser) Parse(_ frozen.Map, input *parser.Scanner, output interface{}) error {
+func (p *sParser) Parse(scope frozen.Map, input *parser.Scanner, output *parser.TreeElement) error {
 	if ok := eatRegexp(input, p.re, output); !ok {
-
 		return newParseError(p.rule, "",
 			fmt.Errorf("expect: %s", parser.NewScanner(p.t.String()).Context()),
 			fmt.Errorf("actual: %s", getErrorStrings(input)))
@@ -236,7 +243,7 @@ type reParser struct {
 	re   *regexp.Regexp
 }
 
-func (p *reParser) Parse(_ frozen.Map, input *parser.Scanner, output interface{}) error {
+func (p *reParser) Parse(_ frozen.Map, input *parser.Scanner, output *parser.TreeElement) error {
 	if ok := eatRegexp(input, p.re, output); !ok {
 		return newParseError(p.rule, "",
 			fmt.Errorf("expect: %s", parser.NewScanner(p.re.String()).Context()),
@@ -281,13 +288,38 @@ func identFromTerm(term Term) string {
 	return ""
 }
 
-func (p *seqParser) Parse(scope frozen.Map, input *parser.Scanner, output interface{}) (out error) {
+func nodesEqual(a, b interface{}) bool {
+	aType := reflect.TypeOf(a)
+	bType := reflect.TypeOf(b)
+	if aType == bType {
+		switch a := a.(type) {
+		case parser.Node:
+			b := b.(parser.Node)
+			if a.Count() == b.Count() {
+				for i := range a.Children {
+					if !nodesEqual(a.Children[i], b.Children[i]) {
+						return false
+					}
+				}
+			}
+			return true
+		case parser.Scanner:
+			b := b.(parser.Scanner)
+			if a.String() == b.String() {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (p *seqParser) Parse(scope frozen.Map, input *parser.Scanner, output *parser.TreeElement) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
-	result := make([]interface{}, 0, len(p.parsers))
+	result := make([]parser.TreeElement, 0, len(p.parsers))
 	furthest := *input
 
 	for i, item := range p.parsers {
-		var v interface{}
+		var v parser.TreeElement
 		ident := identFromTerm(p.t[i])
 		if err := item.Parse(scope, input, &v); err != nil {
 			*input = furthest
@@ -319,8 +351,9 @@ type delimParser struct {
 	put  putter
 }
 
-func parseAppend(p parser.Parser, scope frozen.Map, input *parser.Scanner, slice *[]interface{}, errOut *error) bool {
-	var v interface{}
+func parseAppend(p parser.Parser, scope frozen.Map,
+	input *parser.Scanner, slice *[]parser.TreeElement, errOut *error) bool {
+	var v parser.TreeElement
 	if err := p.Parse(scope, input, &v); err != nil {
 		*errOut = err
 		return false
@@ -331,9 +364,11 @@ func parseAppend(p parser.Parser, scope frozen.Map, input *parser.Scanner, slice
 
 type Empty struct{}
 
-func (p *delimParser) Parse(scope frozen.Map, input *parser.Scanner, output interface{}) (out error) {
+func (Empty) IsTreeElement() {}
+
+func (p *delimParser) Parse(scope frozen.Map, input *parser.Scanner, output *parser.TreeElement) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
-	var result []interface{}
+	var result []parser.TreeElement
 
 	var parseErr error
 	switch {
@@ -351,23 +386,22 @@ func (p *delimParser) Parse(scope frozen.Map, input *parser.Scanner, output inte
 		return parseErr
 	}
 
+	s := *input
 	scope = NewScopeWith(scope, identFromTerm(p.t.Term), p.term, result[len(result)-1])
-	start := *input
 	for parseAppend(p.sep, scope, input, &result, &parseErr) {
-		start = *input
-		scope = NewScopeWith(scope, identFromTerm(p.t.Sep), p.sep, result[len(result)-1])
 		if !parseAppend(p.term, scope, input, &result, &parseErr) {
 			if p.t.CanEndWithSep {
+				s = *input
 				result = append(result, Empty{})
 			} else {
-				return parseErr
+				result = result[:len(result)-1]
 			}
 			break
 		}
 		scope = NewScopeWith(scope, identFromTerm(p.t.Term), p.term, result[len(result)-1])
-		start = *input
+		s = *input
 	}
-	*input = start
+	*input = s
 
 	if n := len(result); n > 1 {
 		switch p.t.Assoc {
@@ -376,14 +410,14 @@ func (p *delimParser) Parse(scope frozen.Map, input *parser.Scanner, output inte
 			for i := 1; i < n; i += 2 {
 				p.put(&v, Associativity(i/2), v, result[i], result[i+1]) //nolint:errcheck
 			}
-			*output.(*interface{}) = v
+			*output = v
 		case RightToLeft:
 			v := result[n-1]
 			for i := 1; i < n; i += 2 {
 				j := n - 1 - i
 				p.put(&v, Associativity(-j/2), result[j-1], result[j], v) //nolint:errcheck
 			}
-			*output.(*interface{}) = v
+			*output = v
 		}
 	}
 
@@ -423,10 +457,10 @@ type quantParser struct {
 	put  putter
 }
 
-func (p *quantParser) Parse(scope frozen.Map, input *parser.Scanner, output interface{}) (out error) {
+func (p *quantParser) Parse(scope frozen.Map, input *parser.Scanner, output *parser.TreeElement) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
-	result := make([]interface{}, 0, p.t.Min)
-	var v interface{}
+	result := make([]parser.TreeElement, 0, p.t.Min)
+	var v parser.TreeElement
 	start := *input
 	for i := 0; p.t.Max == 0 || i < p.t.Max; i++ {
 		if out = p.term.Parse(scope, &start, &v); out != nil {
@@ -462,15 +496,15 @@ type oneofParser struct {
 	put     putter
 }
 
-func (p *oneofParser) Parse(scope frozen.Map, input *parser.Scanner, output interface{}) (out error) {
+func (p *oneofParser) Parse(scope frozen.Map, input *parser.Scanner, output *parser.TreeElement) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	furthest := *input
 
 	var errors []error
-	for i, parser := range p.parsers {
-		var v interface{}
+	for i, par := range p.parsers {
+		var v parser.TreeElement
 		start := *input
-		if err := parser.Parse(scope, &start, &v); err != nil {
+		if err := par.Parse(scope, &start, &v); err != nil {
 			errors = append(errors, err)
 
 			if furthest.Offset() < start.Offset() {
@@ -478,7 +512,7 @@ func (p *oneofParser) Parse(scope frozen.Map, input *parser.Scanner, output inte
 			}
 		} else {
 			*input = start
-			return p.put(output, i, v)
+			return p.put(output, Choice(i), v)
 		}
 	}
 	*input = furthest
@@ -508,7 +542,7 @@ func (t Named) Parser(rule Rule, c cache) parser.Parser {
 
 //-----------------------------------------------------------------------------
 
-func termFromRefVal(from interface{}) Term {
+func termFromRefVal(from parser.TreeElement) Term {
 	var term Term
 	switch n := from.(type) {
 	case parser.Node:
@@ -523,33 +557,9 @@ func termFromRefVal(from interface{}) Term {
 	return term
 }
 
-func nodesEqual(a, b interface{}) bool {
-	aType := reflect.TypeOf(a)
-	bType := reflect.TypeOf(b)
-	if aType == bType {
-		switch a := a.(type) {
-		case parser.Node:
-			b := b.(parser.Node)
-			if a.Count() == b.Count() {
-				for i := range a.Children {
-					if !nodesEqual(a.Children[i], b.Children[i]) {
-						return false
-					}
-				}
-			}
-			return true
-		case parser.Scanner:
-			b := b.(parser.Scanner)
-			if a.String() == b.String() {
-				return true
-			}
-		}
-	}
-	return false
-}
-func (t *REF) Parse(scope frozen.Map, input *parser.Scanner, output interface{}) (out error) {
-	var v interface{}
-	if expected, ok := GetFrom(scope, t.Ident); ok {
+func (t *REF) Parse(scope frozen.Map, input *parser.Scanner, output *parser.TreeElement) (out error) {
+	var v parser.TreeElement
+	if expected, ok := valFrom(scope, t.Ident); ok {
 		term := termFromRefVal(expected.val)
 		if err := term.Parser(Rule(t.Ident), cache{}).Parse(scope, input, &v); err != nil {
 			return err
@@ -566,7 +576,7 @@ func (t *REF) Parse(scope frozen.Map, input *parser.Scanner, output interface{})
 	} else {
 		return newParseError(Rule(t.Ident), "Backref not found")
 	}
-	*output.(*interface{}) = v
+	*output = v
 	return nil
 }
 

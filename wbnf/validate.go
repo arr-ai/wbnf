@@ -11,43 +11,40 @@ func validationErrorf(format string, args ...interface{}) error {
 	return fmt.Errorf(format, args...)
 }
 
-func validateNode(v interface{}, expectedTag Rule, validate func(parser.Node) error) error {
-	if node, ok := v.(parser.Node); ok {
+func validateNode(e parser.TreeElement, expectedTag Rule, validate func(parser.Node) error) error {
+	if node, ok := e.(parser.Node); ok {
 		if node.Tag != string(expectedTag) {
 			return validationErrorf("expecting tag `%s`, got `%s`", expectedTag, node.Tag)
 		}
 		return validate(node)
 	}
-	return validationErrorf("not a node: %v", v)
+	return validationErrorf("not a node: %v", e)
 }
 
-func validateScanner(
-	v interface{},
-	validate func(parser.Scanner) error,
-) error {
-	if scanner, ok := v.(parser.Scanner); ok {
+func validateScanner(e parser.TreeElement, validate func(parser.Scanner) error) error {
+	if scanner, ok := e.(parser.Scanner); ok {
 		return validate(scanner)
 	}
-	return validationErrorf("not a scanner: %v", v)
+	return validationErrorf("not a scanner: %v", e)
 }
 
-func (t S) ValidateParse(g Grammar, rule Rule, v interface{}) error {
-	return validateScanner(v, func(scanner parser.Scanner) error { return nil })
+func (t S) ValidateParse(g Grammar, rule Rule, e parser.TreeElement) error {
+	return validateScanner(e, func(scanner parser.Scanner) error { return nil })
 }
 
-func (t RE) ValidateParse(g Grammar, rule Rule, v interface{}) error {
-	return validateScanner(v, func(scanner parser.Scanner) error {
+func (t RE) ValidateParse(g Grammar, rule Rule, e parser.TreeElement) error {
+	return validateScanner(e, func(scanner parser.Scanner) error {
 		return nil
 		// if _, err := regexp.Parse()
 	})
 }
 
-func (t REF) ValidateParse(g Grammar, rule Rule, v interface{}) error {
+func (t REF) ValidateParse(g Grammar, rule Rule, e parser.TreeElement) error {
 	panic(errors.Inconceivable)
 }
 
-func (t Seq) ValidateParse(g Grammar, rule Rule, v interface{}) error {
-	return validateNode(v, ruleOrAlt(rule, seqTag), func(node parser.Node) error {
+func (t Seq) ValidateParse(g Grammar, rule Rule, e parser.TreeElement) error {
+	return validateNode(e, ruleOrAlt(rule, seqTag), func(node parser.Node) error {
 		if node.Count() != len(t) {
 			return validationErrorf("seq(%d): wrong number of children: %d", len(t), node.Count())
 		}
@@ -60,20 +57,20 @@ func (t Seq) ValidateParse(g Grammar, rule Rule, v interface{}) error {
 	})
 }
 
-func (t Oneof) ValidateParse(g Grammar, rule Rule, v interface{}) error {
-	return validateNode(v, ruleOrAlt(rule, oneofTag), func(node parser.Node) error {
+func (t Oneof) ValidateParse(g Grammar, rule Rule, e parser.TreeElement) error {
+	return validateNode(e, ruleOrAlt(rule, oneofTag), func(node parser.Node) error {
 		if n := node.Count(); n != 1 {
 			return validationErrorf("oneof: expecting one child, got %d", n)
 		}
-		if i, ok := node.Extra.(int); ok {
+		if i, ok := node.Extra.(Choice); ok {
 			return t[i].ValidateParse(g, "", node.Children[0])
 		}
 		return validationErrorf("oneof: missing selected child")
 	})
 }
 
-func (t Delim) ValidateParse(g Grammar, rule Rule, v interface{}) error {
-	return validateNode(v, ruleOrAlt(rule, delimTag), func(node parser.Node) error {
+func (t Delim) ValidateParse(g Grammar, rule Rule, e parser.TreeElement) error {
+	return validateNode(e, ruleOrAlt(rule, delimTag), func(node parser.Node) error {
 		n := node.Count()
 		if n == 0 {
 			return validationErrorf("delim: no children")
@@ -103,8 +100,8 @@ func (t Delim) ValidateParse(g Grammar, rule Rule, v interface{}) error {
 	})
 }
 
-func (t Quant) ValidateParse(g Grammar, rule Rule, v interface{}) error {
-	return validateNode(v, ruleOrAlt(rule, quantTag), func(node parser.Node) error {
+func (t Quant) ValidateParse(g Grammar, rule Rule, e parser.TreeElement) error {
+	return validateNode(e, ruleOrAlt(rule, quantTag), func(node parser.Node) error {
 		n := node.Count()
 		if !t.Contains(n) {
 			return validationErrorf("quant(%d..%d): wrong number of children: %d", t.Min, t.Max, n)
@@ -118,19 +115,19 @@ func (t Quant) ValidateParse(g Grammar, rule Rule, v interface{}) error {
 	})
 }
 
-func (t Rule) ValidateParse(g Grammar, rule Rule, v interface{}) error {
-	return g[t].ValidateParse(g, t, v)
+func (t Rule) ValidateParse(g Grammar, rule Rule, e parser.TreeElement) error {
+	return g[t].ValidateParse(g, t, e)
 }
 
 //-----------------------------------------------------------------------------
 
-func (t Stack) ValidateParse(g Grammar, rule Rule, v interface{}) error {
+func (t Stack) ValidateParse(_ Grammar, _ Rule, _ parser.TreeElement) error {
 	panic(errors.Inconceivable)
 }
 
 //-----------------------------------------------------------------------------
 
-func (t Named) ValidateParse(g Grammar, rule Rule, v interface{}) error {
+func (t Named) ValidateParse(g Grammar, rule Rule, e parser.TreeElement) error {
 	// TODO: Be a little more thorough.
 	return nil
 }

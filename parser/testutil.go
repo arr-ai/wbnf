@@ -7,7 +7,11 @@ import (
 )
 
 func AssertEqualNodes(t *testing.T, v, u Node) bool {
-	return assertEqualNodes(t, v, u, []interface{}{})
+	if !assertEqualNodes(t, v, u, []interface{}{}) {
+		t.Logf("\nexpected: %v\nactual:   %v", v, u)
+		return false
+	}
+	return true
 }
 
 func assertEqualNodes(t *testing.T, v, u Node, path []interface{}) bool {
@@ -27,12 +31,12 @@ func assertEqualNodes(t *testing.T, v, u Node, path []interface{}) bool {
 		subpath := append(path, i)
 		vc := v.Children[i]
 		uc := u.Children[i]
-		if ok(assert.IsType(t, vc, uc, "%v", subpath)) {
+		if ok(assert.IsType(t, vc, uc, "%v: %v != %v", subpath, vc, uc)) {
 			switch vc := vc.(type) {
 			case Node:
 				ok(assertEqualNodes(t, vc, uc.(Node), subpath))
 			case Scanner:
-				ok(assert.Equal(t, vc, uc, subpath))
+				ok(assert.Equal(t, vc, uc, "%v: %v != %v", subpath, vc, uc))
 			default:
 				ok(false)
 				t.Errorf("%v unexpected type %T: %[1]v %v", vc, uc)

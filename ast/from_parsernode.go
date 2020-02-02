@@ -148,7 +148,12 @@ func (n Branch) fromParserNode(g wbnf.Grammar, term wbnf.Term, ctrs counters, e 
 		L, R := t.LRTerms(node)
 		terms := [2]wbnf.Term{L, t.Sep}
 		for i, child := range node.Children {
-			n.fromParserNode(g, terms[i%2], ctrs, child)
+			if _, ok := child.(wbnf.Empty); ok {
+				// TODO: round-trip trailing commas
+			} else {
+				n.fromParserNode(g, terms[i%2], ctrs, child)
+				terms[0] = R
+			}
 			terms[0] = R
 		}
 	case wbnf.Quant:

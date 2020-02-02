@@ -107,7 +107,10 @@ func compileAtomNode(node parser.Node) Term {
 }
 
 func compileRefNode(node parser.Node) Term {
-	ref := REF{Ident: node.GetString(1)}
+	ref := REF{
+		External: node.GetString(0) == "%%",
+		Ident:    node.GetString(1),
+	}
 
 	term := node.GetNode(2)
 	if term.Count() != 0 {

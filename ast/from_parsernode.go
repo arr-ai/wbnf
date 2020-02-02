@@ -113,8 +113,14 @@ func (n Branch) fromParserNode(g wbnf.Grammar, term wbnf.Term, ctrs counters, e 
 	var tag string
 	defer enterf("fromParserNode(term=%T(%[1]v), ctrs=%v, v=%v)", term, ctrs, e).exitf("tag=%q, n=%v", &tag, &n)
 	switch t := term.(type) {
-	case wbnf.S, wbnf.RE, wbnf.REF:
+	case wbnf.S, wbnf.RE:
 		n.add("", Leaf(e.(parser.Scanner)), ctrs[""])
+	case wbnf.REF:
+		if t.External {
+
+		} else {
+			n.add("", Leaf(e.(parser.Scanner)), ctrs[""])
+		}
 	case wbnf.Rule:
 		term := g[t]
 		childCtrs := newCounters(term)

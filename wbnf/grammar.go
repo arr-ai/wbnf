@@ -72,7 +72,7 @@ var grammarGrammar = Grammar{
 	str:     RE(unfakeBackquote(`"(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*'|‵(?:‵‵|[^‵])*‵`)),
 	intR:    RE(`\d+`),
 	re:      RE(`/{((?:\\.|{(?:(?:\d+(?:,\d*)?|,\d+)\})?|\[(?:\\]|[^\]])+]|[^\\{\}])*)\}`),
-	ref:     Seq{S("%"), ident, Opt(Seq{S("="), Eq("default", str)})},
+	ref:     Seq{RE(`%%?`), ident, Opt(Seq{S("="), Eq("default", str)})},
 	comment: RE(`//.*$|(?s:/\*(?:[^*]|\*+[^*/])\*/)`),
 
 	// Special
@@ -163,12 +163,42 @@ func (p Parsers) Unparse(e parser.TreeElement, w io.Writer) (n int, err error) {
 	return p.grammar.Unparse(e, w)
 }
 
+type externalRef string
+
+type External func(term Term, elt parser.TreeElement, input *parser.Scanner) (parser.Node, Rule, error)
+type Externals map[string]External
+
 // Parse parses some source per a given rule.
-func (p Parsers) Parse(rule Rule, input *parser.Scanner) (parser.TreeElement, error) {
+func (p Parsers) parse(
+	rule Rule,
+	input *parser.Scanner,
+	scope frozen.Map,
+) (parser.TreeElement, error) {
+	var e parser.TreeElement
+	err := p.parsers[rule].Parse(scope, input, &e)
+	return e, err
+}
+
+func prepareExternals(externals Externals) frozen.Map {
+	var b frozen.MapBuilder
+	for name, external := range externals {
+		b.Put(externalRef(name), external)
+	}
+	return b.Finish()
+}
+
+// Parse parses some source per a given rule.
+func (p Parsers) ParsePartial(rule Rule, input *parser.Scanner, externals Externals) (parser.TreeElement, error) {
+	return p.parse(rule, input, prepareExternals(externals))
+}
+
+//Parse parses some source per a given rule.
+func (p Parsers) ParseWithExternals(rule Rule, input *parser.Scanner, externals Externals) (parser.TreeElement, error) {
+	scope := prepareExternals(externals)
 	start := *input
 	for {
 		var e parser.TreeElement
-		if err := p.parsers[rule].Parse(frozen.NewMap(), input, &e); err != nil {
+		if err := p.parsers[rule].Parse(scope, input, &e); err != nil {
 			return nil, err
 		}
 
@@ -182,14 +212,29 @@ func (p Parsers) Parse(rule Rule, input *parser.Scanner) (parser.TreeElement, er
 	}
 }
 
+// Parse parses some source per a given rule.
+func (p Parsers) Parse(rule Rule, input *parser.Scanner) (parser.TreeElement, error) {
+	return p.ParseWithExternals(rule, input, nil)
+}
+
 // MustParse calls Parse and returns the result or panics if an error was
 // returned.
-func (p Parsers) MustParse(rule Rule, input *parser.Scanner) parser.TreeElement {
-	i, err := p.Parse(rule, input)
+func (p Parsers) MustParseWithExternals(
+	rule Rule,
+	input *parser.Scanner,
+	externals Externals,
+) parser.TreeElement {
+	i, err := p.ParseWithExternals(rule, input, externals)
 	if err != nil {
 		panic(err)
 	}
 	return i
+}
+
+// MustParse calls Parse and returns the result or panics if an error was
+// returned.
+func (p Parsers) MustParse(rule Rule, input *parser.Scanner) parser.TreeElement {
+	return p.MustParseWithExternals(rule, input, nil)
 }
 
 // Singletons returns the set of names that will produce exactly one child
@@ -246,8 +291,9 @@ type (
 	S    string
 	RE   string
 	REF  struct {
-		Ident   string
-		Default Term
+		External bool
+		Ident    string
+		Default  Term
 	}
 	Seq   []Term
 	Oneof []Term

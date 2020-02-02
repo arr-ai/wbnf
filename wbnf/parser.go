@@ -561,13 +561,29 @@ func (t *REF) Parse(scope frozen.Map, input *parser.Scanner, output *parser.Tree
 	var v parser.TreeElement
 	if expected, ok := valFrom(scope, t.Ident); ok {
 		term := termFromRefVal(expected.val)
-		if err := term.Parser(Rule(t.Ident), cache{}).Parse(scope, input, &v); err != nil {
-			return err
-		}
-		if !nodesEqual(v, expected.val) {
-			return newParseError(Rule(t.Ident), "Backref not matched",
-				fmt.Errorf("expected: %s", expected),
-				fmt.Errorf("actual: %s", v))
+		if t.External {
+			if external, has := scope.Get(externalRef(t.Ident)); has {
+				subgrammar, rule, err := external.(External)(term, expected.val, input)
+				if err != nil {
+					return newParseError(Rule(t.Ident), "External parse failed", err)
+				}
+				parsers := NewFromNode(subgrammar).Compile(&subgrammar)
+				*output, err = parsers.ParsePartial(rule, input, nil)
+				if err != nil {
+					return newParseError(Rule(t.Ident), "External parse failed", err)
+				}
+			} else {
+				return newParseError(Rule(t.Ident), "External ref not found")
+			}
+		} else {
+			if err := term.Parser(Rule(t.Ident), cache{}).Parse(scope, input, &v); err != nil {
+				return err
+			}
+			if !nodesEqual(v, expected.val) {
+				return newParseError(Rule(t.Ident), "Backref not matched",
+					fmt.Errorf("expected: %s", expected),
+					fmt.Errorf("actual: %s", v))
+			}
 		}
 	} else if t.Default != nil {
 		if err := t.Default.Parser(Rule(t.Ident), cache{}).Parse(scope, input, &v); err != nil {

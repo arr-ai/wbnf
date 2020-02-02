@@ -10,7 +10,6 @@ import (
 
 	"github.com/arr-ai/wbnf/errors"
 	"github.com/arr-ai/wbnf/parser"
-	"github.com/arr-ai/wbnf/wbnf/internal"
 )
 
 var (
@@ -207,7 +206,9 @@ type Term interface {
 	Resolve(oldRule, newRule Rule) Term
 }
 
-type Choice = internal.Choice
+type Choice int
+
+func (Choice) IsExtra() {}
 
 type Associativity int
 

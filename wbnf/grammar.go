@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/arr-ai/frozen"
+
 	"github.com/arr-ai/wbnf/errors"
 	"github.com/arr-ai/wbnf/parser"
 	"github.com/arr-ai/wbnf/wbnf/internal"
@@ -70,7 +72,7 @@ var grammarGrammar = Grammar{
 	str:     RE(unfakeBackquote(`"(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*'|‵(?:‵‵|[^‵])*‵`)),
 	intR:    RE(`\d+`),
 	re:      RE(`/{((?:\\.|{(?:(?:\d+(?:,\d*)?|,\d+)\})?|\[(?:\\]|[^\]])+]|[^\\{\}])*)\}`),
-	ref:     Seq{S("\\"), ident},
+	ref:     Seq{S("%"), ident, Opt(Seq{S("="), Eq("default", str)})},
 	comment: RE(`//.*$|(?s:/\*(?:[^*]|\*+[^*/])\*/)`),
 
 	// Special
@@ -166,7 +168,7 @@ func (p Parsers) Parse(rule Rule, input *parser.Scanner) (parser.TreeElement, er
 	start := *input
 	for {
 		var e parser.TreeElement
-		if err := p.parsers[rule].Parse(input, &e); err != nil {
+		if err := p.parsers[rule].Parse(frozen.NewMap(), input, &e); err != nil {
 			return nil, err
 		}
 
@@ -240,10 +242,13 @@ const (
 )
 
 type (
-	Rule  string
-	S     string
-	RE    string
-	REF   string
+	Rule string
+	S    string
+	RE   string
+	REF  struct {
+		Ident   string
+		Default Term
+	}
 	Seq   []Term
 	Oneof []Term
 	Stack []Term
@@ -315,7 +320,7 @@ func (g Grammar) String() string {
 func (t Rule) String() string  { return string(t) }
 func (t S) String() string     { return fmt.Sprintf("%q", string(t)) }
 func (t RE) String() string    { return fmt.Sprintf("/%v/", string(t)) }
-func (t REF) String() string   { return fmt.Sprintf("\\%v", string(t)) }
+func (t REF) String() string   { return fmt.Sprintf("%%%v=%v", t.Ident, t.Default) }
 func (t Seq) String() string   { return "(" + join(t, " ") + ")" }
 func (t Oneof) String() string { return join(t, " | ") }
 func (t Stack) String() string { return join(t, " > ") }

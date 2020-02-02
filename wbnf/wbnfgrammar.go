@@ -35,7 +35,7 @@ RE      -> /{
                )*)
              \}
            };
-REF     -> "\\" IDENT;
+REF     -> "%" IDENT ("=" default=STR)?;
 
 // Special
 .wrapRE -> /{\s*()\s*};

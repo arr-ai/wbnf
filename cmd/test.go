@@ -56,6 +56,8 @@ func loadTestGrammar() wbnf.Parsers {
 func test(c *cli.Context) error {
 	source := inFile
 
+	g := loadTestGrammar()
+
 	var input string
 	switch source {
 	case "", "-":
@@ -72,7 +74,7 @@ func test(c *cli.Context) error {
 		input = string(buf)
 	}
 
-	g := loadTestGrammar()
+	//	logrus.SetLevel(logrus.TraceLevel)
 	tree, err := g.Parse(wbnf.Rule(startingRule), parser.NewScanner(input))
 	if err != nil {
 		return err

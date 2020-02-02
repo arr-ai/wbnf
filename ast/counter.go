@@ -108,7 +108,7 @@ func (ctrs counters) union(o counters) {
 
 func (ctrs counters) termCountChildren(term wbnf.Term, parent counter) {
 	switch t := term.(type) {
-	case wbnf.S, wbnf.RE, wbnf.REF:
+	case wbnf.S, wbnf.RE:
 		ctrs.count("", parent)
 	case wbnf.Rule:
 		ctrs.count(string(t), parent)
@@ -129,6 +129,8 @@ func (ctrs counters) termCountChildren(term wbnf.Term, parent counter) {
 		ctrs.termCountChildren(t.Term, parent.mul(newCounterFromQuant(t)))
 	case wbnf.Named:
 		ctrs.count(t.Name, parent)
+	case wbnf.REF:
+		ctrs.count(t.Ident, parent)
 	default:
 		panic(fmt.Errorf("unexpected term type: %v %[1]T", t))
 	}

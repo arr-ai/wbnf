@@ -42,7 +42,7 @@ RE      -> /{
                )*)
              \}
            };
-REF     -> "\\" IDENT;
+REF     -> "%" IDENT ("=" default=STR)?;
 
 // Special
 .wrapRE -> /{\s*()\s*};
@@ -194,6 +194,10 @@ TERM+ ;`:
   This is the same math grammar as above, except two lines have `op=` for the
   *delimiter* term name.
 
+- Referenced Terms
+
+  TODO: Fill in, not sure how to word this
+
 ### Further Details
 
 #### Delimited Repeater
@@ -270,3 +274,10 @@ Example:
 
 - `.wrapRE -> /{\s*()\s*};` ignore all whitespace surrounded every token in the
   grammar.
+
+
+#### Useful recipes
+
+Below are a collection of helpful rules which can be dropped into your grammar.
+
+ - `block -> indent=(%indent="\n" /{\s+}) stmt:%indent;` Accept an indented `stmt` node.

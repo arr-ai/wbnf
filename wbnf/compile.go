@@ -96,7 +96,7 @@ func compileAtomNode(node parser.Node) Term {
 		s = escapedSpaceRE.ReplaceAllString(s, "$1 ")
 		return RE(s)
 	case 3:
-		return REF(Rule(node.GetString(0, 1)))
+		return compileRefNode(node.GetNode(0))
 	case 4:
 		return compileTermNode(node.GetNode(0, 1))
 	case 5:
@@ -104,6 +104,17 @@ func compileAtomNode(node parser.Node) Term {
 	default:
 		panic(errors.BadInput)
 	}
+}
+
+func compileRefNode(node parser.Node) Term {
+	ref := REF{Ident: node.GetString(1)}
+
+	term := node.GetNode(2)
+	if term.Count() != 0 {
+		ref.Default = S(parseString(term.GetString(0, 1)))
+	}
+
+	return ref
 }
 
 func compileTermNamedNode(node parser.Node) Term {

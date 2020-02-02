@@ -1,5 +1,5 @@
 xml  -> "<" NAME attr* "/>"
-      | "<" tag=NAME attr* ">" xml* "</" \tag ">"
+      | "<" tag=NAME attr* ">" xml* "</" %tag ">"
       | CDATA=/{[^<]+}
       | COMMENT;
 attr -> NAME "=" value=/{"[^"]*"};

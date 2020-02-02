@@ -130,7 +130,7 @@ func (ctrs counters) termCountChildren(term wbnf.Term, parent counter) {
 	case wbnf.Named:
 		ctrs.count(t.Name, parent)
 	case wbnf.REF:
-		ctrs.count(t.Ident, parent)
+		ctrs.count(t.Ident, parent.mul(oneOrMore))
 	default:
 		panic(fmt.Errorf("unexpected term type: %v %[1]T", t))
 	}

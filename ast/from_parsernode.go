@@ -113,7 +113,7 @@ func (n Branch) fromParserNode(g wbnf.Grammar, term wbnf.Term, ctrs counters, e 
 	var tag string
 	defer enterf("fromParserNode(term=%T(%[1]v), ctrs=%v, v=%v)", term, ctrs, e).exitf("tag=%q, n=%v", &tag, &n)
 	switch t := term.(type) {
-	case wbnf.S, wbnf.RE, wbnf.REF:
+	case wbnf.S, wbnf.RE:
 		n.add("", Leaf(e.(parser.Scanner)), ctrs[""])
 	case wbnf.Rule:
 		term := g[t]
@@ -172,6 +172,18 @@ func (n Branch) fromParserNode(g wbnf.Grammar, term wbnf.Term, ctrs counters, e 
 		// 	// TODO: zeroOrOne
 		// }
 		n.add(t.Name, node, ctrs[t.Name])
+	case wbnf.REF:
+		switch e := e.(type) {
+		case parser.Scanner:
+			n.add(t.Ident, Leaf(e), ctrs[t.Ident])
+		case parser.Node:
+			b := Branch{}
+			for _, child := range e.Children {
+				b.fromParserNode(g, term, ctrs, child)
+			}
+			n.add(t.Ident, b, ctrs[t.Ident])
+		}
+
 	default:
 		panic(fmt.Errorf("unexpected term type: %v %[1]T", t))
 	}

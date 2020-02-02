@@ -1,6 +1,0 @@
-if foo:
-    print hello
-    while bar:
-        if somethinh:
-            print hello
-        print abcd

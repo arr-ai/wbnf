@@ -117,7 +117,12 @@ func (n Branch) fromParserNode(g wbnf.Grammar, term wbnf.Term, ctrs counters, e 
 		n.add("", Leaf(e.(parser.Scanner)), ctrs[""])
 	case wbnf.REF:
 		if t.External {
-
+			node := e.(*parser.Node)
+			subgrammarNode := node.Extra.(wbnf.SubGrammar).Node
+			subgrammar := FromParserNode(wbnf.Core().Grammar(), subgrammarNode)
+			subnode := FromParserNode(wbnf.NewFromNode(subgrammarNode), node.Children[0])
+			n.add("", Branch{"@grammar": One{Node: subgrammar}, "@node": One{subnode}}, ctrs[""])
+			panic(subnode)
 		} else {
 			n.add("", Leaf(e.(parser.Scanner)), ctrs[""])
 		}

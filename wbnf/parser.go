@@ -16,10 +16,11 @@ const (
 	StackDelim = "@"
 	at         = Rule(StackDelim)
 
-	seqTag   = "_"
-	oneofTag = "|"
-	delimTag = ":"
-	quantTag = "?"
+	seqTag    = "_"
+	oneofTag  = "|"
+	delimTag  = ":"
+	quantTag  = "?"
+	externTag = "%"
 )
 
 type cache struct {
@@ -557,6 +558,12 @@ func termFromRefVal(from parser.TreeElement) Term {
 	return term
 }
 
+type SubGrammar struct {
+	parser.Node
+}
+
+func (SubGrammar) IsExtra() {}
+
 func (t *REF) Parse(scope frozen.Map, input *parser.Scanner, output *parser.TreeElement) (out error) {
 	var v parser.TreeElement
 	if expected, ok := valFrom(scope, t.Ident); ok {
@@ -568,10 +575,11 @@ func (t *REF) Parse(scope frozen.Map, input *parser.Scanner, output *parser.Tree
 					return newParseError(Rule(t.Ident), "External parse failed", err)
 				}
 				parsers := NewFromNode(subgrammar).Compile(&subgrammar)
-				*output, err = parsers.ParsePartial(rule, input, nil)
+				foreign, err := parsers.ParsePartial(rule, input, nil)
 				if err != nil {
 					return newParseError(Rule(t.Ident), "External parse failed", err)
 				}
+				v = parser.NewNode(externTag, SubGrammar{subgrammar}, foreign)
 			} else {
 				return newParseError(Rule(t.Ident), "External ref not found")
 			}

@@ -1,0 +1,64 @@
+// Sysl grammar
+
+sysl_file -> import* application:,(EOL*), ;
+
+
+
+
+
+
+// -------------- Imports --------------- //
+import  -> "import"  prefix="/"{0,2} import=PATH ( "as"  APP_NAME)? ("~" mode=NAME)? EOL;
+
+
+
+// -------------- Applications --------------- //
+application ->  APPLICATION_NAME QSTRING?
+        attribs? ":" COMMENT* INDENT app_decl:INDENT_SEP;
+
+app_decl   -> table | wrap | endpoint;
+
+// -------------- Types --------------- //
+
+table -> mode=("!table"|"!type") NAME attribs?  ":" COMMENT*
+    INDENT
+        (COMMENT | (name=NAME "<:") type=type_spec optional="?"? attribs?):INDENT_SEP EOL;
+wrap -> "!wrap" NAME attribs?  ":" COMMENT*
+    INDENT
+        (table | "!table"APP_NAME) :INDENT_SEP EOL;
+
+
+type_spec -> (NativeDataType=("int32" | "int64" | "int" |
+                             "float" | "string" | "date" |
+                             "bool" | "decimal" | "datetime") | UserType=APP_NAME)
+             SizeSpec=("(" /{\d+} (array=".."|sized=".")? /{\d*} ")")?;
+
+
+
+// -------------- Common Rules --------------- //
+
+endpoint -> "/" /{[^\n]*} INDENT /{[^\n]*}:INDENT_SEP EOL;
+
+
+
+// -------------- Common Rules --------------- //
+attribs     ->  "[" @:"," "]"
+             > pattern=("~" NAME:"+")
+             | attr=(NAME "=" QSTRING)
+        ;
+
+// -------------- Tokens --------------- //
+NAME    -> /{[a-zA-Z_][-a-zA-Z0-9_]*};
+PATH    -> /{[a-zA-Z0-9.:]*}:"/";
+APP_NAME -> NAME:".";
+
+APPLICATION_NAME    -> pkg=(NAME:"::" ".")? APP_NAME;
+
+COMMENT -> "#" /{[^\n]*} "\n";
+EOL     -> COMMENT+ | /{[\_\t]*\n};
+QSTRING -> /{\"[^\"]*\"};
+
+.wrapRE -> /{[\_]*()[\_]*};
+
+INDENT      -> %INDENT="\n" /{\s+};
+INDENT_SEP  -> %INDENT|/{\s+};

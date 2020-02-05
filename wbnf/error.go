@@ -2,8 +2,28 @@ package wbnf
 
 import (
 	"fmt"
-	"strings"
+
+	"github.com/arr-ai/wbnf/parser"
+	"github.com/arr-ai/wbnf/wbnf/gotree"
 )
+
+type errorNode struct {
+	parser.TreeElement
+}
+
+func (e errorNode) Error() string {
+	es := ""
+	switch t := e.TreeElement.(type) {
+	case parser.Node:
+		es = t.String()
+	case parser.Scanner:
+		es = t.String()
+	}
+	if es != "" {
+		return "partial parse nodes:  " + getErrorStrings(parser.NewScanner(es))
+	}
+	return ""
+}
 
 type ParseError struct {
 	rule     Rule
@@ -20,26 +40,20 @@ func newParseError(rule Rule, msg string, errors ...error) error {
 }
 
 func (p ParseError) Error() string {
-	return p.walkErrors(0)
+	tree := gotree.New("parse failed")
+	p.walkErrors(tree)
+
+	return "\n" + tree.Print()
 }
 
-func prefix(depth int) string {
-	if depth == 0 {
-		return ""
-	}
-	return fmt.Sprintf("\t\\%s ", strings.Repeat("-", depth))
-}
-
-func (p ParseError) walkErrors(depth int) string {
-	lines := []string{
-		fmt.Sprintf(`%srule(%s) - %s`, prefix(depth), p.rule, p.msg),
-	}
+func (p ParseError) walkErrors(parent gotree.Tree) {
+	x := gotree.New(fmt.Sprintf(`rule(%s) - %s`, p.rule, p.msg))
 	for _, err := range p.children {
 		if pe, ok := err.(*ParseError); ok {
-			lines = append(lines, pe.walkErrors(depth+1))
+			pe.walkErrors(x)
 		} else {
-			lines = append(lines, fmt.Sprintf(`%s	 %s`, prefix(depth), err.Error()))
+			x.Add(err.Error())
 		}
 	}
-	return strings.Join(lines, "\n")
+	parent.AddTree(x)
 }

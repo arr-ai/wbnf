@@ -323,7 +323,7 @@ func (p *seqParser) Parse(scope frozen.Map, input *parser.Scanner, output *parse
 		ident := identFromTerm(p.t[i])
 		if err := item.Parse(scope, input, &v); err != nil {
 			*input = furthest
-			return err
+			return newParseError(p.rule, "could not complete sequence", err)
 		}
 		scope = NewScopeWith(scope, ident, p.parsers[i], v)
 		furthest = *input
@@ -369,6 +369,18 @@ func (Empty) IsTreeElement() {}
 func (p *delimParser) Parse(scope frozen.Map, input *parser.Scanner, output *parser.TreeElement) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	var result []parser.TreeElement
+
+	defer func(err *error) {
+		if *err != nil {
+			var errs []error
+			if result != nil {
+				var res parser.TreeElement
+				p.put(&res, Associativity(0), result...)
+				errs = []error{errorNode{res}}
+			}
+			*err = newParseError(p.rule, "delim didnt complete", append(errs, *err)...)
+		}
+	}(&out)
 
 	var parseErr error
 	switch {
@@ -473,7 +485,9 @@ func (p *quantParser) Parse(scope frozen.Map, input *parser.Scanner, output *par
 	if len(result) >= p.t.Min {
 		return p.put(output, nil, result...)
 	}
-	return out
+
+	return newParseError(p.rule,
+		fmt.Sprintf("quant failed, expected: (%d, %d), have %d value(s)", p.t.Min, p.t.Max, len(result)), out)
 }
 
 func (t Quant) Parser(rule Rule, c cache) parser.Parser {

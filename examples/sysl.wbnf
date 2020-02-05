@@ -1,10 +1,6 @@
 // Sysl grammar
 
-sysl_file -> import* application:,(EOL*), ;
-
-
-
-
+sysl_file -> import* EOL* (application EOL*)+ ;
 
 
 // -------------- Imports --------------- //
@@ -37,7 +33,7 @@ type_spec -> (NativeDataType=("int32" | "int64" | "int" |
 
 // -------------- Common Rules --------------- //
 
-endpoint -> "/" /{[^\n]*} INDENT /{[^\n]*}:INDENT_SEP EOL;
+endpoint -> "/" /{[^\n:]*} ":" COMMENT* INDENT /{[^\n]*}:INDENT_SEP;
 
 
 

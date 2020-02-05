@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/arr-ai/wbnf/ast"
 	"github.com/arr-ai/wbnf/parser"
 	"github.com/arr-ai/wbnf/wbnf"
@@ -15,6 +17,7 @@ import (
 var inFile string
 var inGrammarFile string
 var startingRule string
+var verboseMode bool
 var testCommand = cli.Command{
 	Name:    "test",
 	Aliases: []string{"t"},
@@ -42,6 +45,15 @@ var testCommand = cli.Command{
 			TakesFile:   true,
 			Destination: &inFile,
 		},
+		cli.BoolFlag{
+			Name:        "v",
+			Usage:       "verbose logging",
+			EnvVar:      "",
+			FilePath:    "",
+			Required:    false,
+			Hidden:      false,
+			Destination: &verboseMode,
+		},
 	},
 }
 
@@ -56,6 +68,12 @@ func loadTestGrammar() wbnf.Parsers {
 func test(c *cli.Context) error {
 	source := inFile
 
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Print(r)
+			os.Exit(1)
+		}
+	}()
 	g := loadTestGrammar()
 
 	var input string
@@ -74,7 +92,9 @@ func test(c *cli.Context) error {
 		input = string(buf)
 	}
 
-	//	logrus.SetLevel(logrus.TraceLevel)
+	if verboseMode {
+		logrus.SetLevel(logrus.TraceLevel)
+	}
 	tree, err := g.Parse(wbnf.Rule(startingRule), parser.NewScanner(input))
 	if err != nil {
 		return err

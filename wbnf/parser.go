@@ -193,7 +193,7 @@ func (t Rule) Parser(rule Rule, c cache) parser.Parser {
 //-----------------------------------------------------------------------------
 
 func getErrorStrings(input *parser.Scanner) string {
-	text := input.String()
+	text := strings.TrimSpace(input.String())
 	if len(text) > 40 {
 		text = text[:40] + "  ..."
 	}
@@ -313,17 +313,50 @@ func nodesEqual(a, b interface{}) bool {
 	return false
 }
 
+const dontAttemptSeqFix = "dont-attempt-seq-fix"
+
+// Special helper function to try and determine if the sequence could be completed with simple missing strings
+// The main purpose of this is to catch `missing ;` style errors at end-of-line
+func (p *seqParser) attemptRuleCompletion(scope frozen.Map, first, input *parser.Scanner, failedIndex int) error {
+	if scope.Has(dontAttemptSeqFix) {
+		return nil
+	}
+	switch p.parsers[failedIndex].(type) {
+	case *sParser:
+	default:
+		return nil
+	}
+	oldSlice := append([]parser.Parser{}, p.parsers...)
+	defer func() { p.parsers = oldSlice }()
+	p.parsers = p.parsers[failedIndex+1:]
+	var v parser.TreeElement
+	if p.Parse(scope, parser.NewScanner(input.String()), &v) == nil {
+		switch child := oldSlice[failedIndex].(type) {
+		case *sParser:
+			ctx := first.Slice(0, strings.Index(first.String(), input.String()))
+
+			return possibleFixup(fmt.Sprintf("Missing '%s' @ %s", child.t, getErrorStrings(ctx)))
+		}
+	}
+	return nil
+}
+
 func (p *seqParser) Parse(scope frozen.Map, input *parser.Scanner, output *parser.TreeElement) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	result := make([]parser.TreeElement, 0, len(p.parsers))
 	furthest := *input
+	first := parser.NewScanner(input.String())
 
 	for i, item := range p.parsers {
 		var v parser.TreeElement
 		ident := identFromTerm(p.t[i])
 		if err := item.Parse(scope, input, &v); err != nil {
+			elist := []error{err}
+			if fixup := p.attemptRuleCompletion(scope, first, input, i); fixup != nil {
+				elist = append(elist, fixup)
+			}
 			*input = furthest
-			return newParseError(p.rule, "could not complete sequence", err)
+			return newParseError(p.rule, "could not complete sequence", elist...)
 		}
 		scope = NewScopeWith(scope, ident, p.parsers[i], v)
 		furthest = *input
@@ -382,6 +415,7 @@ func (p *delimParser) Parse(scope frozen.Map, input *parser.Scanner, output *par
 		}
 	}(&out)
 
+	scope = scope.With(dontAttemptSeqFix, struct{}{})
 	var parseErr error
 	switch {
 	case parseAppend(p.term, scope, input, &result, &parseErr):

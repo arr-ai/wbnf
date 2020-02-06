@@ -1,6 +1,6 @@
 // Sysl grammar
 
-sysl_file -> import* EOL* (application EOL*)+ ;
+sysl_file -> import* EOL* (application EOL*)+;
 
 
 // -------------- Imports --------------- //
@@ -12,7 +12,7 @@ import  -> "import"  prefix="/"{0,2} import=PATH ( "as"  APP_NAME)? ("~" mode=NA
 application ->  APPLICATION_NAME QSTRING?
         attribs? ":" COMMENT* INDENT app_decl:INDENT_SEP;
 
-app_decl   -> table | wrap | endpoint;
+app_decl   -> SHORTCUT | table | wrap | endpoint | view;
 
 // -------------- Types --------------- //
 
@@ -28,14 +28,22 @@ type_spec -> (NativeDataType=("int32" | "int64" | "int" |
                              "float" | "string" | "date" |
                              "bool" | "decimal" | "datetime") | UserType=APP_NAME)
              SizeSpec=("(" /{\d+} (array=".."|sized=".")? /{\d*} ")")?;
+collection_type -> ("set" | "sequence") "of" type_spec;
 
 
+// -------------- Endpoint     --------------- //
 
-// -------------- Common Rules --------------- //
-
-endpoint -> "/" /{[^\n:]*} ":" COMMENT* INDENT /{[^\n]*}:INDENT_SEP;
+endpoint -> "/" /{[^\n:]*} ":" COMMENT* INDENT /{[^\n]+}:INDENT_SEP;
 
 
+// --------------    views    --------------- //
+view -> "!view" NAME "(" view_params? ")"
+        ("->" retType=(collection_type|type_spec))?
+        attribs? ":" ((INDENT expr_block:INDENT_SEP) | abstract="[~abstract]");
+
+view_params -> (NAME "<:" (collection_type|type_spec)):",";
+
+expr_block -> "";
 
 // -------------- Common Rules --------------- //
 attribs     ->  "[" @:"," "]"
@@ -47,6 +55,7 @@ attribs     ->  "[" @:"," "]"
 NAME    -> /{[a-zA-Z_][-a-zA-Z0-9_]*};
 PATH    -> /{[a-zA-Z0-9.:]*}:"/";
 APP_NAME -> NAME:".";
+SHORTCUT -> "...";
 
 APPLICATION_NAME    -> pkg=(NAME:"::" ".")? APP_NAME;
 

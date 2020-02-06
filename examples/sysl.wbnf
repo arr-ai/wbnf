@@ -33,8 +33,17 @@ collection_type -> ("set" | "sequence") "of" type_spec;
 
 // -------------- Endpoint     --------------- //
 
-endpoint -> "/" [^\n:]* ":" COMMENT* INDENT [^\n]+:INDENT_SEP;
+endpoint -> (rest_endpoint | simple_endpoint) EOL;
 
+simple_endpoint -> SHORTCUT | (endpoint_name=(PATH) QSTRING? EVERYTHING? attribs? ":" (SHORTCUT | EVERYTHING));
+
+rest_endpoint -> http_paths=("/" PATH) attribs? ":" INDENT (method_def | rest_endpoint)+:INDENT_SEP;
+
+method_def -> HTTP_VERBS EVERYTHING? ":" EVERYTHING;
+
+params -> "(" ( reference=(APP_NAME) | field ):"," ")";
+
+field -> NAME (array_size? )?;
 
 // --------------    views    --------------- //
 view -> "!view" NAME "(" view_params? ")"
@@ -51,12 +60,17 @@ attribs     ->  "[" @:"," "]"
              | attr=(NAME "=" QSTRING)
         ;
 
+array_size -> "(" DIGITS DOTDOT DIGITS? ")";
+
 // -------------- Tokens --------------- //
 NAME    -> [a-zA-Z_][-a-zA-Z0-9_]*;
 PATH    -> [a-zA-Z0-9.:]*:"/";
+DIGITS -> [1-9][0-9]*;
 APP_NAME -> NAME:".";
 SHORTCUT -> "...";
-
+DOTDOT -> "..";
+HTTP_VERBS -> ("GET" | "POST" | "DELETE" | "PUT" | "PATCH");
+EVERYTHING -> /{[^\n]+};
 APPLICATION_NAME    -> pkg=(NAME:"::" ".")? APP_NAME;
 
 COMMENT -> "#" [^\n]* "\n";

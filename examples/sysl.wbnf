@@ -57,7 +57,23 @@ view_params -> (NAME "<:" (collection_type|type_spec)):",";
 expr_block -> "";
 
 // --------------  statements  --------------- //
-statements -> ret_stmt attribs?;
+statements -> (if_stmt
+                | for_stmt
+                | ret_stmt
+                | call_stmt
+        ) attribs?;
+
+if_else -> if_stmt else_stmt*;
+
+if_stmt -> "if" PREDICATE ":" INDENT statements*:INDENT_SEP;
+
+else_stmt -> "else" PREDICATE? ":" INDENT statements*:INDENT_SEP;
+
+for_stmt -> for_type=("alt" | "until" | "for each" | "for" | "loop" | "while") PREDICATE ":" INDENT statements*:INDENT_SEP;
+
+call_stmt -> target=("." | NAME:"::") "<-" target_endpoint=(/{ \s* ( [^\s(] [^(\r\n]* [^\s(] ) \s* }) call_args?;
+
+call_args -> "(" ((QSTRING | NAME)+ | (NAME "<:" (NAME | NativeDataTypes))):"," ")";
 
 ret_stmt -> "return" ret_val=(TEXT);
 
@@ -87,6 +103,7 @@ PATH    -> [a-zA-Z0-9.:]*:"/";
 DIGITS -> [1-9][0-9]*;
 TEXT -> [^(\r?\n)]+;
 APP_NAME -> NAME:".";
+PREDICATE -> /{[^\r\n:]+};
 SHORTCUT -> "...";
 HTTP_VERBS -> ("GET" | "POST" | "DELETE" | "PUT" | "PATCH");
 NativeDataTypes -> ("int32" | "int64" | "int" |

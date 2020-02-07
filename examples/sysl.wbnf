@@ -45,7 +45,7 @@ query_param -> "?" (Name=(NAME) "=" (NativeDataTypes| NAME | "{" NAME "}") optio
 
 field -> NAME (array_size? "<:" field_type QSTRING?)?;
 
-field_type -> collection_type | (type_spec optional="?"? attribs? (":" annotations)?) ;
+field_type -> collection_type | (type_spec optional="?"? attribs?) ;
 
 // --------------    views    --------------- //
 view -> "!view" NAME "(" view_params? ")"

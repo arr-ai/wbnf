@@ -18,15 +18,13 @@ app_decl   -> SHORTCUT | table | wrap | endpoint | view;
 
 table -> mode=("!table"|"!type") NAME attribs?  ":" COMMENT*
     INDENT
-        (COMMENT | (name=NAME "<:") type=type_spec optional="?"? attribs?):INDENT_SEP EOL;
+        (COMMENT | (name=NAME "<:") type=(collection_type|type_spec) optional="?"? attribs?):INDENT_SEP EOL;
 wrap -> "!wrap" NAME attribs?  ":" COMMENT*
     INDENT
         (table | "!table"APP_NAME) :INDENT_SEP EOL;
 
 
-type_spec -> (NativeDataType=("int32" | "int64" | "int" |
-                             "float" | "string" | "date" |
-                             "bool" | "decimal" | "datetime") | UserType=APP_NAME)
+type_spec -> (NativeDataTypes | UserType=APP_NAME)
              SizeSpec=("(" \d+ (array=".."|sized=".")? \d* ")")?;
 collection_type -> ("set" | "sequence") "of" type_spec;
 
@@ -37,13 +35,17 @@ endpoint -> (rest_endpoint | simple_endpoint) EOL;
 
 simple_endpoint -> SHORTCUT | (endpoint_name=(PATH) QSTRING? EVERYTHING? attribs? ":" (SHORTCUT | EVERYTHING));
 
-rest_endpoint -> http_paths=("/" PATH) attribs? ":" INDENT (method_def | rest_endpoint)+:INDENT_SEP;
+rest_endpoint -> http_path attribs? ":" INDENT (method_def | rest_endpoint)+:INDENT_SEP;
 
-method_def -> HTTP_VERBS EVERYTHING? ":" EVERYTHING;
+method_def -> http_path=(HTTP_VERBS) params? query_param? attribs? ":" INDENT statements+:INDENT_SEP;
 
-params -> "(" ( reference=(APP_NAME) | field ):"," ")";
+params -> "(" ( reference | field ):"," ")";
 
-field -> NAME (array_size? )?;
+query_param -> "?" (Name=(NAME) "=" (NativeDataTypes| NAME | "{" NAME "}") optional="?"?):"&";
+
+field -> NAME (array_size? "<:" field_type QSTRING?)?;
+
+field_type -> collection_type | (type_spec optional="?"? attribs? (":" annotations)?) ;
 
 // --------------    views    --------------- //
 view -> "!view" NAME "(" view_params? ")"
@@ -54,23 +56,43 @@ view_params -> (NAME "<:" (collection_type|type_spec)):",";
 
 expr_block -> "";
 
+// --------------  statements  --------------- //
+statements -> ret_stmt attribs?;
+
+ret_stmt -> "return" ret_val=(TEXT);
+
 // -------------- Common Rules --------------- //
 attribs     ->  "[" @:"," "]"
              > pattern=("~" NAME:"+")
              | attr=(NAME "=" QSTRING)
         ;
 
-array_size -> "(" DIGITS DOTDOT DIGITS? ")";
+array_size -> "(" DIGITS ".." DIGITS? ")";
+
+reference -> package_name=(NAME:"::") ("." NAME)+;
+
+annotations -> INDENT ("@" var_name=(NAME) "=" value=(QSTRING | array_of_strings | multi_line_docstring)):INDENT_SEP;
+
+array_of_strings -> "[" QSTRING:"," "]";
+
+multi_line_docstring -> ":" INDENT ("|" TEXT)+:INDENT_SEP;
+
+http_path_var_with_type -> "{" var=(NAME | DIGITS) "<:" type=(NativeDataTypes | NAME | reference) "}";
+
+http_path -> "/" ((http_path_static=(NAME | DIGITS) | http_path_var_with_type):"/")?;
 
 // -------------- Tokens --------------- //
 NAME    -> [a-zA-Z_][-a-zA-Z0-9_]*;
 PATH    -> [a-zA-Z0-9.:]*:"/";
 DIGITS -> [1-9][0-9]*;
+TEXT -> [^(\r?\n)]+;
 APP_NAME -> NAME:".";
 SHORTCUT -> "...";
-DOTDOT -> "..";
 HTTP_VERBS -> ("GET" | "POST" | "DELETE" | "PUT" | "PATCH");
-EVERYTHING -> /{[^\n]+};
+NativeDataTypes -> ("int32" | "int64" | "int" |
+                "float" | "string" | "date" |
+                "bool" | "decimal" | "datetime");
+EVERYTHING -> /{[^\n:]+};
 APPLICATION_NAME    -> pkg=(NAME:"::" ".")? APP_NAME;
 
 COMMENT -> "#" [^\n]* "\n";

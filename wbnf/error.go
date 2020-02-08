@@ -63,18 +63,3 @@ func (p ParseError) walkErrors(parent gotree.Tree) {
 	}
 	parent.AddTree(x)
 }
-
-func checkForPossibleFix(err error) error {
-	switch e := err.(type) {
-	case *ParseError:
-		for _, err := range e.children {
-			e := checkForPossibleFix(err)
-			if _, ok := e.(possibleFixup); ok {
-				return e
-			}
-		}
-	case possibleFixup:
-		return e
-	}
-	return err
-}

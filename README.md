@@ -219,7 +219,7 @@ named opt_trailing=","?`.
     ```
 
   - `:>` denotes a left-to-right associative delimiter. This will produce a
-    chain of binary nodes. The term `a<:b` will produce trees looking like this:
+    chain of binary nodes. The term `a:>b` will produce trees looking like this:
 
     ```text
           b

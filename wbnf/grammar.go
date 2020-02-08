@@ -168,7 +168,7 @@ func (p Parsers) Parse(rule Rule, input *parser.Scanner) (parser.TreeElement, er
 	for {
 		var e parser.TreeElement
 		if err := p.parsers[rule].Parse(frozen.NewMap(), input, &e); err != nil {
-			return nil, checkForPossibleFix(err)
+			return nil, err
 		}
 
 		if input.String() == "" {

@@ -83,16 +83,9 @@ func (t Delim) ValidateParse(g Grammar, rule Rule, e parser.TreeElement) error {
 			return validationErrorf("delim: missing depth")
 		}
 
-		left, right := t.LRTerms(node)
-
-		if err := left.ValidateParse(g, "", node.Children[0]); err != nil {
-			return err
-		}
-		for i := 1; i < n; i += 2 {
-			if err := t.Sep.ValidateParse(g, "", node.Children[i]); err != nil {
-				return err
-			}
-			if err := right.ValidateParse(g, "", node.Children[i+1]); err != nil {
+		tgen := t.LRTerms(node)
+		for _, child := range node.Children {
+			if err := tgen.Next().ValidateParse(g, "", child); err != nil {
 				return err
 			}
 		}

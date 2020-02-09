@@ -142,19 +142,26 @@ func (n Branch) fromParserNode(g wbnf.Grammar, term wbnf.Term, ctrs counters, e 
 	case wbnf.Delim:
 		node := e.(parser.Node)
 		tag = node.Tag
-		if node.Extra.(wbnf.Associativity) != wbnf.NonAssociative {
-			panic(errors.Unfinished)
-		}
-		L, R := t.LRTerms(node)
-		terms := [2]wbnf.Term{L, t.Sep}
-		for i, child := range node.Children {
+		tgen := t.LRTerms(node)
+		for _, child := range node.Children {
+			term := tgen.Next()
 			if _, ok := child.(wbnf.Empty); ok {
-				// TODO: round-trip trailing commas
+				n.one("@empty", Extra{})
 			} else {
-				n.fromParserNode(g, terms[i%2], ctrs, child)
-				terms[0] = R
+				if term == t {
+					if _, ok := child.(parser.Node); ok {
+						childCtrs := newCounters(term)
+						b := Branch{}
+						childCtrs.termCountChildren(t, ctrs[""])
+						b.fromParserNode(g, term, childCtrs, child)
+						n.one(tag, b)
+					} else {
+						n.fromParserNode(g, t.Term, ctrs, child)
+					}
+				} else {
+					n.fromParserNode(g, term, ctrs, child)
+				}
 			}
-			terms[0] = R
 		}
 	case wbnf.Quant:
 		node := e.(parser.Node)

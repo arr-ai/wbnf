@@ -167,10 +167,11 @@ func compileTermQuantNode(node parser.Node) Term {
 			term = Quant{Term: term, Min: min, Max: max}
 		case 2:
 			seq := quant.GetNode(0)
+			assoc := NewAssociativity(seq.GetString(0))
 			term = Delim{
 				Term:            term,
 				Sep:             compileTermNamedNode(seq.GetNode(2)),
-				Assoc:           NewAssociativity(seq.GetString(0)),
+				Assoc:           assoc,
 				CanStartWithSep: seq.GetNode(1).Count() == 1,
 				CanEndWithSep:   seq.GetNode(3).Count() == 1,
 			}

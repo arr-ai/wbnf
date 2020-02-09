@@ -46,16 +46,9 @@ func (t Oneof) Unparse(g Grammar, e parser.TreeElement, w io.Writer) (n int, err
 
 func (t Delim) Unparse(g Grammar, e parser.TreeElement, w io.Writer) (n int, err error) {
 	node := e.(parser.Node)
-	left, right := t.LRTerms(node)
-
-	if err = unparse(g, left, node.Children[0], w, &n); err != nil {
-		return
-	}
-	for i := 1; i < node.Count(); i += 2 {
-		if err = unparse(g, t.Sep, node.Children[i], w, &n); err != nil {
-			return
-		}
-		if err = unparse(g, right, node.Children[i+1], w, &n); err != nil {
+	tgen := t.LRTerms(node)
+	for _, child := range node.Children {
+		if err = unparse(g, tgen.Next(), child, w, &n); err != nil {
 			return
 		}
 	}

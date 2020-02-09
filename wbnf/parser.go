@@ -454,16 +454,18 @@ func (p *delimParser) Parse(scope frozen.Map, input *parser.Scanner, output *par
 		case LeftToRight:
 			v := result[0]
 			for i := 1; i < n; i += 2 {
-				p.put(&v, Associativity(i/2), v, result[i], result[i+1]) //nolint:errcheck
+				p.put(&v, p.t.Assoc, v, result[i], result[i+1]) //nolint:errcheck
 			}
 			*output = v
+			return nil
 		case RightToLeft:
 			v := result[n-1]
 			for i := 1; i < n; i += 2 {
 				j := n - 1 - i
-				p.put(&v, Associativity(-j/2), result[j-1], result[j], v) //nolint:errcheck
+				p.put(&v, p.t.Assoc, result[j-1], result[j], v) //nolint:errcheck
 			}
 			*output = v
+			return nil
 		}
 	}
 
@@ -483,15 +485,34 @@ func (t Delim) Parser(rule Rule, c cache) parser.Parser {
 	return p
 }
 
-func (t Delim) LRTerms(node parser.Node) (left, right Term) {
+type lrtgen struct {
+	sides   [2]Term
+	sep     Term
+	side    int
+	sepnext bool
+}
+
+func (l *lrtgen) Next() Term {
+	var out Term
+	if l.sepnext {
+		out = l.sep
+		l.sepnext = !l.sepnext
+	} else {
+		out = l.sides[l.side%2]
+		l.side++
+		l.sepnext = true
+	}
+	return out
+}
+func (t Delim) LRTerms(node parser.Node) lrtgen {
 	associativity := node.Extra.(Associativity)
 	switch {
 	case associativity < 0:
-		return t.Term, t
+		return lrtgen{sides: [2]Term{t.Term, t}, sep: t.Sep}
 	case associativity > 0:
-		return t, t.Term
+		return lrtgen{sides: [2]Term{t, t.Term}, sep: t.Sep}
 	}
-	return t.Term, t.Term
+	return lrtgen{sides: [2]Term{t.Term, t.Term}, sep: t.Sep}
 }
 
 //-----------------------------------------------------------------------------

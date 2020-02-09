@@ -43,7 +43,7 @@ params -> "(" ( reference | field ):"," ")";
 
 query_param -> "?" (Name=(NAME) "=" (NativeDataTypes| NAME | "{" NAME "}") optional="?"?):"&";
 
-field -> NAME (array_size? "<:" field_type QSTRING?)?;
+field -> NAME (array_size? "<:" (field_type | (INDENT @:INDENT_SEP)) QSTRING?)?;
 
 field_type -> collection_type | (type_spec optional="?"? attribs?) ;
 
@@ -61,6 +61,11 @@ statements -> (if_stmt
                 | for_stmt
                 | ret_stmt
                 | call_stmt
+                | one_of_stmt
+                | http_method_comment=(COMMENT)
+                | group_stmt
+                | text_stmt
+                | annotation
         ) attribs?;
 
 if_else -> if_stmt else_stmt*;
@@ -71,11 +76,19 @@ else_stmt -> "else" PREDICATE? ":" INDENT statements*:INDENT_SEP;
 
 for_stmt -> for_type=("alt" | "until" | "for each" | "for" | "loop" | "while") PREDICATE ":" INDENT statements*:INDENT_SEP;
 
-call_stmt -> target=("." | NAME:"::") "<-" target_endpoint=(/{ \s* ( [^\s(] [^(\r\n]* [^\s(] ) \s* }) call_args?;
+one_of_stmt -> "one" "of" ":" INDENT one_of_cases+:INDENT_SEP;
+
+one_of_cases -> one_of_case_label=(NAME | TEXT_LINE | QSTRING)? ":" INDENT statements+:INDENT_SEP;
+
+call_stmt -> target=("." | NAME:"::") "<-" target_endpoint=(TEXT_LINE) call_args?;
 
 call_args -> "(" ((QSTRING | NAME)+ | (NAME "<:" (NAME | NativeDataTypes))):"," ")";
 
 ret_stmt -> "return" ret_val=(TEXT);
+
+group_stmt -> name=(NAME) ":" INDENT statements+:INDENT_SEP;
+
+text_stmt -> doc_string=("|" /{[^\r\n]*}) | QSTRING | app_name=(APPLICATION_NAME) ("<-" "NAME")?| SHORTCUT;
 
 // -------------- Common Rules --------------- //
 attribs     ->  "[" @:"," "]"
@@ -87,7 +100,9 @@ array_size -> "(" DIGITS ".." DIGITS? ")";
 
 reference -> package_name=(NAME:"::") ("." NAME)+;
 
-annotations -> INDENT ("@" var_name=(NAME) "=" value=(QSTRING | array_of_strings | multi_line_docstring)):INDENT_SEP;
+annotation -> "@" var_name=(NAME) "=" value=(QSTRING | array_of_strings | multi_line_docstring);
+
+annotations -> INDENT annotation:INDENT_SEP;
 
 array_of_strings -> "[" QSTRING:"," "]";
 
@@ -102,6 +117,7 @@ NAME    -> [a-zA-Z_][-a-zA-Z0-9_]*;
 PATH    -> [a-zA-Z0-9.:]*:"/";
 DIGITS -> [1-9][0-9]*;
 TEXT -> [^(\r?\n)]+;
+TEXT_LINE -> \s* ( [^\s(] [^(\r\n]* [^\s(] ) \s*;
 APP_NAME -> NAME:".";
 PREDICATE -> /{[^\r\n:]+};
 SHORTCUT -> "...";

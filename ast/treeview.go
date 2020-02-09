@@ -2,6 +2,7 @@ package ast
 
 import (
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/arr-ai/wbnf/gotree"
@@ -30,11 +31,10 @@ func fromAst(name string, node Node, skipAtNodes bool) gotree.Tree {
 			}
 		}
 	case Extra:
-		t := gotree.New(name)
-		t.Add(n.String())
-		return t
+		tree.Add(n.String())
+		return tree
 	case Leaf:
-		return gotree.New(n.Scanner().String())
+		return gotree.New(n.String())
 	}
 
 	// Remove redundant stack levels
@@ -43,7 +43,14 @@ func fromAst(name string, node Node, skipAtNodes bool) gotree.Tree {
 	}
 
 	sort.Slice(tree.Items(), func(i, j int) bool {
-		return strings.Compare(tree.Items()[i].Text(), tree.Items()[j].Text()) < 0
+		toInt := func(s string) int {
+			v, err := strconv.Atoi(s)
+			if err != nil {
+				return -1
+			}
+			return v
+		}
+		return toInt(tree.Items()[i].Text()) < toInt(tree.Items()[j].Text())
 	})
 
 	return tree

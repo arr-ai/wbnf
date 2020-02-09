@@ -111,7 +111,7 @@ func test(c *cli.Context) error {
 	}
 	a := ast.FromParserNode(g.Grammar(), tree)
 	if printTree {
-		fmt.Println(ast.BuildTreeView("", a, true))
+		fmt.Println(ast.BuildTreeView(startingRule, a, true))
 	} else {
 		fmt.Println(a)
 	}

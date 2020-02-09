@@ -30,16 +30,17 @@ func fromAst(name string, node Node, skipAtNodes bool) gotree.Tree {
 				}
 			}
 		}
+		if len(tree.Items()) == 1 && len(tree.Items()[0].Items()) == 1 {
+			item := tree.Items()[0]
+			tree = gotree.New(name + " > " + item.Text())
+			tree.AddTree(item.Items()[0])
+			return tree
+		}
 	case Extra:
 		tree.Add(n.String())
 		return tree
 	case Leaf:
 		return gotree.New(n.String())
-	}
-
-	// Remove redundant stack levels
-	if len(tree.Items()) == 1 && tree.Text() == tree.Items()[0].Text() {
-		return tree.Items()[0]
 	}
 
 	sort.Slice(tree.Items(), func(i, j int) bool {

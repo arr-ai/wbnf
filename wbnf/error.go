@@ -3,8 +3,8 @@ package wbnf
 import (
 	"fmt"
 
+	"github.com/arr-ai/wbnf/gotree"
 	"github.com/arr-ai/wbnf/parser"
-	"github.com/arr-ai/wbnf/wbnf/gotree"
 )
 
 type errorNode struct {

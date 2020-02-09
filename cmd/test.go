@@ -18,6 +18,7 @@ var inFile string
 var inGrammarFile string
 var startingRule string
 var verboseMode bool
+var printTree bool
 var testCommand = cli.Command{
 	Name:    "test",
 	Aliases: []string{"t"},
@@ -53,6 +54,15 @@ var testCommand = cli.Command{
 			Required:    false,
 			Hidden:      false,
 			Destination: &verboseMode,
+		},
+		cli.BoolFlag{
+			Name:        "tree",
+			Usage:       "pretty print the AST",
+			EnvVar:      "",
+			FilePath:    "",
+			Required:    false,
+			Hidden:      false,
+			Destination: &printTree,
 		},
 	},
 }
@@ -99,8 +109,12 @@ func test(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	ast := ast.FromParserNode(g.Grammar(), tree)
-	fmt.Println(ast)
+	a := ast.FromParserNode(g.Grammar(), tree)
+	if printTree {
+		fmt.Println(ast.BuildTreeView("", a, true))
+	} else {
+		fmt.Println(a)
+	}
 
 	return nil
 }

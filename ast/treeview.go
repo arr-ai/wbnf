@@ -10,6 +10,24 @@ func BuildTreeView(rootname string, root Node, skipAtNodes bool) string {
 	return fromAst(rootname, root, skipAtNodes).Print()
 }
 
+const collapsedNodeSep = " ‣ "
+
+func collapseNodeText(prefix string, tree gotree.Tree) string {
+	parts := strings.Split(tree.Text(), collapsedNodeSep)
+	out := []string{prefix}
+	for i, s := range parts {
+		if s == "..." || s == out[0] {
+			continue
+		}
+		if i > 0 {
+			out = append(out, "...")
+		}
+		out = append(out, parts[i:]...)
+		break
+	}
+	return strings.Join(out, collapsedNodeSep)
+}
+
 func fromAst(name string, node Node, skipAtNodes bool) gotree.Tree {
 	tree := gotree.New(name)
 
@@ -30,7 +48,7 @@ func fromAst(name string, node Node, skipAtNodes bool) gotree.Tree {
 		}
 		if len(tree.Items()) == 1 && len(tree.Items()[0].Items()) == 1 {
 			item := tree.Items()[0]
-			tree = gotree.New(name + " > " + item.Text())
+			tree = gotree.New(collapseNodeText(name, item))
 			tree.AddTree(item.Items()[0])
 			return tree
 		}

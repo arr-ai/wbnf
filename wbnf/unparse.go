@@ -48,7 +48,8 @@ func (t Delim) Unparse(g Grammar, e parser.TreeElement, w io.Writer) (n int, err
 	node := e.(parser.Node)
 	tgen := t.LRTerms(node)
 	for _, child := range node.Children {
-		if err = unparse(g, tgen.Next(), child, w, &n); err != nil {
+		term, _ := tgen.Next()
+		if err = unparse(g, term, child, w, &n); err != nil {
 			return
 		}
 	}

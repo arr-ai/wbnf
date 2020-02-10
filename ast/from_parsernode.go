@@ -141,14 +141,17 @@ func (n Branch) fromParserNode(g wbnf.Grammar, term wbnf.Term, ctrs counters, e 
 		n.fromParserNode(g, t[node.Extra.(wbnf.Choice)], ctrs, node.Children[0])
 	case wbnf.Delim:
 		node := e.(parser.Node)
-		tag = node.Tag
-		tgen := t.LRTerms(node)
-		for _, child := range node.Children {
-			term := tgen.Next()
-			if _, ok := child.(wbnf.Empty); ok {
-				n.one("@empty", Extra{})
-			} else {
-				if term == t {
+		if _, ok := node.Extra.(wbnf.Associativity); !ok {
+			// parse node got skipped
+			n.fromParserNode(g, t.Term, ctrs, node)
+		} else {
+			tag = node.Tag
+			tgen := t.LRTerms(node)
+			for _, child := range node.Children {
+				term, isDelim := tgen.Next()
+				if _, ok := child.(wbnf.Empty); ok {
+					n.one("@empty", Extra{})
+				} else if isDelim {
 					if _, ok := child.(parser.Node); ok {
 						childCtrs := newCounters(term)
 						b := Branch{}

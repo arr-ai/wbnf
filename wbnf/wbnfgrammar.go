@@ -734,7 +734,7 @@ RE      -> /{
                )(?: (?:[+*?]|\{\d+,?\d?\}) \?? )?
              )+
            };
-REF     -> "%" IDENT ("=" default=STR)?;
+REF     -> "%" IDENT ("=" default=(STR|RE))?;
 
 // Special
 .wrapRE -> /{\s*()\s*};

@@ -1,8 +1,6 @@
 package ast
 
 import (
-	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/arr-ai/wbnf/gotree"
@@ -43,16 +41,6 @@ func fromAst(name string, node Node, skipAtNodes bool) gotree.Tree {
 		return gotree.New(n.String())
 	}
 
-	sort.Slice(tree.Items(), func(i, j int) bool {
-		toInt := func(s string) int {
-			v, err := strconv.Atoi(s)
-			if err != nil {
-				return -1
-			}
-			return v
-		}
-		return toInt(tree.Items()[i].Text()) < toInt(tree.Items()[j].Text())
-	})
-
+	tree.SortItems()
 	return tree
 }

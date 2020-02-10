@@ -2,6 +2,9 @@
 package gotree
 
 import (
+	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -24,6 +27,8 @@ type (
 		Add(text string) Tree
 		AddTree(tree Tree)
 		Items() []Tree
+		SortItems()
+		Rank() int
 		Text() string
 		Print() string
 	}
@@ -70,6 +75,37 @@ func (t *tree) Items() []Tree {
 //Print returns an visual representation of the tree
 func (t *tree) Print() string {
 	return newPrinter().Print(t)
+}
+
+// SortItems sorts the items of tree by the determined rank
+func (t *tree) SortItems() {
+	sort.Slice(t.items, func(i, j int) bool {
+		return t.items[i].Rank() < t.items[j].Rank()
+	})
+}
+
+// Rank returns the rank of a tree
+func (t *tree) Rank() int {
+	num := regexp.MustCompile("^[1-9][0-9]*").Find([]byte(t.Text()))
+	if num != nil {
+		r, err := strconv.Atoi(string(num))
+		if err != nil {
+			panic(err)
+		}
+		return r
+	}
+	if len(t.Items()) == 0 {
+		return -1
+	}
+	// max int
+	r := int(^uint(0) >> 1)
+	for _, i := range t.Items() {
+		iRank := i.Rank()
+		if r > iRank {
+			r = iRank
+		}
+	}
+	return r
 }
 
 func newPrinter() Printer {

@@ -486,33 +486,39 @@ func (t Delim) Parser(rule Rule, c cache) parser.Parser {
 }
 
 type lrtgen struct {
-	sides   [2]Term
+	parent  *Term
+	sides   [2]*Term
 	sep     Term
 	side    int
 	sepnext bool
 }
 
-func (l *lrtgen) Next() Term {
-	var out Term
+func (l *lrtgen) Next() (Term, bool) {
+	var out *Term
 	if l.sepnext {
-		out = l.sep
+		out = &l.sep
 		l.sepnext = !l.sepnext
 	} else {
 		out = l.sides[l.side%2]
 		l.side++
 		l.sepnext = true
 	}
-	return out
+	return *out, out == l.parent
 }
+
 func (t Delim) LRTerms(node parser.Node) lrtgen {
-	associativity := node.Extra.(Associativity)
-	switch {
-	case associativity < 0:
-		return lrtgen{sides: [2]Term{t.Term, t}, sep: t.Sep}
-	case associativity > 0:
-		return lrtgen{sides: [2]Term{t, t.Term}, sep: t.Sep}
+	if node.Extra != nil {
+		if associativity, ok := node.Extra.(Associativity); ok {
+			var delim Term = t
+			switch {
+			case associativity < 0:
+				return lrtgen{parent: &delim, sides: [2]*Term{&t.Term, &delim}, sep: t.Sep}
+			case associativity > 0:
+				return lrtgen{parent: &delim, sides: [2]*Term{&delim, &t.Term}, sep: t.Sep}
+			}
+		}
 	}
-	return lrtgen{sides: [2]Term{t.Term, t.Term}, sep: t.Sep}
+	return lrtgen{sides: [2]*Term{&t.Term, &t.Term}, sep: t.Sep}
 }
 
 //-----------------------------------------------------------------------------

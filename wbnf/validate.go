@@ -85,7 +85,8 @@ func (t Delim) ValidateParse(g Grammar, rule Rule, e parser.TreeElement) error {
 
 		tgen := t.LRTerms(node)
 		for _, child := range node.Children {
-			if err := tgen.Next().ValidateParse(g, "", child); err != nil {
+			term, _ := tgen.Next()
+			if err := term.ValidateParse(g, "", child); err != nil {
 				return err
 			}
 		}

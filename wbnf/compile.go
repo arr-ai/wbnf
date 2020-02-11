@@ -10,6 +10,12 @@ import (
 	"github.com/arr-ai/wbnf/parser"
 )
 
+// unfakeBackquote replaces reversed prime with grave accent (backquote) in
+// order to make the grammar below more readable.
+func unfakeBackquote(s string) string {
+	return strings.ReplaceAll(s, "‵", "`")
+}
+
 func parseString(s string) string {
 	var sb strings.Builder
 	quote, s := s[0], s[1:len(s)-1]
@@ -253,7 +259,7 @@ func NewFromNode(node parser.Node) parser.Grammar {
 }
 
 func Compile(grammar string) (parser.Parsers, error) {
-	node, err := Core().Parse(GrammarRule, parser.NewScanner(grammar))
+	node, err := Core().Parse("grammar", parser.NewScanner(grammar))
 	if err != nil {
 		return parser.Parsers{}, err
 	}
@@ -262,7 +268,7 @@ func Compile(grammar string) (parser.Parsers, error) {
 }
 
 func MustCompile(grammar string) parser.Parsers {
-	node := Core().MustParse(GrammarRule, parser.NewScanner(grammar)).(parser.Node)
+	node := Core().MustParse("grammar", parser.NewScanner(grammar)).(parser.Node)
 
 	return NewFromNode(node).Compile(&node)
 }

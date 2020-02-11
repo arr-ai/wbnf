@@ -24,7 +24,7 @@ func Main(info VersionTags) {
 	app.Usage = "the ultimate grammar helper app"
 	app.Version = info.Version
 
-	app.Commands = []cli.Command{testCommand}
+	app.Commands = []cli.Command{testCommand, genCommand}
 
 	err := app.Run(os.Args)
 	if err != nil {

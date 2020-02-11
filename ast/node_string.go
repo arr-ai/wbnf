@@ -127,5 +127,8 @@ func (l Leaf) Scanner() parser.Scanner {
 }
 
 func (n Branch) Scanner() parser.Scanner {
+	if len(n) == 1 && n.oneChild() != nil {
+		return n.oneChild().Scanner()
+	}
 	panic("Scanner() not valid for Branch")
 }

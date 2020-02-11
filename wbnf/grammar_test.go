@@ -106,7 +106,7 @@ func TestParseNamedTerm(t *testing.T) {
 		),
 		stack(`?`).z(),
 	)
-	assertParseToNode(t, x, term, r)
+	assertParseToNode(t, x, "term", r)
 }
 
 func TestParseNamedTermInDelim(t *testing.T) {
@@ -126,7 +126,7 @@ func TestParseNamedTermInDelim(t *testing.T) {
 			stack(`?`).z(),
 		),
 	)
-	assertParseToNode(t, x, term, r)
+	assertParseToNode(t, x, "term", r)
 }
 
 func TestGrammarParser(t *testing.T) {
@@ -169,7 +169,7 @@ func TestExprGrammarGrammar(t *testing.T) {
 
 	parsers := Core()
 	r := parser.NewScanner(exprGrammarSrc)
-	v, err := parsers.Parse(GrammarRule, r)
+	v, err := parsers.Parse("grammar", r)
 	require.NoError(t, err, "r=%v\nv=%v", r.Context(), v)
 	require.Equal(t, len(exprGrammarSrc), r.Offset(), "r=%v\nv=%v", r.Context(), v)
 	assertUnparse(t,
@@ -190,7 +190,7 @@ func TestGrammarSnippet(t *testing.T) {
 
 	parsers := Core()
 	r := parser.NewScanner(`prod+`)
-	v, err := parsers.Parse(term, r)
+	v, err := parsers.Parse("term", r)
 	require.NoError(t, err)
 	assert.Equal(t,
 		`term║:[term@1║:[term@2[term@3[named[?[], atom║0[prod]], ?[quant║0[+]]]]]]`,
@@ -208,7 +208,7 @@ func TestTinyGrammarGrammarGrammar(t *testing.T) {
 
 	parsers := Core()
 	r := parser.NewScanner(tinyGrammarSrc)
-	v, err := parsers.Parse(GrammarRule, r)
+	v, err := parsers.Parse("grammar", r)
 	require.NoError(t, err)
 	e := v.(parser.Node)
 
@@ -221,7 +221,7 @@ func TestExprGrammarGrammarGrammar(t *testing.T) {
 
 	parsers := Core()
 	r := parser.NewScanner(exprGrammarSrc)
-	v, err := parsers.Parse(GrammarRule, r)
+	v, err := parsers.Parse("grammar", r)
 	require.NoError(t, err)
 	e := v.(parser.Node)
 

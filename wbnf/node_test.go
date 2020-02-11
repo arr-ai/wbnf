@@ -193,7 +193,7 @@ func TestNodeCoreGrammarTrivial(t *testing.T) {
 	t.Parallel()
 
 	assertNodeParsesAsScenario(t, nodeParseScenario{
-		grammar:    GrammarGrammar(),
+		grammar:    grammarGrammarSrc,
 		rule:       "term",
 		input:      `a`,
 		reversible: true,
@@ -204,9 +204,9 @@ func TestNodeCoreGrammarCoreGrammar(t *testing.T) {
 	t.Parallel()
 
 	assertNodeParsesAsScenario(t, nodeParseScenario{
-		grammar:    GrammarGrammar(),
+		grammar:    grammarGrammarSrc,
 		rule:       "grammar",
-		input:      GrammarGrammar(),
+		input:      grammarGrammarSrc,
 		reversible: true,
 	})
 }

@@ -69,11 +69,16 @@ func Grammar() parser.Grammar {
 }
 
 func Parse(input *parser.Scanner) (ast.Node, error) {
-	tree, err := Grammar().Compile(nil).Parse("grammar", input)
+	p := Grammar().Compile(nil)
+	tree, err := p.Parse("grammar", input)
 	if err != nil {
 		return nil, err
 	}
-	return ast.FromParserNode(Grammar(), tree), nil
+	return ast.FromParserNode(p.Grammar(), tree), nil
+}
+
+func ParseString(input string) (ast.Node, error) {
+	return Parse(parser.NewScanner(input))
 }
 
 var grammarGrammarSrc = unfakeBackquote(`

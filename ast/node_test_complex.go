@@ -11,7 +11,7 @@ import (
 
 func TestParserNodeToNode(t *testing.T) {
 	p := wbnf.Core()
-	v := p.MustParse(wbnf.GrammarRule, parser.NewScanner(`expr -> @:op="+" > @:op="*" > /{\d+};`)).(parser.Node)
+	v := p.MustParse(wbnf.GrammarRule, parser.NewScanner(`expr -> @:op="+" > @:op="*" > \d+;`)).(parser.Node)
 	g := p.Grammar()
 	n := FromParserNode(g, v)
 	u := ToParserNode(g, n).(parser.Node)
@@ -29,10 +29,10 @@ func TestTinyXMLGrammar(t *testing.T) {
 	t.Parallel()
 
 	v, err := wbnf.Core().Parse(wbnf.GrammarRule, parser.NewScanner(`
-		xml  -> s "<" s NAME attr* s ">" xml* "</" s NAME s ">" | CDATA=/{[^<]+};
+		xml  -> s "<" s NAME attr* s ">" xml* "</" s NAME s ">" | CDATA=[^<]+;
 		attr -> s NAME s "=" s value=/{"[^"]*"};
 		NAME -> /{[A-Za-z_:][-A-Za-z0-9._:]*};
-		s    -> /{\s*};
+		s    -> \s*;
 	`))
 	assert.NoError(t, err)
 

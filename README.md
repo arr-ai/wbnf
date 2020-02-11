@@ -17,7 +17,7 @@ term    -> @:op=">"
          > @+
          > named quant*;
 named   -> (IDENT op="=")? atom;
-quant   -> op=/{[?*+]}
+quant   -> op=[?*+]
          | "{" min=INT? "," max=INT? "}"
          | op=/{<:|:>?} opt_leading=","? named opt_trailing=","?;
 atom    -> IDENT | STR | RE | REF | "(" term ")" | "(" ")";
@@ -27,20 +27,25 @@ COMMENT -> /{ //.*$
             | (?s: /\* (?: [^*] | \*+[^*/] ) \*/ )
             };
 IDENT   -> /{@|[A-Za-z_\.]\w*};
-INT     -> /{\d+};
+INT     -> \d+;
 STR     -> /{ " (?: \\. | [^\\"] )* "
             | ' (?: \\. | [^\\'] )* '
             | ` (?: ``  | [^`]   )* `
             };
 RE      -> /{
              /{
-               ((?:
+               (?:
                  \\.
                  | { (?: (?: \d+(?:,\d*)? | ,\d+ ) \} )?
                  | \[ (?: \\] | [^\]] )+ ]
                  | [^\\{\}]
-               )*)
+               )*
              \}
+           | (?: \[ (?: \\. | \[:^?[a-z]+:\] | [^\]] )+ \]
+             | \\[pP](?:[a-z]|\{[a-zA-Z_]+\})
+             | \\[a-zA-Z]
+             | \.
+             )(?: (?:[+*?]|\{\d+,?\d?\}) \?? )?
            };
 REF     -> "%" IDENT ("=" default=STR)?;
 
@@ -82,6 +87,18 @@ TERM+ ;`:
   match. The entire match will be consumed. The parser will use the first
   capturing group to populate the output node, or the entire match if none if
   there isn't one.
+  
+  The following simple RE forms may omit the surrounding `/{…}`:
+
+  - `.`
+  - `[…]` and `[^…]`
+  - `\d` where d is an RE2 character class.
+  - `\pN` or `\PN` where N is a single-letter Unicode character class
+  - `\p{…}` `\P{…}`
+  
+  All simple forms may include a quantifier: `?`, `*`, `+`, `{m,n?}`, `{n}` and
+  and, optionally, and additional `?` to make the quantifier reluctant (matches
+  as little input as possible).
 
 ### Expressions
 
@@ -89,7 +106,7 @@ TERM+ ;`:
 
 - Sequence
 
-  `a -> left /{[+-*/]} right;`
+  `a -> left [+-*/] right;`
 
   This rule requires a `left` followed by one of the math symbols followed by
   a `right`.
@@ -120,12 +137,12 @@ TERM+ ;`:
   of words the simple version would be:
 
   ```text
-  word -> /{\w*};
+  word -> \w*;
   csv -> word ("," word)*;
   ```
 
   The *rule* `word` appears 3 times in that tiny snippet! This can be eliminated
-  with the use of the `:` operator after a term: `csv -> /{\w*}:",";` expresses
+  with the use of the `:` operator after a term: `csv -> \w*:",";` expresses
   the same *rule*. (More on this operator below)
 
 - Min/Max repetition
@@ -148,7 +165,7 @@ TERM+ ;`:
   braces  -> ("(" multdiv+ ")") | multdiv;
   multdiv -> addsum (("*" | "/") addsum)*;
   addsum  -> number (("+" | "-") number)*;
-  number  -> /{\d+};
+  number  -> \d+;
   ```
 
   This again has heaps of repetition both in each *rule* and between *rules* (as
@@ -158,10 +175,10 @@ TERM+ ;`:
   parser).
 
   ```text
-  expr -> @:/{[+-]}
-        > @:/{[*/]}
+  expr -> @:[+-]
+        > @:[*/]
         > "(" @ ")"
-        > /{\d+};
+        > \d+;
   ```
 
   In each line of the stack, the @ *term* implicitly refers to the next line
@@ -185,10 +202,10 @@ TERM+ ;`:
   *Terms* in a *rule* may be named as a convenience item.
 
   ```text
-  expr -> @:op=/{[+-]}
-        > @:op=/{[*/]}
+  expr -> @:op=[+-]
+        > @:op=[*/]
         > "(" @ ")"
-        > /{\d+};
+        > \d+;
   ```
 
   This is the same math grammar as above, except two lines have `op=` for the
@@ -275,9 +292,9 @@ Example:
 - `.wrapRE -> /{\s*()\s*};` ignore all whitespace surrounded every token in the
   grammar.
 
-
 #### Useful recipes
 
 Below are a collection of helpful rules which can be dropped into your grammar.
 
- - `block -> indent=(%indent="\n" /{\s+}) stmt:%indent;` Accept an indented `stmt` node.
+- `block -> indent=(%indent="\n" \s+) stmt:%indent;` Accept an indented `stmt`
+  node.

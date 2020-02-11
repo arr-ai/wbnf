@@ -5,7 +5,7 @@ out=wbnfgrammar.go
 echo Generating $out
 
 tmpfile=`mktemp`
-go run .. gen --grammar ../examples/wbnf.wbnf --rootrule grammar --pkg wbnf > $tmpfile && mv $tmpfile $out
+go run .. gen --grammar ../examples/wbnf.wbnf --rootrule grammar --pkg wbnf > $tmpfile && mv $tmpfile $out &&
 
 cat >> $out <<EOF
 

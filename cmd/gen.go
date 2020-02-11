@@ -51,6 +51,9 @@ func gen(c *cli.Context) error {
 	core := wbnf.Core()
 	tree := ast.FromParserNode(core.Grammar(), *g.Node())
 
+	idents := wbnf.IdentMap(tree)
+	fmt.Print(idents)
+
 	root := goNode{name: "parser.Grammar", scope: squiglyScope}
 
 	for _, stmt := range tree.Many("stmt") {

@@ -3,7 +3,7 @@ package ast
 import (
 	"fmt"
 
-	"github.com/arr-ai/wbnf/wbnf"
+	"github.com/arr-ai/wbnf/parser"
 )
 
 type counter struct {
@@ -14,7 +14,7 @@ func newCounter(lo, hi int) counter {
 	return counter{lo: lo, hi: hi}
 }
 
-func newCounterFromQuant(q wbnf.Quant) counter {
+func newCounterFromQuant(q parser.Quant) counter {
 	max := q.Max
 	if max == 0 {
 		max = 2
@@ -72,7 +72,7 @@ func (c counter) String() string {
 
 type counters map[string]counter
 
-func newCounters(t wbnf.Term) counters {
+func newCounters(t parser.Term) counters {
 	result := counters{}
 	result.termCountChildren(t, oneOne)
 	return result
@@ -106,30 +106,30 @@ func (ctrs counters) union(o counters) {
 	}
 }
 
-func (ctrs counters) termCountChildren(term wbnf.Term, parent counter) {
+func (ctrs counters) termCountChildren(term parser.Term, parent counter) {
 	switch t := term.(type) {
-	case wbnf.S, wbnf.RE:
+	case parser.S, parser.RE:
 		ctrs.count("", parent)
-	case wbnf.Rule:
+	case parser.Rule:
 		ctrs.count(string(t), parent)
-	case wbnf.Seq:
+	case parser.Seq:
 		for _, child := range t {
 			ctrs.termCountChildren(child, parent)
 		}
-	case wbnf.Oneof:
+	case parser.Oneof:
 		ds := counters{}
 		for _, child := range t {
 			ds.union(newCounters(child))
 		}
 		ctrs.mul(ds, parent)
-	case wbnf.Delim:
+	case parser.Delim:
 		ctrs.termCountChildren(t.Term, parent.mul(oneOrMore))
 		ctrs.termCountChildren(t.Sep, parent.mul(zeroOrMore))
-	case wbnf.Quant:
+	case parser.Quant:
 		ctrs.termCountChildren(t.Term, parent.mul(newCounterFromQuant(t)))
-	case wbnf.Named:
+	case parser.Named:
 		ctrs.count(t.Name, parent)
-	case wbnf.REF:
+	case parser.REF:
 		ctrs.count(t.Ident, parent.mul(oneOrMore))
 	default:
 		panic(fmt.Errorf("unexpected term type: %v %[1]T", t))

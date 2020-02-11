@@ -2,39 +2,34 @@ package wbnf
 
 import (
 	"fmt"
-	"io"
-	"sort"
 	"strings"
 
-	"github.com/arr-ai/frozen"
+	"github.com/arr-ai/wbnf/parser/diff"
 
-	"github.com/arr-ai/wbnf/errors"
 	"github.com/arr-ai/wbnf/parser"
 )
 
 var (
-	GrammarRule = Rule("grammar")
-	stmt        = Rule("stmt")
-	prod        = Rule("prod")
-	term        = Rule("term")
-	named       = Rule("named")
-	atom        = Rule("atom")
-	quant       = Rule("quant")
-	ref         = Rule("REF")
-	ident       = Rule("IDENT")
-	str         = Rule("STR")
-	intR        = Rule("INT")
-	re          = Rule("RE")
-	comment     = Rule("COMMENT")
+	GrammarRule = parser.Rule("grammar")
+	stmt        = parser.Rule("stmt")
+	prod        = parser.Rule("prod")
+	term        = parser.Rule("term")
+	named       = parser.Rule("named")
+	atom        = parser.Rule("atom")
+	quant       = parser.Rule("quant")
+	ref         = parser.Rule("REF")
+	ident       = parser.Rule("IDENT")
+	str         = parser.Rule("STR")
+	intR        = parser.Rule("INT")
+	re          = parser.Rule("RE")
+	comment     = parser.Rule("COMMENT")
 
 	// WrapRE is a special rule to indicate a wrapper around all regexps and
 	// strings. When supplied in the form "pre()post", then all regexes will be
 	// wrapped in "pre(?:" and ")post" and all strings will be escaped using
 	// regexp.QuoteMeta then likewise wrapped.
-	WrapRE = Rule(".wrapRE")
+	WrapRE = parser.Rule(".wrapRE")
 )
-
-var RootRule = GrammarRule
 
 // unfakeBackquote replaces reversed prime with grave accent (backquote) in
 // order to make the grammar below more readable.
@@ -42,47 +37,41 @@ func unfakeBackquote(s string) string {
 	return strings.ReplaceAll(s, "‵", "`")
 }
 
-var grammarGrammar = Grammar{
+var grammarGrammar = parser.Grammar{
 	// Non-terminals
-	GrammarRule: Some(stmt),
-	stmt:        Oneof{comment, prod},
-	prod:        Seq{ident, S("->"), Some(term), S(";")},
-	term: Stack{
-		Delim{Term: at, Sep: Eq("op", S(">"))},
-		Delim{Term: at, Sep: Eq("op", S("|"))},
-		Some(at),
-		Seq{named, Any(quant)},
+	GrammarRule: parser.Some(stmt),
+	stmt:        parser.Oneof{comment, prod},
+	prod:        parser.Seq{ident, parser.S("->"), parser.Some(term), parser.S(";")},
+	term: parser.Stack{
+		parser.Delim{Term: parser.At, Sep: parser.Eq("op", parser.S(">"))},
+		parser.Delim{Term: parser.At, Sep: parser.Eq("op", parser.S("|"))},
+		parser.Some(parser.At),
+		parser.Seq{named, parser.Any(quant)},
 	},
-	quant: Oneof{
-		Eq("op", RE(`[?*+]`)),
-		Seq{S("{"), Opt(Eq("min", intR)), S(","), Opt(Eq("max", intR)), S("}")},
-		Seq{
-			Eq("op", RE(`<:|:>?`)),
-			Opt(Eq("opt_leading", S(","))),
+	quant: parser.Oneof{
+		parser.Eq("op", parser.RE(`[?*+]`)),
+		parser.Seq{parser.S("{"), parser.Opt(parser.Eq("min", intR)), parser.S(","), parser.Opt(parser.Eq("max", intR)), parser.S("}")},
+		parser.Seq{
+			parser.Eq("op", parser.RE(`<:|:>?`)),
+			parser.Opt(parser.Eq("opt_leading", parser.S(","))),
 			named,
-			Opt(Eq("opt_trailing", S(","))),
+			parser.Opt(parser.Eq("opt_trailing", parser.S(","))),
 		},
 	},
-	named: Seq{Opt(Seq{ident, Eq("op", S("="))}), atom},
-	atom:  Oneof{ident, str, re, ref, Seq{S("("), term, S(")")}, Seq{S("("), S(")")}},
+	named: parser.Seq{parser.Opt(parser.Seq{ident, parser.Eq("op", parser.S("="))}), atom},
+	atom:  parser.Oneof{ident, str, re, ref, parser.Seq{parser.S("("), term, parser.S(")")}, parser.Seq{parser.S("("), parser.S(")")}},
 
 	// Terminals
-	ident:   RE(`@|[A-Za-z_\.]\w*`),
-	str:     RE(unfakeBackquote(`"(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*'|‵(?:‵‵|[^‵])*‵`)),
-	intR:    RE(`\d+`),
-	re:      RE(`/{((?:\\.|{(?:(?:\d+(?:,\d*)?|,\d+)\})?|\[(?:\\]|[^\]])+]|[^\\{\}])*)\}`),
-	ref:     Seq{S("%"), ident, Opt(Seq{S("="), Eq("default", str)})},
-	comment: RE(`//.*$|(?s:/\*(?:[^*]|\*+[^*/])\*/)`),
+	ident:   parser.RE(`@|[A-Za-z_\.]\w*`),
+	str:     parser.RE(unfakeBackquote(`"(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*'|‵(?:‵‵|[^‵])*‵`)),
+	intR:    parser.RE(`\d+`),
+	re:      parser.RE(`/{((?:\\.|{(?:(?:\d+(?:,\d*)?|,\d+)\})?|\[(?:\\]|[^\]])+]|[^\\{\}])*)\}`),
+	ref:     parser.Seq{parser.S("%"), ident, parser.Opt(parser.Seq{parser.S("="), parser.Eq("default", str)})},
+	comment: parser.RE(`//.*$|(?s:/\*(?:[^*]|\*+[^*/])\*/)`),
 
 	// Special
-	WrapRE: RE(`\s*()\s*`),
+	WrapRE: parser.RE(`\s*()\s*`),
 }
-
-func NodeRule(e parser.Node) Rule {
-	return Rule(e.Tag)
-}
-
-type Grammar map[Rule]Term
 
 func GrammarGrammar() string {
 	return grammarGrammarSrc
@@ -90,7 +79,7 @@ func GrammarGrammar() string {
 
 // Build the grammar grammar from grammarGrammarSrc and check that it matches
 // grammarGrammar.
-var core = func() Parsers {
+var core = func() parser.Parsers {
 	parsers := grammarGrammar.Compile(nil)
 
 	r := parser.NewScanner(grammarGrammarSrc)
@@ -98,14 +87,11 @@ var core = func() Parsers {
 	if err != nil {
 		panic(err)
 	}
-	if err := parsers.Grammar().ValidateParse(v); err != nil {
-		panic(err)
-	}
 	coreNode := v.(parser.Node)
 
 	newGrammarGrammar := NewFromNode(coreNode)
 
-	if diff := DiffGrammars(grammarGrammar, newGrammarGrammar); !diff.Equal() {
+	if diff := diff.DiffGrammars(grammarGrammar, newGrammarGrammar); !diff.Equal() {
 		panic(fmt.Errorf(
 			"mismatch between parsed and hand-crafted core grammar"+
 				"\nold: %v"+
@@ -118,249 +104,6 @@ var core = func() Parsers {
 	return newGrammarGrammar.Compile(&coreNode)
 }()
 
-func Core() Parsers {
+func Core() parser.Parsers {
 	return core
-}
-
-// ValidateParse performs numerous checks on a generated AST to ensure it
-// conforms to the parser that generated it. It is useful for testing the
-// parser engine, but also for any tools that synthesise parser output.
-func (g Grammar) ValidateParse(e parser.TreeElement) error {
-	rule := NodeRule(e.(parser.Node))
-	return g[rule].ValidateParse(g, rule, e)
-}
-
-// Unparse inverts the action of a parser, taking a generated AST and producing
-// the source it came from. Currently, it doesn't quite do that, and is only
-// being used for quick eyeballing to validate output.
-func (g Grammar) Unparse(e parser.TreeElement, w io.Writer) (n int, err error) {
-	rule := NodeRule(e.(parser.Node))
-	return g[rule].Unparse(g, e, w)
-}
-
-// Parsers holds Parsers generated by Grammar.Compile.
-type Parsers struct {
-	parsers    map[Rule]parser.Parser
-	grammar    Grammar
-	node       *parser.Node
-	singletons PathSet
-}
-
-func (p Parsers) Grammar() Grammar {
-	return p.grammar
-}
-
-func (p Parsers) Node() *parser.Node {
-	return p.node
-}
-
-func (p Parsers) ValidateParse(e parser.TreeElement) error {
-	return p.grammar.ValidateParse(e)
-}
-
-func (p Parsers) Unparse(e parser.TreeElement, w io.Writer) (n int, err error) {
-	return p.grammar.Unparse(e, w)
-}
-
-// Parse parses some source per a given rule.
-func (p Parsers) Parse(rule Rule, input *parser.Scanner) (parser.TreeElement, error) {
-	start := *input
-	for {
-		var e parser.TreeElement
-		if err := p.parsers[rule].Parse(frozen.NewMap(), input, &e); err != nil {
-			return nil, err
-		}
-
-		if input.String() == "" {
-			return e, nil
-		}
-
-		if input.Offset() == start.Offset() {
-			return nil, fmt.Errorf("unconsumed input: %v", input.Context())
-		}
-	}
-}
-
-// MustParse calls Parse and returns the result or panics if an error was
-// returned.
-func (p Parsers) MustParse(rule Rule, input *parser.Scanner) parser.TreeElement {
-	i, err := p.Parse(rule, input)
-	if err != nil {
-		panic(err)
-	}
-	return i
-}
-
-// Singletons returns the set of names that will produce exactly one child
-// under a given production.
-func (p Parsers) Singletons() PathSet {
-	return p.singletons
-}
-
-// Term represents the terms of a grammar specification.
-type Term interface {
-	fmt.Stringer
-	Parser(name Rule, c cache) parser.Parser
-	ValidateParse(g Grammar, rule Rule, e parser.TreeElement) error
-	Unparse(g Grammar, e parser.TreeElement, w io.Writer) (n int, err error)
-	Resolve(oldRule, newRule Rule) Term
-}
-
-type Choice int
-
-func (Choice) IsExtra() {}
-
-type Associativity int
-
-func NewAssociativity(s string) Associativity {
-	switch s {
-	case ":":
-		return NonAssociative
-	case ":>":
-		return LeftToRight
-	case "<:":
-		return RightToLeft
-	}
-	panic(errors.BadInput)
-}
-
-func (Associativity) IsExtra() {}
-
-func (a Associativity) String() string {
-	switch {
-	case a < 0:
-		return "<:"
-	case a > 0:
-		return ":>"
-	}
-	return ":"
-}
-
-const (
-	RightToLeft Associativity = iota - 1
-	NonAssociative
-	LeftToRight
-)
-
-type (
-	Rule string
-	S    string
-	RE   string
-	REF  struct {
-		Ident   string
-		Default Term
-	}
-	Seq   []Term
-	Oneof []Term
-	Stack []Term
-	Delim struct {
-		Term            Term
-		Sep             Term
-		Assoc           Associativity
-		CanStartWithSep bool
-		CanEndWithSep   bool
-	}
-	Quant struct {
-		Term Term
-		Min  int
-		Max  int // 0 = infinity
-	}
-	Named struct {
-		Name string
-		Term Term
-	}
-)
-
-func NonAssoc(term, sep Term) Delim { return Delim{Term: term, Sep: sep, Assoc: NonAssociative} }
-func L2R(term, sep Term) Delim      { return Delim{Term: term, Sep: sep, Assoc: LeftToRight} }
-func R2L(term, sep Term) Delim      { return Delim{Term: term, Sep: sep, Assoc: RightToLeft} }
-
-func Opt(term Term) Quant  { return Quant{Term: term, Max: 1} }
-func Any(term Term) Quant  { return Quant{Term: term} }
-func Some(term Term) Quant { return Quant{Term: term, Min: 1} }
-
-func Eq(name string, term Term) Named {
-	return Named{Name: name, Term: term}
-}
-
-func join(terms []Term, sep string) string {
-	s := []string{}
-	for _, t := range terms {
-		s = append(s, t.String())
-	}
-	return strings.Join(s, sep)
-}
-
-func (t Quant) Contains(i int) bool {
-	return t.Min <= i && !t.MaxLessThan(i)
-}
-
-func (t Quant) MaxLessThan(i int) bool {
-	return t.Max > 0 && t.Max < i
-}
-
-func (g Grammar) String() string {
-	keys := make([]string, 0, len(g))
-	for key := range g {
-		keys = append(keys, string(key))
-	}
-	sort.Strings(keys)
-
-	var sb strings.Builder
-	count := 0
-	for _, key := range keys {
-		if count > 0 {
-			sb.WriteString("; ")
-		}
-		fmt.Fprintf(&sb, "%s -> %v", key, g[Rule(key)])
-		count++
-	}
-	return sb.String()
-}
-
-func (t Rule) String() string  { return string(t) }
-func (t S) String() string     { return fmt.Sprintf("%q", string(t)) }
-func (t RE) String() string    { return fmt.Sprintf("/%v/", string(t)) }
-func (t REF) String() string   { return fmt.Sprintf("%%%v=%v", t.Ident, t.Default) }
-func (t Seq) String() string   { return "(" + join(t, " ") + ")" }
-func (t Oneof) String() string { return join(t, " | ") }
-func (t Stack) String() string { return join(t, " > ") }
-func (t Named) String() string { return fmt.Sprintf("%s=%v", t.Name, t.Term) }
-
-func (t Delim) String() string {
-	leading := ""
-	if t.CanStartWithSep {
-		leading = ","
-	}
-	trailing := ""
-	if t.CanEndWithSep {
-		trailing = ","
-	}
-	return fmt.Sprintf("%v%s%s%v%s", t.Term, t.Assoc, leading, t.Sep, trailing)
-}
-
-func (t Quant) String() string {
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "%v", t.Term)
-	switch [2]int{t.Min, t.Max} {
-	case [2]int{0, 0}:
-		sb.WriteString("*")
-	case [2]int{0, 1}:
-		sb.WriteString("?")
-	case [2]int{1, 0}:
-		sb.WriteString("+")
-	case [2]int{1, 1}:
-		panic(errors.Inconceivable)
-	default:
-		sb.WriteString("{")
-		if t.Min != 0 {
-			fmt.Fprintf(&sb, "%d", t.Min)
-		}
-		sb.WriteString(",")
-		if t.Max != 0 {
-			fmt.Fprintf(&sb, "%d", t.Max)
-		}
-		sb.WriteString("}")
-	}
-	return sb.String()
 }

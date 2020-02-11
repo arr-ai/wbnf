@@ -5,12 +5,11 @@ import (
 
 	"github.com/arr-ai/wbnf/errors"
 	"github.com/arr-ai/wbnf/parser"
-	"github.com/arr-ai/wbnf/wbnf"
 )
 
-func ToParserNode(g wbnf.Grammar, branch Branch) parser.TreeElement {
+func ToParserNode(g parser.Grammar, branch Branch) parser.TreeElement {
 	branch = branch.clone().(Branch)
-	rule := branch.pullFromOne(RuleTag).(Extra).Data.(wbnf.Rule)
+	rule := branch.pullFromOne(RuleTag).(Extra).Data.(parser.Rule)
 	term := g[rule]
 	ctrs := newCounters(term)
 	branch = expandNode(branch, string(rule)).(Branch)
@@ -86,15 +85,15 @@ func (n Branch) pullFromMany(name string) Node {
 	return nil
 }
 
-func (n Branch) toParserNode(g wbnf.Grammar, term wbnf.Term, ctrs counters) (out parser.TreeElement) {
+func (n Branch) toParserNode(g parser.Grammar, term parser.Term, ctrs counters) (out parser.TreeElement) {
 	defer enterf("%v.toParserNode(g, term=%T(%[2]v), ctrs=%v)", n, term, ctrs).exitf("%v", &out)
 	switch t := term.(type) {
-	case wbnf.S, wbnf.RE:
+	case parser.S, parser.RE:
 		if node := n.pull("", ctrs[""]); node != nil {
 			return parser.Scanner(node.(Leaf))
 		}
 		return nil
-	case wbnf.Rule:
+	case parser.Rule:
 		name := string(t)
 		term := g[t]
 		unleveled, level := unlevel(name, g)
@@ -116,7 +115,7 @@ func (n Branch) toParserNode(g wbnf.Grammar, term wbnf.Term, ctrs counters) (out
 			}
 		}
 		return nil
-	case wbnf.Seq:
+	case parser.Seq:
 		result := parser.Node{Tag: seqTag}
 		for _, child := range t {
 			if node := n.toParserNode(g, child, ctrs); node != nil {
@@ -126,9 +125,9 @@ func (n Branch) toParserNode(g wbnf.Grammar, term wbnf.Term, ctrs counters) (out
 			}
 		}
 		return result
-	case wbnf.Oneof:
+	case parser.Oneof:
 		if choice := n.pullFromMany(ChoiceTag); choice != nil {
-			extra := choice.(Extra).Data.(wbnf.Choice)
+			extra := choice.(Extra).Data.(parser.Choice)
 			return parser.Node{
 				Tag:      oneofTag,
 				Extra:    extra,
@@ -136,12 +135,12 @@ func (n Branch) toParserNode(g wbnf.Grammar, term wbnf.Term, ctrs counters) (out
 			}
 		}
 		return nil
-	case wbnf.Delim:
+	case parser.Delim:
 		v := parser.Node{
 			Tag:   delimTag,
-			Extra: wbnf.NonAssociative,
+			Extra: parser.NonAssociative,
 		}
-		terms := [2]wbnf.Term{t.Term, t.Sep}
+		terms := [2]parser.Term{t.Term, t.Sep}
 		i := 0
 		for ; ; i++ {
 			if child := n.toParserNode(g, terms[i%2], ctrs); child != nil {
@@ -154,7 +153,7 @@ func (n Branch) toParserNode(g wbnf.Grammar, term wbnf.Term, ctrs counters) (out
 			panic(errors.Inconceivable)
 		}
 		return v
-	case wbnf.Quant:
+	case parser.Quant:
 		result := parser.Node{Tag: quantTag}
 		for i := 0; !t.MaxLessThan(i); i++ {
 			if v := n.toParserNode(g, t.Term, ctrs); v != nil {
@@ -167,7 +166,7 @@ func (n Branch) toParserNode(g wbnf.Grammar, term wbnf.Term, ctrs counters) (out
 			panic(errors.Inconceivable)
 		}
 		return result
-	case wbnf.Named:
+	case parser.Named:
 		childCtrs := newCounters(t.Term)
 		if node := n.pull(t.Name, ctrs[t.Name]); node != nil {
 			// if name := childCtrs.singular(); name != nil {

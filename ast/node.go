@@ -8,7 +8,6 @@ import (
 
 	"github.com/arr-ai/wbnf/errors"
 	"github.com/arr-ai/wbnf/parser"
-	"github.com/arr-ai/wbnf/wbnf"
 )
 
 const (
@@ -106,7 +105,7 @@ func (c Extra) collapse(level int) Node {
 
 var stackLevelRE = regexp.MustCompile(`^(\w+)@(\d+)$`)
 
-func unlevel(name string, g wbnf.Grammar) (string, int) {
+func unlevel(name string, g parser.Grammar) (string, int) {
 	if m := stackLevelRE.FindStringSubmatch(name); m != nil {
 		i, err := strconv.Atoi(m[2])
 		if err != nil {
@@ -114,8 +113,8 @@ func unlevel(name string, g wbnf.Grammar) (string, int) {
 		}
 		return m[1], i
 	}
-	if !strings.Contains(name, wbnf.StackDelim) {
-		if _, has := g[wbnf.Rule(name+"@1")]; has {
+	if !strings.Contains(name, parser.StackDelim) {
+		if _, has := g[parser.Rule(name+"@1")]; has {
 			return name, 0
 		}
 	}

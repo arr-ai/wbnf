@@ -1,26 +1,25 @@
-package wbnf
+package parser
 
 import (
 	"fmt"
 
 	"github.com/arr-ai/wbnf/gotree"
-	"github.com/arr-ai/wbnf/parser"
 )
 
 type errorNode struct {
-	parser.TreeElement
+	TreeElement
 }
 
 func (e errorNode) Error() string {
 	es := ""
 	switch t := e.TreeElement.(type) {
-	case parser.Node:
+	case Node:
 		es = t.String()
-	case parser.Scanner:
+	case Scanner:
 		es = t.String()
 	}
 	if es != "" {
-		return "partial parse nodes:  " + getErrorStrings(parser.NewScanner(es))
+		return "partial parse nodes:  " + getErrorStrings(NewScanner(es))
 	}
 	return ""
 }

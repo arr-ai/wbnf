@@ -1,4 +1,4 @@
-package ast
+package wbnf
 
 import (
 	"fmt"
@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	ast2 "github.com/arr-ai/wbnf/ast"
 	"github.com/arr-ai/wbnf/parser"
-	"github.com/arr-ai/wbnf/wbnf"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,31 +34,31 @@ func assertNodeParsesAs(
 }
 
 func assertNodeParsesAsScenario(t *testing.T, s nodeParseScenario) bool { //nolint:unparam
-	p, err := wbnf.Compile(s.grammar)
+	p, err := Compile(s.grammar)
 	g := p.Grammar()
 	require.NoError(t, err)
 
 	src := parser.NewScanner(strings.TrimRight(s.input, " "))
 
-	node, err := p.Parse(wbnf.Rule(s.rule), src)
+	node, err := p.Parse(parser.Rule(s.rule), src)
 	require.NoError(t, err)
 	require.Empty(t, src.String())
 	// log.Print(node)
 
-	ast := FromParserNode(g, node)
+	ast := ast2.FromParserNode(g, node)
 	// log.Print(ast)
 	reversalOK := true
 	if s.reversible {
-		node2 := ToParserNode(g, ast)
+		node2 := ast2.ToParserNode(g, ast)
 		// log.Print(node2)
 		ok := parser.AssertEqualNodes(t, node.(parser.Node), node2.(parser.Node))
 		if !ok {
 			t.Error(s)
-			ToParserNode(g, ast)
+			ast2.ToParserNode(g, ast)
 		}
 	}
-	if assert.Equal(t, wbnf.Rule(s.rule), ast[RuleTag].(One).Node.(Extra).Data) {
-		delete(ast, RuleTag)
+	if assert.Equal(t, parser.Rule(s.rule), ast[ast2.RuleTag].(ast2.One).Node.(ast2.Extra).Data) {
+		delete(ast, ast2.RuleTag)
 	}
 	expectedOK := s.expected == "" || assert.Equal(t,
 		strings.TrimRight(s.expected, " "),
@@ -193,7 +193,7 @@ func TestNodeCoreGrammarTrivial(t *testing.T) {
 	t.Parallel()
 
 	assertNodeParsesAsScenario(t, nodeParseScenario{
-		grammar:    wbnf.GrammarGrammar(),
+		grammar:    GrammarGrammar(),
 		rule:       "term",
 		input:      `a`,
 		reversible: true,
@@ -204,9 +204,9 @@ func TestNodeCoreGrammarCoreGrammar(t *testing.T) {
 	t.Parallel()
 
 	assertNodeParsesAsScenario(t, nodeParseScenario{
-		grammar:    wbnf.GrammarGrammar(),
+		grammar:    GrammarGrammar(),
 		rule:       "grammar",
-		input:      wbnf.GrammarGrammar(),
+		input:      GrammarGrammar(),
 		reversible: true,
 	})
 }

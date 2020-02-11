@@ -96,9 +96,9 @@ TERM+ ;`:
   - `\pN` or `\PN` where N is a single-letter Unicode character class
   - `\p{…}` `\P{…}`
   
-  All simple forms may include a quantifier: `?`, `*`, `+`, `{m,n?}`, `{n}` and
-  and, optionally, and additional `?` to make the quantifier reluctant (matches
-  as little input as possible).
+  All simple forms may include a quantifier: `?`, `*`, `+`, `{m,n?}`, `{n}` and,
+  optionally, and additional `?` to make the quantifier reluctant (matches as
+  little input as possible).
 
 ### Expressions
 

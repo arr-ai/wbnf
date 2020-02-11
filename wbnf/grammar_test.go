@@ -12,13 +12,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func assertUnparse(t *testing.T, expected string, parsers Parsers, v parser.TreeElement) bool { //nolint:unparam
+func assertUnparse(t *testing.T, expected string, parsers parser.Parsers, v parser.TreeElement) bool { //nolint:unparam
 	var sb strings.Builder
 	_, err := parsers.Unparse(v, &sb)
 	return assert.NoError(t, err) && assert.Equal(t, expected, sb.String())
 }
 
-var expr = Rule("expr")
+var expr = parser.Rule("expr")
 
 var exprGrammarSrc = `
 // Simple expression grammar
@@ -30,24 +30,22 @@ expr -> @:/{([-+])}
       > "(" @ ")";
 `
 
-var exprGrammar = Grammar{
-	expr: Stack{
-		Delim{Term: at, Sep: RE(`([-+])`)},
-		Delim{Term: at, Sep: RE(`([*/])`)},
-		Seq{Opt(S("-")), at},
-		Oneof{RE(`(\d+)`), at},
-		R2L(at, S("**")),
-		Seq{S("("), at, S(")")},
+var exprGrammar = parser.Grammar{
+	expr: parser.Stack{
+		parser.Delim{Term: parser.At, Sep: parser.RE(`([-+])`)},
+		parser.Delim{Term: parser.At, Sep: parser.RE(`([*/])`)},
+		parser.Seq{parser.Opt(parser.S("-")), parser.At},
+		parser.Oneof{parser.RE(`(\d+)`), parser.At},
+		parser.R2L(parser.At, parser.S("**")),
+		parser.Seq{parser.S("("), parser.At, parser.S(")")},
 	},
 }
 
-func assertParseToNode(t *testing.T, expected parser.Node, rule Rule, input *parser.Scanner) bool { //nolint:unparam
+func assertParseToNode(t *testing.T, expected parser.Node, rule parser.Rule, input *parser.Scanner) bool { //nolint:unparam
 	parsers := Core()
 	v, err := parsers.Parse(rule, input)
 	if assert.NoError(t, err) {
-		if assert.NoError(t, parsers.ValidateParse(v)) {
-			return parser.AssertEqualNodes(t, expected, v.(parser.Node))
-		}
+		return parser.AssertEqualNodes(t, expected, v.(parser.Node))
 	} else {
 		t.Logf("input: %s", input.Context())
 	}
@@ -60,7 +58,7 @@ type stackBuilder struct {
 	level  int
 }
 
-var stackNamePrefixRE = regexp.MustCompile(`^([a-z\.]*)(?:` + regexp.QuoteMeta(StackDelim) + `(\d+))?\\`)
+var stackNamePrefixRE = regexp.MustCompile(`^([a-z\.]*)(?:` + regexp.QuoteMeta(parser.StackDelim) + `(\d+))?\\`)
 
 func (s *stackBuilder) a(name string, extras ...parser.Extra) *stackBuilder {
 	var extra parser.Extra
@@ -101,10 +99,10 @@ func stack(name string, extras ...parser.Extra) *stackBuilder {
 
 func TestParseNamedTerm(t *testing.T) {
 	r := parser.NewScanner(`opt=""`)
-	x := stack(`term`, NonAssociative).a(`term@1`, NonAssociative).a(`term@2`).a(`term@3`).z(
+	x := stack(`term`, parser.NonAssociative).a(`term@1`, parser.NonAssociative).a(`term@2`).a(`term@3`).z(
 		stack(`named`).z(
 			stack(`?`).a(`_`).z(*r.Slice(0, 3), *r.Slice(3, 4)),
-			stack(`atom`, Choice(1)).z(*r.Slice(4, 6)),
+			stack(`atom`, parser.Choice(1)).z(*r.Slice(4, 6)),
 		),
 		stack(`?`).z(),
 	)
@@ -113,17 +111,17 @@ func TestParseNamedTerm(t *testing.T) {
 
 func TestParseNamedTermInDelim(t *testing.T) {
 	r := parser.NewScanner(`"1":op=","`)
-	x := stack(`term`, NonAssociative).a(`term@1`, NonAssociative).a(`term@2`).a(`term@3`).z(
+	x := stack(`term`, parser.NonAssociative).a(`term@1`, parser.NonAssociative).a(`term@2`).a(`term@3`).z(
 		stack(`named`).z(
 			stack(`?`).z(),
-			stack(`atom`, Choice(1)).z(*r.Slice(0, 3)),
+			stack(`atom`, parser.Choice(1)).z(*r.Slice(0, 3)),
 		),
-		stack(`?`).a(`quant`, Choice(2)).a(`_`).z(
+		stack(`?`).a(`quant`, parser.Choice(2)).a(`_`).z(
 			*r.Slice(3, 4),
 			stack(`?`).z(),
 			stack(`named`).z(
 				stack(`?`).a(`_`).z(*r.Slice(4, 6), *r.Slice(6, 7)),
-				stack(`atom`, Choice(1)).z(*r.Slice(7, 10)),
+				stack(`atom`, parser.Choice(1)).z(*r.Slice(7, 10)),
 			),
 			stack(`?`).z(),
 		),
@@ -139,7 +137,6 @@ func TestGrammarParser(t *testing.T) {
 	r := parser.NewScanner("1+2*3")
 	v, err := parsers.Parse(expr, r)
 	require.NoError(t, err)
-	assert.NoError(t, parsers.ValidateParse(v))
 	assertUnparse(t, "1+2*3", parsers, v)
 	assert.Equal(t,
 		`expr║:[expr@1║:[expr@2[?[], expr@3║0[1]]], `+
@@ -151,7 +148,6 @@ func TestGrammarParser(t *testing.T) {
 	r = parser.NewScanner("1+(2-3/4)")
 	v, err = parsers.Parse(expr, r)
 	assert.NoError(t, err)
-	assert.NoError(t, parsers.ValidateParse(v))
 	assertUnparse(t, "1+(2-3/4)", parsers, v)
 	assert.Equal(t,
 		`expr║:[`+
@@ -176,7 +172,6 @@ func TestExprGrammarGrammar(t *testing.T) {
 	v, err := parsers.Parse(GrammarRule, r)
 	require.NoError(t, err, "r=%v\nv=%v", r.Context(), v)
 	require.Equal(t, len(exprGrammarSrc), r.Offset(), "r=%v\nv=%v", r.Context(), v)
-	assert.NoError(t, parsers.ValidateParse(v))
 	assertUnparse(t,
 		`// Simple expression grammar`+
 			`expr->@:([-+])`+
@@ -201,15 +196,14 @@ func TestGrammarSnippet(t *testing.T) {
 		`term║:[term@1║:[term@2[term@3[named[?[], atom║0[prod]], ?[quant║0[+]]]]]]`,
 		fmt.Sprintf("%v", v),
 	)
-	assert.NoError(t, parsers.ValidateParse(v))
 	assertUnparse(t, "prod+", parsers, v)
 }
 
 func TestTinyGrammarGrammarGrammar(t *testing.T) {
 	t.Parallel()
 
-	tiny := Rule("tiny")
-	tinyGrammar := Grammar{tiny: S("x")}
+	tiny := parser.Rule("tiny")
+	tinyGrammar := parser.Grammar{tiny: parser.S("x")}
 	tinyGrammarSrc := `tiny -> "x";`
 
 	parsers := Core()
@@ -217,7 +211,6 @@ func TestTinyGrammarGrammarGrammar(t *testing.T) {
 	v, err := parsers.Parse(GrammarRule, r)
 	require.NoError(t, err)
 	e := v.(parser.Node)
-	assert.NoError(t, parsers.ValidateParse(v))
 
 	grammar2 := NewFromNode(e)
 	assert.EqualValues(t, tinyGrammar, grammar2)
@@ -231,7 +224,6 @@ func TestExprGrammarGrammarGrammar(t *testing.T) {
 	v, err := parsers.Parse(GrammarRule, r)
 	require.NoError(t, err)
 	e := v.(parser.Node)
-	assert.NoError(t, parsers.ValidateParse(v))
 
 	grammar2 := NewFromNode(e)
 	assert.EqualValues(t, exprGrammar, grammar2)
@@ -241,7 +233,7 @@ func TestBacktrackGrammar(t *testing.T) {
 	t.Parallel()
 
 	parsers := MustCompile(`a -> ("x" ":" "x"+ ";"?)+;`)
-	_, err := parsers.Parse(Rule("a"), parser.NewScanner(`x:x;x:x`))
+	_, err := parsers.Parse(parser.Rule("a"), parser.NewScanner(`x:x;x:x`))
 	assert.NoError(t, err)
 
 	// TODO: Make this work. Probably requires an LL(k) or LL(*) parser.

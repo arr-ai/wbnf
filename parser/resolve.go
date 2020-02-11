@@ -1,4 +1,4 @@
-package wbnf
+package parser
 
 import "github.com/arr-ai/wbnf/errors"
 

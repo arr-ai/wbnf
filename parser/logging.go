@@ -1,4 +1,4 @@
-package wbnf
+package parser
 
 import (
 	"reflect"

@@ -6,19 +6,10 @@ import (
 
 	"github.com/arr-ai/wbnf/errors"
 	"github.com/arr-ai/wbnf/parser"
-	"github.com/arr-ai/wbnf/wbnf"
 )
 
-var coreNode = func() Node {
-	return FromParserNode(wbnf.Core().Grammar(), *wbnf.Core().Node())
-}()
-
-func CoreNode() Node {
-	return coreNode
-}
-
-func FromParserNode(g wbnf.Grammar, e parser.TreeElement) Branch {
-	rule := wbnf.NodeRule(e.(parser.Node))
+func FromParserNode(g parser.Grammar, e parser.TreeElement) Branch {
+	rule := parser.NodeRule(e.(parser.Node))
 	term := g[rule]
 	result := Branch{}
 	result.one("@rule", Extra{rule})
@@ -109,13 +100,13 @@ func (n Branch) many(name string, node Node) {
 	}
 }
 
-func (n Branch) fromParserNode(g wbnf.Grammar, term wbnf.Term, ctrs counters, e parser.TreeElement) {
+func (n Branch) fromParserNode(g parser.Grammar, term parser.Term, ctrs counters, e parser.TreeElement) {
 	var tag string
 	defer enterf("fromParserNode(term=%T(%[1]v), ctrs=%v, v=%v)", term, ctrs, e).exitf("tag=%q, n=%v", &tag, &n)
 	switch t := term.(type) {
-	case wbnf.S, wbnf.RE:
+	case parser.S, parser.RE:
 		n.add("", Leaf(e.(parser.Scanner)), ctrs[""])
-	case wbnf.Rule:
+	case parser.Rule:
 		term := g[t]
 		childCtrs := newCounters(term)
 		b := Branch{}
@@ -128,24 +119,24 @@ func (n Branch) fromParserNode(g wbnf.Grammar, term wbnf.Term, ctrs counters, e 
 		// }
 		node = node.collapse(level)
 		n.add(unleveled, node, ctrs[string(t)])
-	case wbnf.Seq:
+	case parser.Seq:
 		node := e.(parser.Node)
 		tag = node.Tag
 		for i, child := range node.Children {
 			n.fromParserNode(g, t[i], ctrs, child)
 		}
-	case wbnf.Oneof:
+	case parser.Oneof:
 		node := e.(parser.Node)
 		tag = node.Tag
-		n.many(ChoiceTag, Extra{Data: node.Extra.(wbnf.Choice)})
-		n.fromParserNode(g, t[node.Extra.(wbnf.Choice)], ctrs, node.Children[0])
-	case wbnf.Delim:
+		n.many(ChoiceTag, Extra{Data: node.Extra.(parser.Choice)})
+		n.fromParserNode(g, t[node.Extra.(parser.Choice)], ctrs, node.Children[0])
+	case parser.Delim:
 		node := e.(parser.Node)
 		tag = node.Tag
 		tgen := t.LRTerms(node)
 		for _, child := range node.Children {
 			term := tgen.Next()
-			if _, ok := child.(wbnf.Empty); ok {
+			if _, ok := child.(parser.Empty); ok {
 				n.one("@empty", Extra{})
 			} else {
 				if term == t {
@@ -163,13 +154,13 @@ func (n Branch) fromParserNode(g wbnf.Grammar, term wbnf.Term, ctrs counters, e 
 				}
 			}
 		}
-	case wbnf.Quant:
+	case parser.Quant:
 		node := e.(parser.Node)
 		tag = node.Tag
 		for _, child := range node.Children {
 			n.fromParserNode(g, t.Term, ctrs, child)
 		}
-	case wbnf.Named:
+	case parser.Named:
 		childCtrs := newCounters(t.Term)
 		b := Branch{}
 		b.fromParserNode(g, t.Term, childCtrs, e)
@@ -179,7 +170,7 @@ func (n Branch) fromParserNode(g wbnf.Grammar, term wbnf.Term, ctrs counters, e 
 		// 	// TODO: zeroOrOne
 		// }
 		n.add(t.Name, node, ctrs[t.Name])
-	case wbnf.REF:
+	case parser.REF:
 		switch e := e.(type) {
 		case parser.Scanner:
 			n.add(t.Ident, Leaf(e), ctrs[t.Ident])

@@ -2,6 +2,22 @@
 
 [![GitHub Actions Go status](https://github.com/arr-ai/wbnf/workflows/Go/badge.svg)](.)
 
+## Repo Directory Structure (still evolving)
+
+ - ast/\
+   Package to convert raw parse tree to more useable AST nodes
+
+ - parser/\
+    Package that actually implements the parser
+
+ - wbnf/\
+    Package used as the frontend to the parser. Only required if code needs to parse a wbnf grammar at runtime.
+
+ - cmd/\
+    Command line interface to the wbnf package
+
+The hope is that the packages will evolved such that parser and ast are merged, only the usable AST nodes will be exported
+
 ## Grammar Syntax Guide
 
 ωBNF is self describing!

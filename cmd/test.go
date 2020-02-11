@@ -67,7 +67,7 @@ var testCommand = cli.Command{
 	},
 }
 
-func loadTestGrammar() wbnf.Parsers {
+func loadTestGrammar() parser.Parsers {
 	text, err := ioutil.ReadFile(inGrammarFile)
 	if err != nil {
 		panic(err)
@@ -105,7 +105,7 @@ func test(c *cli.Context) error {
 	if verboseMode {
 		logrus.SetLevel(logrus.TraceLevel)
 	}
-	tree, err := g.Parse(wbnf.Rule(startingRule), parser.NewScanner(input))
+	tree, err := g.Parse(parser.Rule(startingRule), parser.NewScanner(input))
 	if err != nil {
 		return err
 	}

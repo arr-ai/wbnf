@@ -85,8 +85,8 @@ TERM+ ;`:
   text. They may be quoted by `"` or `'` or ` (backquote)
 - **Regular Expressions** in the form `/{RE}`, where RE is the expression to
   match. The entire match will be consumed. The parser will use the first
-  capturing group to populate the output node, or the entire match if none if
-  there isn't one.
+  capturing group to populate the output node, or the entire match if there is
+  none.
   
   The following simple RE forms may omit the surrounding `/{…}`:
 

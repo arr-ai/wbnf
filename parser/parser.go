@@ -114,7 +114,7 @@ func (g Grammar) resolveStacks() {
 
 // Compile prepares a grammar for parsing. The parser holds a copy of the
 // grammar modified to support parser execution.
-func (g Grammar) Compile(node *Node) Parsers {
+func (g Grammar) Compile(node interface{}) Parsers {
 	for _, term := range g {
 		if _, ok := term.(Stack); ok {
 			g = g.clone()

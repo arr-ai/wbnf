@@ -10,18 +10,10 @@ import (
 // Build the grammar grammar from grammarGrammarSrc and check that it matches
 // grammarGrammar.
 var core = func() parser.Parsers {
-	parsers := Grammar().Compile(nil)
+	g := MustCompile(grammarGrammarSrc)
+	newGrammarGrammar := g.Grammar()
 
-	r := parser.NewScanner(grammarGrammarSrc)
-	v, err := parsers.Parse("grammar", r)
-	if err != nil {
-		panic(err)
-	}
-	coreNode := v.(parser.Node)
-
-	newGrammarGrammar := NewFromNode(coreNode)
-
-	a := Grammar()
+	a := Grammar().Grammar()
 	b := newGrammarGrammar
 	if diff := diff.DiffGrammars(a, b); !diff.Equal() {
 		panic(fmt.Errorf(
@@ -32,7 +24,7 @@ var core = func() parser.Parsers {
 			a, b, diff,
 		))
 	}
-	return newGrammarGrammar.Compile(&coreNode)
+	return newGrammarGrammar.Compile(g.Node())
 }()
 
 func Core() parser.Parsers {

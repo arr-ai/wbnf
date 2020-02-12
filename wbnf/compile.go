@@ -8,7 +8,6 @@ import (
 
 	"github.com/arr-ai/wbnf/ast"
 
-	"github.com/arr-ai/wbnf/errors"
 	"github.com/arr-ai/wbnf/parser"
 )
 
@@ -91,187 +90,121 @@ func parseString(s string) string {
 var whitespaceRE = regexp.MustCompile(`\s`)
 var escapedSpaceRE = regexp.MustCompile(`((?:\A|[^\\])(?:\\\\)*)\\_`)
 
-func compileAtomNode(node parser.Node) parser.Term {
-	switch node.Extra.(parser.Choice) {
-	case 0:
-		return parser.Rule(node.GetString(0))
-	case 1:
-		return parser.S(parseString(node.GetString(0)))
-	case 2:
-		s := whitespaceRE.ReplaceAllString(node.GetString(0), "")
+func buildAtom(atom AtomContext) parser.Term {
+	x, _ := ast.Which(atom.Node.(ast.Branch), "RE", "STR", "IDENT", "REF", "term")
+	name := ""
+	switch x {
+	case "term", "":
+	case "REF":
+		name = atom.OneIDENT().String()
+	default:
+		name = atom.One(x).Scanner().String()
+	}
+	switch x {
+	case "IDENT":
+		return parser.Rule(name)
+	case "STR":
+		return parser.S(parseString(name))
+	case "RE":
+		s := whitespaceRE.ReplaceAllString(name, "")
 		// Do this twice to cover adjacent escaped spaces `\_\_`.
 		s = escapedSpaceRE.ReplaceAllString(s, "$1 ")
 		s = escapedSpaceRE.ReplaceAllString(s, "$1 ")
 		return parser.RE(s)
-	case 3:
-		return compileRefNode(node.GetNode(0))
-	case 4:
-		return compileTermNode(node.GetNode(0, 1))
-	case 5:
-		return parser.Seq{}
-	default:
-		panic(errors.BadInput)
-	}
-}
-
-func compileRefNode(node parser.Node) parser.Term {
-	ref := parser.REF{Ident: node.GetString(1)}
-
-	term := node.GetNode(2)
-	if term.Count() != 0 {
-		ref.Default = parser.S(parseString(term.GetString(0, 1)))
-	}
-
-	return ref
-}
-
-func compileTermNamedNode(node parser.Node) parser.Term {
-	term := compileAtomNode(node.GetNode(1))
-	if quant := node.GetNode(0); quant.Count() == 1 {
-		return parser.Named{
-			Name: quant.GetString(0, 0),
-			Term: term,
+	case "REF":
+		ref := parser.REF{
+			Ident:   name,
+			Default: nil,
 		}
-	}
-	return term
-}
-
-func compileTermQuantNode(node parser.Node) parser.Term {
-	term := compileTermNamedNode(node.GetNode(0))
-	opt := node.GetNode(1)
-	for _, child := range opt.Children {
-		quant := child.(parser.Node)
-		switch quant.Extra.(parser.Choice) {
-		case 0:
-			switch quant.GetString(0) {
-			case "?":
-				term = parser.Opt(term)
-			case "*":
-				term = parser.Any(term)
-			case "+":
-				term = parser.Some(term)
-			default:
-				panic(errors.BadInput)
-			}
-		case 1:
-			seq := quant.GetNode(0)
-			min, max := 0, 0
-			minOpt := seq.GetNode(1)
-			if minOpt.Count() == 1 {
-				var err error
-				min, err = strconv.Atoi(minOpt.GetString(0))
-				if err != nil {
-					panic(err)
-				}
-			}
-			maxOpt := seq.GetNode(3)
-			if maxOpt.Count() == 1 {
-				var err error
-				max, err = strconv.Atoi(maxOpt.GetString(0))
-				if err != nil {
-					panic(err)
-				}
-			}
-			term = parser.Quant{Term: term, Min: min, Max: max}
-		case 2:
-			seq := quant.GetNode(0)
-			assoc := parser.NewAssociativity(seq.GetString(0))
-			term = parser.Delim{
-				Term:            term,
-				Sep:             compileTermNamedNode(seq.GetNode(2)),
-				Assoc:           assoc,
-				CanStartWithSep: seq.GetNode(1).Count() == 1,
-				CanEndWithSep:   seq.GetNode(3).Count() == 1,
-			}
-		default:
-			panic(errors.BadInput)
+		defTerm := atom.OneREF().OneDefault().String()
+		if defTerm != "" {
+			ref.Default = parser.S(parseString(defTerm))
 		}
+		return ref
+	case "term":
+		return buildTerm(atom.OneTerm())
 	}
-	return term
+	panic("bad input")
 }
 
-func compileTermSeqNode(node parser.Node) parser.Term {
-	n := node.Count()
-	if n == 1 {
-		return compileTermQuantNode(node.Children[0].(parser.Node))
-	}
-	seq := make(parser.Seq, 0, node.Count())
-	for _, child := range node.Children {
-		seq = append(seq, compileTermQuantNode(child.(parser.Node)))
-	}
-	return seq
-}
-
-func compileTermOneofNode(node parser.Node) parser.Term {
-	n := node.Count()
-	if n == 1 {
-		return compileTermSeqNode(node.GetNode(0))
-	}
-	oneof := make(parser.Oneof, 0, n/2+1)
-	for i := 0; i < n; i += 2 {
-		oneof = append(oneof, compileTermSeqNode(node.GetNode(i)))
-	}
-	return oneof
-}
-
-func compileTermStackNode(node parser.Node) parser.Term {
-	if node.Count() == 1 {
-		return compileTermOneofNode(node.GetNode(0))
-	}
-	var stack parser.Stack
-	for i := 0; i < node.Count(); i += 2 {
-		stack = append(stack, compileTermOneofNode(node.GetNode(i)))
-	}
-	return stack
-}
-
-func compileTermNode(node parser.Node) parser.Term {
-	return compileTermStackNode(node)
-}
-
-func compileProdNode(node parser.Node) parser.Term {
-	children := node.GetNode(2).Children
-	if len(children) == 1 {
-		return compileTermNode(children[0].(parser.Node))
-	}
-	seq := make(parser.Seq, 0, node.Count())
-	for _, child := range children {
-		seq = append(seq, compileTermNode(child.(parser.Node)))
-	}
-	return seq
-}
-
-// NewFromNode converts the output from parsing an input via GrammarGrammar into
-// a parser.Grammar, which can then be used to generate parsers.
-func NewFromNode(node parser.Node) parser.Grammar {
-	g := parser.Grammar{}
-	for _, v := range node.Children {
-		stmt := v.(parser.Node)
-		switch stmt.Extra.(parser.Choice) {
-		case 0:
-		// 	comment := v.(parse.Node).GetString(0)
-		case 1:
-			prod := stmt.GetNode(0)
-			g[parser.Rule(prod.GetString(0))] = compileProdNode(prod)
-		default:
-			panic(errors.BadInput)
+func buildQuant(q QuantContext, term parser.Term) parser.Term {
+	switch q.Choice() {
+	case 0:
+		switch q.OneOp().String() {
+		case "*":
+			return parser.Any(term)
+		case "?":
+			return parser.Opt(term)
+		case "+":
+			return parser.Some(term)
 		}
+	case 1:
+		min := 0
+		max := 0
+		if x := q.OneMin().String(); x != "" {
+			val, err := strconv.Atoi(x)
+			if err != nil {
+				panic(err)
+			}
+			min = val
+		}
+		if x := q.OneMax().String(); x != "" {
+			val, err := strconv.Atoi(x)
+			if err != nil {
+				panic(err)
+			}
+			max = val
+		}
+		return parser.Quant{Term: term, Min: min, Max: max}
+	case 2:
+		assoc := parser.NewAssociativity(q.OneOp().String())
+		sep := buildNamed(q.OneNamed())
+		delim := parser.Delim{Term: term, Sep: sep, Assoc: assoc}
+		if q.OneOpt_leading().String() != "" {
+			delim.CanStartWithSep = true
+		}
+		if q.OneOpt_trailing().String() != "" {
+			delim.CanEndWithSep = true
+		}
+		return delim
 	}
-	return g
+	panic("bad input")
+}
+
+func buildNamed(n NamedContext) parser.Term {
+	atom := buildAtom(n.OneAtom())
+	ident := n.OneIDENT().String()
+	if ident != "" {
+		return parser.Eq(ident, atom)
+	}
+	return atom
 }
 
 func buildTerm(t TermContext) parser.Term {
-	op := t.OneOp().String()
-	switch  {
-	case op == "|":
-
-	case op == ">":
-
-	case t.OneNamed().Node != nil:
-
-	default
-		// no op, must be a named + quant:
+	if len(t.AllTerm()) > 0 {
+		var terms []parser.Term
+		for _, t := range t.AllTerm() {
+			terms = append(terms, buildTerm(t))
+		}
+		switch t.OneOp().String() {
+		case "|":
+			return append(parser.Oneof{}, terms...)
+		case ">":
+			return append(parser.Stack{}, terms...)
+		}
+		if len(terms) == 1 {
+			return terms[0]
+		}
+		return append(parser.Seq{}, terms...)
 	}
+	// named and quants need to be added backwards
+	// "a":","*     ->   Any(Delim(... S("a")))
+	next := buildNamed(t.OneNamed())
+	quants := t.AllQuant()
+	for i := range quants {
+		next = buildQuant(quants[len(quants)-1-i], next)
+	}
+	return next
 }
 
 func buildProd(p ProdContext) parser.Term {
@@ -302,7 +235,8 @@ func Compile(grammar string) (parser.Parsers, error) {
 	if err != nil {
 		return parser.Parsers{}, err
 	}
-	return buildGrammar(node).Compile(nil /* fixme */), nil
+	g := buildGrammar(node)
+	return g.Compile(node), nil
 }
 
 func MustCompile(grammar string) parser.Parsers {

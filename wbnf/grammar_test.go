@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/arr-ai/wbnf/ast"
+
 	"github.com/arr-ai/wbnf/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -212,7 +214,7 @@ func TestTinyGrammarGrammarGrammar(t *testing.T) {
 	require.NoError(t, err)
 	e := v.(parser.Node)
 
-	grammar2 := NewFromNode(e)
+	grammar2 := buildGrammar(ast.FromParserNode(parsers.Grammar(), e))
 	assert.EqualValues(t, tinyGrammar, grammar2)
 }
 
@@ -225,7 +227,7 @@ func TestExprGrammarGrammarGrammar(t *testing.T) {
 	require.NoError(t, err)
 	e := v.(parser.Node)
 
-	grammar2 := NewFromNode(e)
+	grammar2 := buildGrammar(ast.FromParserNode(parsers.Grammar(), e))
 	assert.EqualValues(t, exprGrammar, grammar2)
 }
 

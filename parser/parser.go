@@ -192,6 +192,13 @@ func eatRegexp(input *Scanner, re *regexp.Regexp, output *TreeElement) bool {
 	return false
 }
 
+func applyWrapRE(re string, c cache) string {
+	if wrap, has := c.grammar[WrapRE]; has {
+		return strings.Replace(string(wrap.(RE)), "()", "(?:"+re+")", 1)
+	}
+	return re
+}
+
 type sParser struct {
 	rule Rule
 	t    S
@@ -208,10 +215,7 @@ func (p *sParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement) e
 }
 
 func (t S) Parser(rule Rule, c cache) Parser {
-	re := "(" + regexp.QuoteMeta(string(t)) + ")"
-	if wrap, has := c.grammar[WrapRE]; has {
-		re = strings.Replace(string(wrap.(RE)), "()", "(?:"+re+")", 1)
-	}
+	re := applyWrapRE("("+regexp.QuoteMeta(string(t))+")", c)
 	return &sParser{
 		rule: rule,
 		t:    t,
@@ -235,7 +239,7 @@ func (p *reParser) Parse(_ frozen.Map, input *Scanner, output *TreeElement) erro
 }
 
 func (t RE) Parser(rule Rule, c cache) Parser {
-	re := "(" + string(t) + ")"
+	re := applyWrapRE("("+string(t)+")", c)
 	if wrap, has := c.grammar[WrapRE]; has {
 		re = strings.Replace(string(wrap.(RE)), "()", "(?:"+re+")", 1)
 	}

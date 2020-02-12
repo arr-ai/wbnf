@@ -45,11 +45,33 @@ func (p Parsers) Unparse(e TreeElement, w io.Writer) (n int, err error) {
 }
 
 // Parse parses some source per a given rule.
-func (p Parsers) Parse(rule Rule, input *Scanner) (TreeElement, error) {
+func (p Parsers) parse(rule Rule, input *Scanner, scope frozen.Map) (TreeElement, error) {
+	var e TreeElement
+	err := p.parsers[rule].Parse(scope, input, &e)
+	return e, err
+}
+
+func prepareExternals(externals Externals) frozen.Map {
+	var b frozen.MapBuilder
+	for name, external := range externals {
+		b.Put(externalRef(name), external)
+	}
+	return b.Finish()
+}
+
+// Parse parses some source per a given rule.
+func (p Parsers) ParsePartial(rule Rule, input *Scanner, externals Externals) (TreeElement, error) {
+	return p.parse(rule, input, prepareExternals(externals))
+}
+
+//Parse parses some source per a given rule. externals provides handlers for
+//%%-references.
+func (p Parsers) ParseWithExternals(rule Rule, input *Scanner, externals Externals) (TreeElement, error) {
+	scope := prepareExternals(externals)
 	start := *input
 	for {
 		var e TreeElement
-		if err := p.parsers[rule].Parse(frozen.NewMap(), input, &e); err != nil {
+		if err := p.parsers[rule].Parse(scope, input, &e); err != nil {
 			return nil, err
 		}
 
@@ -63,14 +85,25 @@ func (p Parsers) Parse(rule Rule, input *Scanner) (TreeElement, error) {
 	}
 }
 
+// Parse parses some source per a given rule.
+func (p Parsers) Parse(rule Rule, input *Scanner) (TreeElement, error) {
+	return p.ParseWithExternals(rule, input, nil)
+}
+
 // MustParse calls Parse and returns the result or panics if an error was
-// returned.
-func (p Parsers) MustParse(rule Rule, input *Scanner) TreeElement {
-	i, err := p.Parse(rule, input)
+// returned. externals provides handlers for %%-references.
+func (p Parsers) MustParseWithExternals(rule Rule, input *Scanner, externals Externals) TreeElement {
+	i, err := p.ParseWithExternals(rule, input, externals)
 	if err != nil {
 		panic(err)
 	}
 	return i
+}
+
+// MustParse calls Parse and returns the result or panics if an error was
+// returned.
+func (p Parsers) MustParse(rule Rule, input *Scanner) TreeElement {
+	return p.MustParseWithExternals(rule, input, nil)
 }
 
 // Term represents the terms of a grammar specification.
@@ -122,8 +155,9 @@ type (
 	S    string
 	RE   string
 	REF  struct {
-		Ident   string
-		Default Term
+		Ident    string
+		Default  Term
+		External bool
 	}
 	Seq   []Term
 	Oneof []Term

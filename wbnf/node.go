@@ -1,4 +1,4 @@
-package ast
+package wbnf
 
 import (
 	"fmt"
@@ -43,7 +43,7 @@ type Node interface {
 	One(name string) Node
 	Many(name string) []Node
 	Scanner() parser.Scanner
-	collapse(level int) Node
+	Collapse(level int) Node
 	isNode()
 	clone() Node
 	narrow() bool
@@ -63,7 +63,7 @@ func (Leaf) Many(_ string) []Node {
 	return nil
 }
 
-func (l Leaf) collapse(level int) Node {
+func (l Leaf) Collapse(level int) Node {
 	return l
 }
 
@@ -99,7 +99,7 @@ func (Extra) Many(_ string) []Node {
 	return nil
 }
 
-func (c Extra) collapse(level int) Node {
+func (c Extra) Collapse(level int) Node {
 	return c
 }
 

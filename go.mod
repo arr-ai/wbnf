@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	github.com/arr-ai/frozen v0.13.0
+	github.com/eknkc/amber v0.0.0-20171010120322-cdade1c07385
 	github.com/gobuffalo/packr v1.30.1 // indirect
 	github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/testify v1.4.0

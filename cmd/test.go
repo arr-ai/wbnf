@@ -7,7 +7,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/arr-ai/wbnf/ast"
 	"github.com/arr-ai/wbnf/parser"
 	"github.com/arr-ai/wbnf/wbnf"
 
@@ -109,9 +108,9 @@ func test(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	a := ast.FromParserNode(g.Grammar(), tree)
+	a := wbnf.FromParserNode(g.Grammar(), tree)
 	if printTree {
-		fmt.Println(ast.BuildTreeView(startingRule, a, true))
+		fmt.Println(wbnf.BuildTreeView(startingRule, a, true))
 	} else {
 		fmt.Println(a)
 	}

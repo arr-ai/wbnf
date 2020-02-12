@@ -40,7 +40,7 @@ RE      -> /{
                )(?: (?:[+*?]|\{\d+,?\d?\}) \?? )?
              )+
            };
-REF     -> "%" IDENT ("=" default=STR)?;
+REF     -> "%" external="%"? IDENT ("=" default=STR)?;
 
 // Special
 .wrapRE -> /{\s*()\s*};

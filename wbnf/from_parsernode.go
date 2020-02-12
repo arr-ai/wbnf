@@ -1,4 +1,4 @@
-package ast
+package wbnf
 
 import (
 	"fmt"
@@ -15,10 +15,10 @@ func FromParserNode(g parser.Grammar, e parser.TreeElement) Branch {
 	result.one("@rule", Extra{rule})
 	ctrs := newCounters(term)
 	result.fromParserNode(g, term, ctrs, e)
-	return result.collapse(0).(Branch)
+	return result.Collapse(0).(Branch)
 }
 
-func (n Branch) collapse(level int) Node {
+func (n Branch) Collapse(level int) Node {
 	if false && level > 0 {
 		switch oneChild := n.oneChild().(type) {
 		case Branch:
@@ -117,7 +117,7 @@ func (n Branch) fromParserNode(g parser.Grammar, term parser.Term, ctrs counters
 		// 	node = b[*name].(One).Node
 		// 	// TODO: zeroOrOne
 		// }
-		node = node.collapse(level)
+		node = node.Collapse(level)
 		n.add(unleveled, node, ctrs[string(t)])
 	case parser.Seq:
 		node := e.(parser.Node)
@@ -171,17 +171,25 @@ func (n Branch) fromParserNode(g parser.Grammar, term parser.Term, ctrs counters
 		// }
 		n.add(t.Name, node, ctrs[t.Name])
 	case parser.REF:
-		switch e := e.(type) {
-		case parser.Scanner:
-			n.add(t.Ident, Leaf(e), ctrs[t.Ident])
-		case parser.Node:
-			b := Branch{}
-			for _, child := range e.Children {
-				b.fromParserNode(g, term, ctrs, child)
+		if t.External {
+			node := e.(*parser.Node)
+			subgrammarNode := node.Extra.(parser.SubGrammar).Node
+			subgrammar := FromParserNode(Core().Grammar(), subgrammarNode)
+			subnode := FromParserNode(NewFromNode(subgrammarNode), node.Children[0])
+			n.add("", Branch{"@grammar": One{Node: subgrammar}, "@node": One{subnode}}, ctrs[""])
+			panic(subnode)
+		} else {
+			switch e := e.(type) {
+			case parser.Scanner:
+				n.add(t.Ident, Leaf(e), ctrs[t.Ident])
+			case parser.Node:
+				b := Branch{}
+				for _, child := range e.Children {
+					b.fromParserNode(g, term, ctrs, child)
+				}
+				n.add(t.Ident, b, ctrs[t.Ident])
 			}
-			n.add(t.Ident, b, ctrs[t.Ident])
 		}
-
 	default:
 		panic(fmt.Errorf("unexpected term type: %v %[1]T", t))
 	}

@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	"github.com/arr-ai/wbnf/parser"
-
-	"github.com/arr-ai/wbnf/ast"
 	"github.com/arr-ai/wbnf/wbnf"
 	"github.com/urfave/cli"
 )
@@ -49,7 +47,7 @@ func gen(c *cli.Context) error {
 	g := loadTestGrammar()
 
 	core := wbnf.Core()
-	tree := ast.FromParserNode(core.Grammar(), *g.Node())
+	tree := wbnf.FromParserNode(core.Grammar(), *g.Node())
 
 	root := goNode{name: "parser.Grammar", scope: squiglyScope}
 
@@ -64,7 +62,6 @@ func gen(c *cli.Context) error {
 package %s
 
 import (
-	"github.com/arr-ai/wbnf/ast"
 	"github.com/arr-ai/wbnf/parser"
 )
 
@@ -72,16 +69,16 @@ func Grammar() parser.Grammar {
 	return %s
 }
 
-func Parse(input *parser.Scanner) (ast.Node, error) {
+func Parse(input *parser.Scanner) (Node, error) {
 	p := Grammar().Compile(nil)
 	tree, err := p.Parse("%s", input)
 	if err != nil {
 		return nil, err
 	}
-    return ast.FromParserNode(p.Grammar(), tree), nil
+    return FromParserNode(p.Grammar(), tree), nil
 }
 
-func ParseString(input string) (ast.Node, error) {
+func ParseString(input string) (Node, error) {
 	return Parse(parser.NewScanner(input))
 }
 
@@ -137,9 +134,9 @@ func safeString(src string) string {
 	return r.Replace(src)
 }
 
-func makeAtom(node ast.Node) *goNode {
-	atom := node.(ast.Branch)
-	x, _ := ast.Which(atom, "RE", "STR", "IDENT", "REF", "term")
+func makeAtom(node wbnf.Node) *goNode {
+	atom := node.(wbnf.Branch)
+	x, _ := wbnf.Which(atom, "RE", "STR", "IDENT", "REF", "term")
 	name := ""
 	switch x {
 	case "term", "":
@@ -165,8 +162,8 @@ func makeAtom(node ast.Node) *goNode {
 	}
 	return &goNode{name: "todo"}
 }
-func makeNamed(node ast.Node) *goNode {
-	named := node.(ast.Branch)
+func makeNamed(node wbnf.Node) *goNode {
+	named := node.(wbnf.Branch)
 	atom := makeAtom(named.One("atom"))
 
 	if named.One("IDENT") != nil {
@@ -178,8 +175,8 @@ func makeNamed(node ast.Node) *goNode {
 	}
 	return atom
 }
-func makeQuant(node ast.Node, term goNode) *goNode {
-	switch node.Many(ast.ChoiceTag)[0].(ast.Extra).Data.(parser.Choice) {
+func makeQuant(node wbnf.Node, term goNode) *goNode {
+	switch node.Many(wbnf.ChoiceTag)[0].(wbnf.Extra).Data.(parser.Choice) {
 	case 0:
 		switch node.One("op").Scanner().String() {
 		case "*":
@@ -226,9 +223,9 @@ func makeQuant(node ast.Node, term goNode) *goNode {
 	return &goNode{name: "todo"}
 }
 
-func makeTerm(node ast.Node) *goNode {
-	term := node.(ast.Branch)
-	x, _ := ast.Which(term, "term", "atom", "named")
+func makeTerm(node wbnf.Node) *goNode {
+	term := node.(wbnf.Branch)
+	x, _ := wbnf.Which(term, "term", "atom", "named")
 	switch x {
 	case "term":
 		var next *goNode
@@ -263,7 +260,7 @@ func makeTerm(node ast.Node) *goNode {
 	return &goNode{name: "todo"}
 }
 
-func makeProd(tree ast.Node) *goNode {
+func makeProd(tree wbnf.Node) *goNode {
 	terms := tree.Many("term")
 
 	p := &goNode{

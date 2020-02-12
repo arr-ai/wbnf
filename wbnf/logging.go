@@ -1,5 +1,5 @@
 //nolint:unused,deadcode
-package ast
+package wbnf
 
 import (
 	"reflect"

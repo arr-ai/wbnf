@@ -3,7 +3,6 @@
 package wbnf
 
 import (
-	"github.com/arr-ai/wbnf/ast"
 	"github.com/arr-ai/wbnf/parser"
 )
 
@@ -68,16 +67,16 @@ func Grammar() parser.Grammar {
 		".wrapRE": parser.RE(`\s*()\s*`)}
 }
 
-func Parse(input *parser.Scanner) (ast.Node, error) {
+func Parse(input *parser.Scanner) (Node, error) {
 	p := Grammar().Compile(nil)
 	tree, err := p.Parse("grammar", input)
 	if err != nil {
 		return nil, err
 	}
-	return ast.FromParserNode(p.Grammar(), tree), nil
+	return FromParserNode(p.Grammar(), tree), nil
 }
 
-func ParseString(input string) (ast.Node, error) {
+func ParseString(input string) (Node, error) {
 	return Parse(parser.NewScanner(input))
 }
 

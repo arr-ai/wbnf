@@ -15,11 +15,12 @@ const (
 	StackDelim = "@"
 	At         = Rule(StackDelim)
 
-	seqTag   = "_"
-	oneofTag = "|"
-	delimTag = ":"
-	quantTag = "?"
-	WrapRE   = Rule(".wrapRE")
+	seqTag    = "_"
+	oneofTag  = "|"
+	delimTag  = ":"
+	quantTag  = "?"
+	externTag = "%"
+	WrapRE    = Rule(".wrapRE")
 )
 
 type cache struct {
@@ -612,13 +613,25 @@ func (t *REF) Parse(scope frozen.Map, input *Scanner, output *TreeElement) (out 
 	var v TreeElement
 	if expected, ok := valFrom(scope, t.Ident); ok {
 		term := termFromRefVal(expected.val)
-		if err := term.Parser(Rule(t.Ident), cache{}).Parse(scope, input, &v); err != nil {
-			return err
-		}
-		if !nodesEqual(v, expected.val) {
-			return newParseError(Rule(t.Ident), "Backref not matched",
-				fmt.Errorf("expected: %s", expected),
-				fmt.Errorf("actual: %s", v))
+		if t.External {
+			if external, has := scope.Get(externalRef(t.Ident)); has {
+				foreigner, subgrammar, err := external.(External)(term, expected.val, input)
+				if err != nil {
+					return newParseError(Rule(t.Ident), "External parse failed", err)
+				}
+				v = NewNode(externTag, SubGrammar{subgrammar}, foreigner)
+			} else {
+				return newParseError(Rule(t.Ident), "External ref handler not found")
+			}
+		} else {
+			if err := term.Parser(Rule(t.Ident), cache{}).Parse(scope, input, &v); err != nil {
+				return err
+			}
+			if !nodesEqual(v, expected.val) {
+				return newParseError(Rule(t.Ident), "Backref not matched",
+					fmt.Errorf("expected: %s", expected),
+					fmt.Errorf("actual: %s", v))
+			}
 		}
 	} else if t.Default != nil {
 		if err := t.Default.Parser(Rule(t.Ident), cache{}).Parse(scope, input, &v); err != nil {

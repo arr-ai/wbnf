@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	ast2 "github.com/arr-ai/wbnf/ast"
 	"github.com/arr-ai/wbnf/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -45,20 +44,20 @@ func assertNodeParsesAsScenario(t *testing.T, s nodeParseScenario) bool { //noli
 	require.Empty(t, src.String())
 	// log.Print(node)
 
-	ast := ast2.FromParserNode(g, node)
+	ast := FromParserNode(g, node)
 	// log.Print(ast)
 	reversalOK := true
 	if s.reversible {
-		node2 := ast2.ToParserNode(g, ast)
+		node2 := ToParserNode(g, ast)
 		// log.Print(node2)
 		ok := parser.AssertEqualNodes(t, node.(parser.Node), node2.(parser.Node))
 		if !ok {
 			t.Error(s)
-			ast2.ToParserNode(g, ast)
+			ToParserNode(g, ast)
 		}
 	}
-	if assert.Equal(t, parser.Rule(s.rule), ast[ast2.RuleTag].(ast2.One).Node.(ast2.Extra).Data) {
-		delete(ast, ast2.RuleTag)
+	if assert.Equal(t, parser.Rule(s.rule), ast[RuleTag].(One).Node.(Extra).Data) {
+		delete(ast, RuleTag)
 	}
 	expectedOK := s.expected == "" || assert.Equal(t,
 		strings.TrimRight(s.expected, " "),

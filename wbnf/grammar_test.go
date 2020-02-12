@@ -254,7 +254,7 @@ func TestCombo1(t *testing.T) {
 func TestCombo2(t *testing.T) {
 	t.Parallel()
 
-	p, err := Compile(`x -> rel=("{" names ("(" @:",", ")"):",",? "}");`)
+	p, err := Compile(`x -> rel=("{" names ("(" @:",", ")"):",",? "}"); names -> "";`)
 	assert.NoError(t, err)
 	log.Print(p.Grammar())
 }

@@ -109,7 +109,7 @@ TERM+ ;`:
   
   The following simple RE forms may omit the surrounding `/{…}`:
 
-  - `.`
+  - `.`, `^` and `$`
   - `[…]` and `[^…]`
   - `\d` where d is an RE2 character class.
   - `\pN` or `\PN` where N is a single-letter Unicode character class
@@ -120,7 +120,7 @@ TERM+ ;`:
   shortest matching input).
 
   A sequence of the above simple forms with no whitespace in between is treated
-  as a single regexp, e.g.: `[a-z][a-z0-9]*`.
+  as a single regexp, e.g.: `^[a-z][a-z0-9]*$`.
 
 ### Expressions
 

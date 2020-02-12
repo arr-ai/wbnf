@@ -10,17 +10,17 @@ import  -> "import"  prefix="/"{0,2} import=PATH ( "as"  APP_NAME)? ("~" mode=NA
 
 // -------------- Applications --------------- //
 application ->  APPLICATION_NAME QSTRING?
-        attribs? ":" COMMENT* INDENT app_decl:INDENT_SEP;
+        attribs? ":" COMMENT* \n+ level=INDENT app_decl:INDENT_SEP;
 
 app_decl   -> SHORTCUT | table | wrap | endpoint | view;
 
 // -------------- Types --------------- //
 
 table -> mode=("!table"|"!type") NAME attribs?  ":" COMMENT*
-    INDENT
+    \n+ level=INDENT
         (COMMENT | (name=NAME "<:") type=(collection_type|type_spec) optional="?"? attribs?):INDENT_SEP EOL;
 wrap -> "!wrap" NAME attribs?  ":" COMMENT*
-    INDENT
+    \n+ level=INDENT
         (table | "!table"APP_NAME) :INDENT_SEP EOL;
 
 
@@ -35,22 +35,22 @@ endpoint -> (rest_endpoint | simple_endpoint) EOL;
 
 simple_endpoint -> SHORTCUT | (endpoint_name=(PATH) QSTRING? EVERYTHING? attribs? ":" (SHORTCUT | EVERYTHING));
 
-rest_endpoint -> http_path attribs? ":" INDENT (method_def | rest_endpoint)+:INDENT_SEP;
+rest_endpoint -> http_path attribs? ":" \n+ level=INDENT (method_def | rest_endpoint)+:INDENT_SEP;
 
-method_def -> http_path=(HTTP_VERBS) params? query_param? attribs? ":" INDENT statements+:INDENT_SEP;
+method_def -> http_path=(HTTP_VERBS) params? query_param? attribs? ":" \n+ level=INDENT statements+:INDENT_SEP;
 
 params -> "(" ( reference | field ):"," ")";
 
 query_param -> "?" (Name=(NAME) "=" (NativeDataTypes| NAME | "{" NAME "}") optional="?"?):"&";
 
-field -> NAME (array_size? "<:" (field_type | (INDENT @:INDENT_SEP)) QSTRING?)?;
+field -> NAME (array_size? "<:" (field_type | (\n+ level=INDENT @:INDENT_SEP)) QSTRING?)?;
 
 field_type -> collection_type | (type_spec optional="?"? attribs?) ;
 
 // --------------    views    --------------- //
 view -> "!view" NAME "(" view_params? ")"
         ("->" retType=(collection_type|type_spec))?
-        attribs? ":" ((INDENT expr_block:INDENT_SEP) | abstract="[~abstract]");
+        attribs? ":" ((\n+ level=INDENT expr_block:INDENT_SEP) | abstract="[~abstract]");
 
 view_params -> (NAME "<:" (collection_type|type_spec)):",";
 
@@ -70,15 +70,15 @@ statements -> (if_stmt
 
 if_else -> if_stmt else_stmt*;
 
-if_stmt -> "if" PREDICATE ":" INDENT statements*:INDENT_SEP;
+if_stmt -> "if" PREDICATE ":" \n+ level=INDENT statements*:INDENT_SEP;
 
-else_stmt -> "else" PREDICATE? ":" INDENT statements*:INDENT_SEP;
+else_stmt -> "else" PREDICATE? ":" \n+ level=INDENT statements*:INDENT_SEP;
 
-for_stmt -> for_type=("alt" | "until" | "for each" | "for" | "loop" | "while") PREDICATE ":" INDENT statements*:INDENT_SEP;
+for_stmt -> for_type=("alt" | "until" | "for each" | "for" | "loop" | "while") PREDICATE ":" \n+ level=INDENT statements*:INDENT_SEP;
 
-one_of_stmt -> "one" "of" ":" INDENT one_of_cases+:INDENT_SEP;
+one_of_stmt -> "one" "of" ":" \n+ level=INDENT one_of_cases+:INDENT_SEP;
 
-one_of_cases -> one_of_case_label=(NAME | TEXT_LINE | QSTRING)? ":" INDENT statements+:INDENT_SEP;
+one_of_cases -> one_of_case_label=(NAME | TEXT_LINE | QSTRING)? ":" \n+ level=INDENT statements+:INDENT_SEP;
 
 call_stmt -> target=("." | NAME:"::") "<-" target_endpoint=(TEXT_LINE) call_args?;
 
@@ -86,9 +86,9 @@ call_args -> "(" ((QSTRING | NAME)+ | (NAME "<:" (NAME | NativeDataTypes))):"," 
 
 ret_stmt -> "return" ret_val=(TEXT);
 
-group_stmt -> name=(NAME) ":" INDENT statements+:INDENT_SEP;
+group_stmt -> name=(NAME) ":" \n+ level=INDENT statements+:INDENT_SEP;
 
-text_stmt -> doc_string=("|" /{[^\r\n]*}) | QSTRING | app_name=(APPLICATION_NAME) ("<-" "NAME")?| SHORTCUT;
+text_stmt -> doc_string=("|" [^\r\n]*) | QSTRING | app_name=(APPLICATION_NAME) ("<-" "NAME")?| SHORTCUT;
 
 // -------------- Common Rules --------------- //
 attribs     ->  "[" @:"," "]"
@@ -102,13 +102,13 @@ reference -> package_name=(NAME:"::") ("." NAME)+;
 
 annotation -> "@" var_name=(NAME) "=" value=(QSTRING | array_of_strings | multi_line_docstring);
 
-annotations -> INDENT annotation:INDENT_SEP;
+annotations -> \n+ level=INDENT annotation:INDENT_SEP;
 
 array_of_strings -> "[" QSTRING:"," "]";
 
-multi_line_docstring -> ":" INDENT ("|" TEXT)+:INDENT_SEP;
+multi_line_docstring -> ":" \n+ level=INDENT ("|" TEXT)+:INDENT_SEP;
 
-http_path_var_with_type -> "{" var=(NAME | DIGITS) "<:" type=(NativeDataTypes | NAME | reference) "}";
+http_path_var_with_type -> "{" var=(NAME | DIGITS) "<:" type=(NativeDataTypes | NAME | reference) "";
 
 http_path -> "/" ((http_path_static=(NAME | DIGITS) | http_path_var_with_type):"/")?;
 
@@ -117,22 +117,24 @@ NAME    -> [a-zA-Z_][-a-zA-Z0-9_]*;
 PATH    -> [a-zA-Z0-9.:]*:"/";
 DIGITS -> [1-9][0-9]*;
 TEXT -> [^(\r?\n)]+;
-TEXT_LINE -> \s* ( [^\s(] [^(\r\n]* [^\s(] ) \s*;
+TEXT_LINE -> /{\s* ( [^\s(] [^(\r\n]* [^\s(] ) \s*};
 APP_NAME -> NAME:".";
-PREDICATE -> /{[^\r\n:]+};
+PREDICATE -> [^\r\n:]+;
 SHORTCUT -> "...";
 HTTP_VERBS -> ("GET" | "POST" | "DELETE" | "PUT" | "PATCH");
 NativeDataTypes -> ("int32" | "int64" | "int" |
                 "float" | "string" | "date" |
                 "bool" | "decimal" | "datetime");
-EVERYTHING -> /{[^\n:]+};
+EVERYTHING -> [^\n:]+;
 APPLICATION_NAME    -> pkg=(NAME:"::" ".")? APP_NAME;
 
 COMMENT -> "#" [^\n]* "\n";
 EOL     -> COMMENT+ | [\_\t]*\n;
 QSTRING -> /{"[^"]*"};
 
-.wrapRE -> /{[\_]*()[\_]*};
+.wrapRE -> \n+ | \s+ | /{[\_]*()[\_]*};
 
-INDENT      -> %INDENT="\n" \s+;
-INDENT_SEP  -> %INDENT|\s+;
+INDENT      -> %level="" \s+;
+INDENT_SEP  -> \n+ %level;
+
+// indenting needs to be done like this \n+ level=INDENT indented:INDENT_SEP

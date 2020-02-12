@@ -192,11 +192,27 @@ func eatRegexp(input *Scanner, re *regexp.Regexp, output *TreeElement) bool {
 	return false
 }
 
-func applyWrapRE(re string, c cache) string {
+func applyWrapRE(re string, prepare func(string) string, c cache) string {
+	pre := prepare(re)
 	if wrap, has := c.grammar[WrapRE]; has {
-		return strings.Replace(string(wrap.(RE)), "()", "(?:"+re+")", 1)
+		if oneof, ok := wrap.(Oneof); ok {
+			for _, t := range oneof[:len(oneof)-1] {
+				switch t := t.(type) {
+				case S:
+					if string(t) == re {
+						return pre
+					}
+				case RE:
+					if string(t) == re {
+						return pre
+					}
+				}
+			}
+			wrap = oneof[len(oneof)-1]
+		}
+		return strings.Replace(string(wrap.(RE)), "()", "(?:"+pre+")", 1)
 	}
-	return re
+	return pre
 }
 
 type sParser struct {
@@ -215,7 +231,7 @@ func (p *sParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement) e
 }
 
 func (t S) Parser(rule Rule, c cache) Parser {
-	re := applyWrapRE("("+regexp.QuoteMeta(string(t))+")", c)
+	re := applyWrapRE(string(t), func(re string) string { return "(" + regexp.QuoteMeta(re) + ")" }, c)
 	return &sParser{
 		rule: rule,
 		t:    t,
@@ -239,10 +255,7 @@ func (p *reParser) Parse(_ frozen.Map, input *Scanner, output *TreeElement) erro
 }
 
 func (t RE) Parser(rule Rule, c cache) Parser {
-	re := applyWrapRE("("+string(t)+")", c)
-	if wrap, has := c.grammar[WrapRE]; has {
-		re = strings.Replace(string(wrap.(RE)), "()", "(?:"+re+")", 1)
-	}
+	re := applyWrapRE(string(t), func(re string) string { return "(" + re + ")" }, c)
 	return &reParser{
 		rule: rule,
 		t:    t,

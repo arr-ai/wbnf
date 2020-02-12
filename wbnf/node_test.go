@@ -68,6 +68,23 @@ func assertNodeParsesAsScenario(t *testing.T, s nodeParseScenario) bool { //noli
 	return reversalOK && expectedOK
 }
 
+func assertNodeFailsToParse(
+	t *testing.T,
+	grammar, rule, input string,
+) bool {
+	return assertNodeFailsToParseScenario(t, nodeParseScenario{``, grammar, rule, input, false})
+}
+
+func assertNodeFailsToParseScenario(t *testing.T, s nodeParseScenario) bool { //nolint:unparam
+	p, err := Compile(s.grammar)
+	require.NoError(t, err)
+
+	src := parser.NewScanner(strings.TrimRight(s.input, " "))
+
+	node, err := p.Parse(parser.Rule(s.rule), src)
+	return assert.Error(t, err, "%v", node)
+}
+
 func TestNodeOneRule(t *testing.T) {
 	t.Parallel()
 
@@ -187,6 +204,20 @@ func TestNodeBacktrack(t *testing.T) {
 	t.Parallel()
 
 	assertNodeParsesAs(t, ``, `p -> @ ("->" @)* > @:"-" > "i";`, "p", `i->i`, true)
+}
+
+func TestNodeControlledWrapRE(t *testing.T) {
+	t.Parallel()
+
+	assertNodeParsesAs(t, ``, `p -> "1" "2";`, "p", `12`, true)
+
+	assertNodeParsesAs(t, ``, `p -> "1" "2"; .wrapRE -> "1" | /{\s*()};`, "p", `12`, true)
+	assertNodeParsesAs(t, ``, `p -> "1" "2"; .wrapRE -> "1" | /{\s*()};`, "p", `1 2`, true)
+	assertNodeFailsToParse(t, `p -> "1" "2"; .wrapRE -> "1" | /{\s*()};`, "p", ` 12`)
+
+	assertNodeParsesAs(t, ``, `p -> "1" "2"; .wrapRE -> "2" | /{\s*()};`, "p", `12`, true)
+	assertNodeParsesAs(t, ``, `p -> "1" "2"; .wrapRE -> "2" | /{\s*()};`, "p", ` 12`, true)
+	assertNodeFailsToParse(t, `p -> "1" "2"; .wrapRE -> "2" | /{\s*()};`, "p", `1 2`)
 }
 
 func TestNodeCoreGrammarTrivial(t *testing.T) {

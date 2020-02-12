@@ -6,6 +6,7 @@ import (
 	"go/format"
 	"html/template"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/iancoleman/strcase"
@@ -18,7 +19,6 @@ import (
 )
 
 var pkgName string
-var rootRuleName string
 var genCommand = cli.Command{
 	Name:    "gen",
 	Aliases: []string{"g"},
@@ -40,11 +40,11 @@ var genCommand = cli.Command{
 			Destination: &pkgName,
 		},
 		cli.StringFlag{
-			Name:        "rootrule",
-			Usage:       "grammar rule to being parseing at",
+			Name:        "start",
+			Usage:       "grammar rule to being parsing at",
 			Required:    true,
 			TakesFile:   false,
-			Destination: &rootRuleName,
+			Destination: &startingRule,
 		},
 	},
 }
@@ -77,7 +77,7 @@ func Grammar() parser.Parsers {
 %s
 
 %s
-`, strings.Join(os.Args[1:], " "), pkgName, root.String(), makeContextTypes(tree), makeExternalApiFuncs(rootRuleName))
+`, strings.Join(os.Args[1:], " "), pkgName, root.String(), makeContextTypes(tree), makeExternalApiFuncs(startingRule))
 
 	out, err := format.Source([]byte(text))
 	if err != nil {
@@ -310,6 +310,15 @@ type tmplData struct {
 	RetType   string
 }
 
+func sortMapKeys(m map[string][]string) []string {
+	var keys []string
+	for rule := range m {
+		keys = append(keys, rule)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 func makeContextTypes(tree ast.Node) string {
 	out := bytes.Buffer{}
 	tmpl, err := template.New("funcs").Parse(typefunctemplate)
@@ -321,7 +330,8 @@ func makeContextTypes(tree ast.Node) string {
 		panic(err)
 	}
 	allIdents := wbnf.IdentMap(tree.(ast.Branch))
-	for rule, idents := range allIdents {
+	for _, rule := range sortMapKeys(allIdents) {
+		idents := allIdents[rule]
 		typename := strcase.ToCamel(strings.ToLower(rule) + "Node")
 		out.WriteString(fmt.Sprintf("type %s struct { ast.Node} \n", typename))
 		if len(idents) == 0 {

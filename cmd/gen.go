@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/iancoleman/strcase"
+
 	"github.com/arr-ai/wbnf/parser"
 
 	"github.com/arr-ai/wbnf/ast"
@@ -49,7 +51,7 @@ var genCommand = cli.Command{
 
 func gen(c *cli.Context) error {
 	g := loadTestGrammar()
-	tree := g.Node().(wbnf.GrammarContext).Node
+	tree := g.Node().(wbnf.GrammarNode).Node
 
 	root := goNode{name: "parser.Grammar", scope: squigglyScope}
 
@@ -268,12 +270,6 @@ func makeProd(tree ast.Node) *goNode {
 	return p
 }
 
-func goSafeName(name string) string {
-	name = strings.NewReplacer(".", "").Replace(name)
-
-	return strings.Title(name)
-}
-
 const typefunctemplate = `
 
 func (c {{.CtxName}}) All{{.ChildName}}() []{{.RetType}} {
@@ -290,6 +286,23 @@ func (c {{.CtxName}}) One{{.ChildName}}() {{.RetType}} {
 
 `
 
+const tokenGetterTemplate = `
+func (c {{.CtxName}}) All{{.ChildName}}() []string {
+	var out []string
+	for _, child := range ast.All(c.Node, "{{.Child}}") {
+		out = append(out, child.Scanner().String())
+	}
+	return out
+}
+
+func (c {{.CtxName}}) One{{.ChildName}}() string {
+	if child := ast.First(c.Node, "{{.Child}}"); child != nil {
+		return child.Scanner().String()
+	}
+	return ""
+}
+`
+
 type tmplData struct {
 	CtxName   string
 	Child     string
@@ -303,9 +316,13 @@ func makeContextTypes(tree ast.Node) string {
 	if err != nil {
 		panic(err)
 	}
+	tokentmpl, err := template.New("funcs").Parse(tokenGetterTemplate)
+	if err != nil {
+		panic(err)
+	}
 	allIdents := wbnf.IdentMap(tree.(ast.Branch))
 	for rule, idents := range allIdents {
-		typename := goSafeName(rule) + "Context"
+		typename := strcase.ToCamel(strings.ToLower(rule) + "Node")
 		out.WriteString(fmt.Sprintf("type %s struct { ast.Node} \n", typename))
 		if len(idents) == 0 {
 			out.WriteString(fmt.Sprintf(`
@@ -329,15 +346,19 @@ func (c %s) Choice() int {
 			data := tmplData{
 				CtxName:   typename,
 				Child:     id,
-				ChildName: goSafeName(id),
-				RetType:   goSafeName(id) + "Context",
+				ChildName: strcase.ToCamel(strings.ToLower(id)),
+				RetType:   strcase.ToCamel(strings.ToLower(id)) + "Node",
 			}
 
 			if strings.Contains(id, "@") {
 				parts := strings.Split(id, "@")
 				data.Child = parts[0]
-				data.ChildName = goSafeName(parts[0])
-				data.RetType = goSafeName(parts[1]) + "Context"
+				data.ChildName = strcase.ToCamel(parts[0])
+				if len(parts) == 1 || parts[1] == "" {
+					tokentmpl.Execute(&out, data)
+					continue
+				}
+				data.RetType = strcase.ToCamel(strings.ToLower(parts[1])) + "Node"
 			}
 			tmpl.Execute(&out, data)
 		}
@@ -364,6 +385,6 @@ func Parse(input *parser.Scanner) ({{.CtxName}}, error) {
 func ParseString(input string) ({{.CtxName}}, error) {
 	return Parse(parser.NewScanner(input))
 }`
-	return strings.NewReplacer("{{.CtxName}}", goSafeName(startRule)+"Context",
+	return strings.NewReplacer("{{.CtxName}}", strcase.ToCamel(startRule)+"Node",
 		"{{startrule}}", startRule).Replace(tmpl)
 }

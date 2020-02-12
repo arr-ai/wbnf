@@ -90,13 +90,13 @@ func parseString(s string) string {
 var whitespaceRE = regexp.MustCompile(`\s`)
 var escapedSpaceRE = regexp.MustCompile(`((?:\A|[^\\])(?:\\\\)*)\\_`)
 
-func buildAtom(atom AtomContext) parser.Term {
+func buildAtom(atom AtomNode) parser.Term {
 	x, _ := ast.Which(atom.Node.(ast.Branch), "RE", "STR", "IDENT", "REF", "term")
 	name := ""
 	switch x {
 	case "term", "":
 	case "REF":
-		name = atom.OneIDENT().String()
+		name = atom.OneIdent().String()
 	default:
 		name = atom.One(x).Scanner().String()
 	}
@@ -119,7 +119,7 @@ func buildAtom(atom AtomContext) parser.Term {
 			Ident:   name,
 			Default: nil,
 		}
-		defTerm := atom.OneREF().OneDefault().String()
+		defTerm := atom.OneRef().OneDefault().String()
 		if defTerm != "" {
 			ref.Default = parser.S(parseString(defTerm))
 		}
@@ -130,10 +130,10 @@ func buildAtom(atom AtomContext) parser.Term {
 	panic("bad input")
 }
 
-func buildQuant(q QuantContext, term parser.Term) parser.Term {
+func buildQuant(q QuantNode, term parser.Term) parser.Term {
 	switch q.Choice() {
 	case 0:
-		switch q.OneOp().String() {
+		switch q.OneOp() {
 		case "*":
 			return parser.Any(term)
 		case "?":
@@ -160,13 +160,13 @@ func buildQuant(q QuantContext, term parser.Term) parser.Term {
 		}
 		return parser.Quant{Term: term, Min: min, Max: max}
 	case 2:
-		assoc := parser.NewAssociativity(q.OneOp().String())
+		assoc := parser.NewAssociativity(q.OneOp())
 		sep := buildNamed(q.OneNamed())
 		delim := parser.Delim{Term: term, Sep: sep, Assoc: assoc}
-		if q.OneOpt_leading().String() != "" {
+		if q.OneOptLeading() != "" {
 			delim.CanStartWithSep = true
 		}
-		if q.OneOpt_trailing().String() != "" {
+		if q.OneOptTrailing() != "" {
 			delim.CanEndWithSep = true
 		}
 		return delim
@@ -174,22 +174,22 @@ func buildQuant(q QuantContext, term parser.Term) parser.Term {
 	panic("bad input")
 }
 
-func buildNamed(n NamedContext) parser.Term {
+func buildNamed(n NamedNode) parser.Term {
 	atom := buildAtom(n.OneAtom())
-	ident := n.OneIDENT().String()
+	ident := n.OneIdent().String()
 	if ident != "" {
 		return parser.Eq(ident, atom)
 	}
 	return atom
 }
 
-func buildTerm(t TermContext) parser.Term {
+func buildTerm(t TermNode) parser.Term {
 	if len(t.AllTerm()) > 0 {
 		var terms []parser.Term
 		for _, t := range t.AllTerm() {
 			terms = append(terms, buildTerm(t))
 		}
-		switch t.OneOp().String() {
+		switch t.OneOp() {
 		case "|":
 			return append(parser.Oneof{}, terms...)
 		case ">":
@@ -210,7 +210,7 @@ func buildTerm(t TermContext) parser.Term {
 	return next
 }
 
-func buildProd(p ProdContext) parser.Term {
+func buildProd(p ProdNode) parser.Term {
 	children := p.AllTerm()
 	if len(children) == 1 {
 		return buildTerm(children[0])
@@ -224,10 +224,10 @@ func buildProd(p ProdContext) parser.Term {
 
 func buildGrammar(node ast.Node) parser.Grammar {
 	g := parser.Grammar{}
-	tree := NewGrammarContext(node)
+	tree := NewGrammarNode(node)
 	for _, stmt := range tree.AllStmt() {
 		for _, prod := range stmt.AllProd() {
-			g[parser.Rule(prod.OneIDENT().String())] = buildProd(prod)
+			g[parser.Rule(prod.OneIdent().String())] = buildProd(prod)
 		}
 	}
 	return g

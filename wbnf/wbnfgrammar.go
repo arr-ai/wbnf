@@ -68,402 +68,417 @@ func Grammar() parser.Parsers {
 		".wrapRE": parser.RE(`\s*()\s*`)}.Compile(nil)
 }
 
-type NamedContext struct{ ast.Node }
+type IntNode struct{ ast.Node }
 
-func (c NamedContext) AllIDENT() []IDENTContext {
-	var out []IDENTContext
-	for _, child := range ast.All(c.Node, "IDENT") {
-		out = append(out, IDENTContext{child})
-	}
-	return out
-}
-
-func (c NamedContext) OneIDENT() IDENTContext {
-	return IDENTContext{ast.First(c.Node, "IDENT")}
-}
-
-func (c NamedContext) AllAtom() []AtomContext {
-	var out []AtomContext
-	for _, child := range ast.All(c.Node, "atom") {
-		out = append(out, AtomContext{child})
-	}
-	return out
-}
-
-func (c NamedContext) OneAtom() AtomContext {
-	return AtomContext{ast.First(c.Node, "atom")}
-}
-
-func (c NamedContext) AllOp() []STRContext {
-	var out []STRContext
-	for _, child := range ast.All(c.Node, "op") {
-		out = append(out, STRContext{child})
-	}
-	return out
-}
-
-func (c NamedContext) OneOp() STRContext {
-	return STRContext{ast.First(c.Node, "op")}
-}
-
-type INTContext struct{ ast.Node }
-
-func (c INTContext) String() string {
+func (c IntNode) String() string {
 	if c.Node == nil {
 		return ""
 	}
 	return c.Node.Scanner().String()
 }
 
-type REFContext struct{ ast.Node }
+type GrammarNode struct{ ast.Node }
 
-func (c REFContext) AllIDENT() []IDENTContext {
-	var out []IDENTContext
-	for _, child := range ast.All(c.Node, "IDENT") {
-		out = append(out, IDENTContext{child})
-	}
-	return out
-}
-
-func (c REFContext) OneIDENT() IDENTContext {
-	return IDENTContext{ast.First(c.Node, "IDENT")}
-}
-
-func (c REFContext) AllDefault() []IDENTContext {
-	var out []IDENTContext
-	for _, child := range ast.All(c.Node, "default") {
-		out = append(out, IDENTContext{child})
-	}
-	return out
-}
-
-func (c REFContext) OneDefault() IDENTContext {
-	return IDENTContext{ast.First(c.Node, "default")}
-}
-
-type WrapREContext struct{ ast.Node }
-
-func (c WrapREContext) String() string {
-	if c.Node == nil {
-		return ""
-	}
-	return c.Node.Scanner().String()
-}
-
-type StmtContext struct{ ast.Node }
-
-func (c StmtContext) Choice() int {
-	return ast.Choice(c.Node)
-}
-
-func (c StmtContext) AllCOMMENT() []COMMENTContext {
-	var out []COMMENTContext
-	for _, child := range ast.All(c.Node, "COMMENT") {
-		out = append(out, COMMENTContext{child})
-	}
-	return out
-}
-
-func (c StmtContext) OneCOMMENT() COMMENTContext {
-	return COMMENTContext{ast.First(c.Node, "COMMENT")}
-}
-
-func (c StmtContext) AllProd() []ProdContext {
-	var out []ProdContext
-	for _, child := range ast.All(c.Node, "prod") {
-		out = append(out, ProdContext{child})
-	}
-	return out
-}
-
-func (c StmtContext) OneProd() ProdContext {
-	return ProdContext{ast.First(c.Node, "prod")}
-}
-
-type ProdContext struct{ ast.Node }
-
-func (c ProdContext) AllIDENT() []IDENTContext {
-	var out []IDENTContext
-	for _, child := range ast.All(c.Node, "IDENT") {
-		out = append(out, IDENTContext{child})
-	}
-	return out
-}
-
-func (c ProdContext) OneIDENT() IDENTContext {
-	return IDENTContext{ast.First(c.Node, "IDENT")}
-}
-
-func (c ProdContext) AllTerm() []TermContext {
-	var out []TermContext
-	for _, child := range ast.All(c.Node, "term") {
-		out = append(out, TermContext{child})
-	}
-	return out
-}
-
-func (c ProdContext) OneTerm() TermContext {
-	return TermContext{ast.First(c.Node, "term")}
-}
-
-type TermContext struct{ ast.Node }
-
-func (c TermContext) AllTerm() []TermContext {
-	var out []TermContext
-	for _, child := range ast.All(c.Node, "term") {
-		out = append(out, TermContext{child})
-	}
-	return out
-}
-
-func (c TermContext) OneTerm() TermContext {
-	return TermContext{ast.First(c.Node, "term")}
-}
-
-func (c TermContext) AllNamed() []NamedContext {
-	var out []NamedContext
-	for _, child := range ast.All(c.Node, "named") {
-		out = append(out, NamedContext{child})
-	}
-	return out
-}
-
-func (c TermContext) OneNamed() NamedContext {
-	return NamedContext{ast.First(c.Node, "named")}
-}
-
-func (c TermContext) AllOp() []STRContext {
-	var out []STRContext
-	for _, child := range ast.All(c.Node, "op") {
-		out = append(out, STRContext{child})
-	}
-	return out
-}
-
-func (c TermContext) OneOp() STRContext {
-	return STRContext{ast.First(c.Node, "op")}
-}
-
-func (c TermContext) AllQuant() []QuantContext {
-	var out []QuantContext
-	for _, child := range ast.All(c.Node, "quant") {
-		out = append(out, QuantContext{child})
-	}
-	return out
-}
-
-func (c TermContext) OneQuant() QuantContext {
-	return QuantContext{ast.First(c.Node, "quant")}
-}
-
-type COMMENTContext struct{ ast.Node }
-
-func (c COMMENTContext) String() string {
-	if c.Node == nil {
-		return ""
-	}
-	return c.Node.Scanner().String()
-}
-
-type GrammarContext struct{ ast.Node }
-
-func (c GrammarContext) AllStmt() []StmtContext {
-	var out []StmtContext
+func (c GrammarNode) AllStmt() []StmtNode {
+	var out []StmtNode
 	for _, child := range ast.All(c.Node, "stmt") {
-		out = append(out, StmtContext{child})
+		out = append(out, StmtNode{child})
 	}
 	return out
 }
 
-func (c GrammarContext) OneStmt() StmtContext {
-	return StmtContext{ast.First(c.Node, "stmt")}
+func (c GrammarNode) OneStmt() StmtNode {
+	return StmtNode{ast.First(c.Node, "stmt")}
 }
 
-type QuantContext struct{ ast.Node }
+type QuantNode struct{ ast.Node }
 
-func (c QuantContext) Choice() int {
+func (c QuantNode) Choice() int {
 	return ast.Choice(c.Node)
 }
 
-func (c QuantContext) AllMax() []IDENTContext {
-	var out []IDENTContext
+func (c QuantNode) AllMax() []IntNode {
+	var out []IntNode
 	for _, child := range ast.All(c.Node, "max") {
-		out = append(out, IDENTContext{child})
+		out = append(out, IntNode{child})
 	}
 	return out
 }
 
-func (c QuantContext) OneMax() IDENTContext {
-	return IDENTContext{ast.First(c.Node, "max")}
+func (c QuantNode) OneMax() IntNode {
+	return IntNode{ast.First(c.Node, "max")}
 }
 
-func (c QuantContext) AllMin() []IDENTContext {
-	var out []IDENTContext
+func (c QuantNode) AllMin() []IntNode {
+	var out []IntNode
 	for _, child := range ast.All(c.Node, "min") {
-		out = append(out, IDENTContext{child})
+		out = append(out, IntNode{child})
 	}
 	return out
 }
 
-func (c QuantContext) OneMin() IDENTContext {
-	return IDENTContext{ast.First(c.Node, "min")}
+func (c QuantNode) OneMin() IntNode {
+	return IntNode{ast.First(c.Node, "min")}
 }
 
-func (c QuantContext) AllNamed() []NamedContext {
-	var out []NamedContext
+func (c QuantNode) AllNamed() []NamedNode {
+	var out []NamedNode
 	for _, child := range ast.All(c.Node, "named") {
-		out = append(out, NamedContext{child})
+		out = append(out, NamedNode{child})
 	}
 	return out
 }
 
-func (c QuantContext) OneNamed() NamedContext {
-	return NamedContext{ast.First(c.Node, "named")}
+func (c QuantNode) OneNamed() NamedNode {
+	return NamedNode{ast.First(c.Node, "named")}
 }
 
-func (c QuantContext) AllOp() []REContext {
-	var out []REContext
+func (c QuantNode) AllOp() []string {
+	var out []string
 	for _, child := range ast.All(c.Node, "op") {
-		out = append(out, REContext{child})
+		out = append(out, child.Scanner().String())
 	}
 	return out
 }
 
-func (c QuantContext) OneOp() REContext {
-	return REContext{ast.First(c.Node, "op")}
+func (c QuantNode) OneOp() string {
+	if child := ast.First(c.Node, "op"); child != nil {
+		return child.Scanner().String()
+	}
+	return ""
 }
 
-func (c QuantContext) AllOpt_leading() []STRContext {
-	var out []STRContext
+func (c QuantNode) AllOptLeading() []string {
+	var out []string
 	for _, child := range ast.All(c.Node, "opt_leading") {
-		out = append(out, STRContext{child})
+		out = append(out, child.Scanner().String())
 	}
 	return out
 }
 
-func (c QuantContext) OneOpt_leading() STRContext {
-	return STRContext{ast.First(c.Node, "opt_leading")}
+func (c QuantNode) OneOptLeading() string {
+	if child := ast.First(c.Node, "opt_leading"); child != nil {
+		return child.Scanner().String()
+	}
+	return ""
 }
 
-func (c QuantContext) AllOpt_trailing() []STRContext {
-	var out []STRContext
+func (c QuantNode) AllOptTrailing() []string {
+	var out []string
 	for _, child := range ast.All(c.Node, "opt_trailing") {
-		out = append(out, STRContext{child})
+		out = append(out, child.Scanner().String())
 	}
 	return out
 }
 
-func (c QuantContext) OneOpt_trailing() STRContext {
-	return STRContext{ast.First(c.Node, "opt_trailing")}
+func (c QuantNode) OneOptTrailing() string {
+	if child := ast.First(c.Node, "opt_trailing"); child != nil {
+		return child.Scanner().String()
+	}
+	return ""
 }
 
-type REContext struct{ ast.Node }
+type CommentNode struct{ ast.Node }
 
-func (c REContext) String() string {
+func (c CommentNode) String() string {
 	if c.Node == nil {
 		return ""
 	}
 	return c.Node.Scanner().String()
 }
 
-type AtomContext struct{ ast.Node }
+type IdentNode struct{ ast.Node }
 
-func (c AtomContext) Choice() int {
+func (c IdentNode) String() string {
+	if c.Node == nil {
+		return ""
+	}
+	return c.Node.Scanner().String()
+}
+
+type WrapreNode struct{ ast.Node }
+
+func (c WrapreNode) String() string {
+	if c.Node == nil {
+		return ""
+	}
+	return c.Node.Scanner().String()
+}
+
+type StmtNode struct{ ast.Node }
+
+func (c StmtNode) Choice() int {
 	return ast.Choice(c.Node)
 }
 
-func (c AtomContext) AllIDENT() []IDENTContext {
-	var out []IDENTContext
+func (c StmtNode) AllComment() []CommentNode {
+	var out []CommentNode
+	for _, child := range ast.All(c.Node, "COMMENT") {
+		out = append(out, CommentNode{child})
+	}
+	return out
+}
+
+func (c StmtNode) OneComment() CommentNode {
+	return CommentNode{ast.First(c.Node, "COMMENT")}
+}
+
+func (c StmtNode) AllProd() []ProdNode {
+	var out []ProdNode
+	for _, child := range ast.All(c.Node, "prod") {
+		out = append(out, ProdNode{child})
+	}
+	return out
+}
+
+func (c StmtNode) OneProd() ProdNode {
+	return ProdNode{ast.First(c.Node, "prod")}
+}
+
+type ProdNode struct{ ast.Node }
+
+func (c ProdNode) AllIdent() []IdentNode {
+	var out []IdentNode
 	for _, child := range ast.All(c.Node, "IDENT") {
-		out = append(out, IDENTContext{child})
+		out = append(out, IdentNode{child})
 	}
 	return out
 }
 
-func (c AtomContext) OneIDENT() IDENTContext {
-	return IDENTContext{ast.First(c.Node, "IDENT")}
+func (c ProdNode) OneIdent() IdentNode {
+	return IdentNode{ast.First(c.Node, "IDENT")}
 }
 
-func (c AtomContext) AllRE() []REContext {
-	var out []REContext
-	for _, child := range ast.All(c.Node, "RE") {
-		out = append(out, REContext{child})
-	}
-	return out
-}
-
-func (c AtomContext) OneRE() REContext {
-	return REContext{ast.First(c.Node, "RE")}
-}
-
-func (c AtomContext) AllREF() []REFContext {
-	var out []REFContext
-	for _, child := range ast.All(c.Node, "REF") {
-		out = append(out, REFContext{child})
-	}
-	return out
-}
-
-func (c AtomContext) OneREF() REFContext {
-	return REFContext{ast.First(c.Node, "REF")}
-}
-
-func (c AtomContext) AllSTR() []STRContext {
-	var out []STRContext
-	for _, child := range ast.All(c.Node, "STR") {
-		out = append(out, STRContext{child})
-	}
-	return out
-}
-
-func (c AtomContext) OneSTR() STRContext {
-	return STRContext{ast.First(c.Node, "STR")}
-}
-
-func (c AtomContext) AllTerm() []TermContext {
-	var out []TermContext
+func (c ProdNode) AllTerm() []TermNode {
+	var out []TermNode
 	for _, child := range ast.All(c.Node, "term") {
-		out = append(out, TermContext{child})
+		out = append(out, TermNode{child})
 	}
 	return out
 }
 
-func (c AtomContext) OneTerm() TermContext {
-	return TermContext{ast.First(c.Node, "term")}
+func (c ProdNode) OneTerm() TermNode {
+	return TermNode{ast.First(c.Node, "term")}
 }
 
-type IDENTContext struct{ ast.Node }
+type NamedNode struct{ ast.Node }
 
-func (c IDENTContext) String() string {
+func (c NamedNode) AllIdent() []IdentNode {
+	var out []IdentNode
+	for _, child := range ast.All(c.Node, "IDENT") {
+		out = append(out, IdentNode{child})
+	}
+	return out
+}
+
+func (c NamedNode) OneIdent() IdentNode {
+	return IdentNode{ast.First(c.Node, "IDENT")}
+}
+
+func (c NamedNode) AllAtom() []AtomNode {
+	var out []AtomNode
+	for _, child := range ast.All(c.Node, "atom") {
+		out = append(out, AtomNode{child})
+	}
+	return out
+}
+
+func (c NamedNode) OneAtom() AtomNode {
+	return AtomNode{ast.First(c.Node, "atom")}
+}
+
+func (c NamedNode) AllOp() []string {
+	var out []string
+	for _, child := range ast.All(c.Node, "op") {
+		out = append(out, child.Scanner().String())
+	}
+	return out
+}
+
+func (c NamedNode) OneOp() string {
+	if child := ast.First(c.Node, "op"); child != nil {
+		return child.Scanner().String()
+	}
+	return ""
+}
+
+type ReNode struct{ ast.Node }
+
+func (c ReNode) String() string {
 	if c.Node == nil {
 		return ""
 	}
 	return c.Node.Scanner().String()
 }
 
-type STRContext struct{ ast.Node }
+type RefNode struct{ ast.Node }
 
-func (c STRContext) String() string {
+func (c RefNode) AllIdent() []IdentNode {
+	var out []IdentNode
+	for _, child := range ast.All(c.Node, "IDENT") {
+		out = append(out, IdentNode{child})
+	}
+	return out
+}
+
+func (c RefNode) OneIdent() IdentNode {
+	return IdentNode{ast.First(c.Node, "IDENT")}
+}
+
+func (c RefNode) AllDefault() []StrNode {
+	var out []StrNode
+	for _, child := range ast.All(c.Node, "default") {
+		out = append(out, StrNode{child})
+	}
+	return out
+}
+
+func (c RefNode) OneDefault() StrNode {
+	return StrNode{ast.First(c.Node, "default")}
+}
+
+type TermNode struct{ ast.Node }
+
+func (c TermNode) AllTerm() []TermNode {
+	var out []TermNode
+	for _, child := range ast.All(c.Node, "term") {
+		out = append(out, TermNode{child})
+	}
+	return out
+}
+
+func (c TermNode) OneTerm() TermNode {
+	return TermNode{ast.First(c.Node, "term")}
+}
+
+func (c TermNode) AllNamed() []NamedNode {
+	var out []NamedNode
+	for _, child := range ast.All(c.Node, "named") {
+		out = append(out, NamedNode{child})
+	}
+	return out
+}
+
+func (c TermNode) OneNamed() NamedNode {
+	return NamedNode{ast.First(c.Node, "named")}
+}
+
+func (c TermNode) AllOp() []string {
+	var out []string
+	for _, child := range ast.All(c.Node, "op") {
+		out = append(out, child.Scanner().String())
+	}
+	return out
+}
+
+func (c TermNode) OneOp() string {
+	if child := ast.First(c.Node, "op"); child != nil {
+		return child.Scanner().String()
+	}
+	return ""
+}
+
+func (c TermNode) AllQuant() []QuantNode {
+	var out []QuantNode
+	for _, child := range ast.All(c.Node, "quant") {
+		out = append(out, QuantNode{child})
+	}
+	return out
+}
+
+func (c TermNode) OneQuant() QuantNode {
+	return QuantNode{ast.First(c.Node, "quant")}
+}
+
+type AtomNode struct{ ast.Node }
+
+func (c AtomNode) Choice() int {
+	return ast.Choice(c.Node)
+}
+
+func (c AtomNode) AllIdent() []IdentNode {
+	var out []IdentNode
+	for _, child := range ast.All(c.Node, "IDENT") {
+		out = append(out, IdentNode{child})
+	}
+	return out
+}
+
+func (c AtomNode) OneIdent() IdentNode {
+	return IdentNode{ast.First(c.Node, "IDENT")}
+}
+
+func (c AtomNode) AllRe() []ReNode {
+	var out []ReNode
+	for _, child := range ast.All(c.Node, "RE") {
+		out = append(out, ReNode{child})
+	}
+	return out
+}
+
+func (c AtomNode) OneRe() ReNode {
+	return ReNode{ast.First(c.Node, "RE")}
+}
+
+func (c AtomNode) AllRef() []RefNode {
+	var out []RefNode
+	for _, child := range ast.All(c.Node, "REF") {
+		out = append(out, RefNode{child})
+	}
+	return out
+}
+
+func (c AtomNode) OneRef() RefNode {
+	return RefNode{ast.First(c.Node, "REF")}
+}
+
+func (c AtomNode) AllStr() []StrNode {
+	var out []StrNode
+	for _, child := range ast.All(c.Node, "STR") {
+		out = append(out, StrNode{child})
+	}
+	return out
+}
+
+func (c AtomNode) OneStr() StrNode {
+	return StrNode{ast.First(c.Node, "STR")}
+}
+
+func (c AtomNode) AllTerm() []TermNode {
+	var out []TermNode
+	for _, child := range ast.All(c.Node, "term") {
+		out = append(out, TermNode{child})
+	}
+	return out
+}
+
+func (c AtomNode) OneTerm() TermNode {
+	return TermNode{ast.First(c.Node, "term")}
+}
+
+type StrNode struct{ ast.Node }
+
+func (c StrNode) String() string {
 	if c.Node == nil {
 		return ""
 	}
 	return c.Node.Scanner().String()
 }
 
-func (c GrammarContext) GetAstNode() ast.Node { return c.Node }
+func (c GrammarNode) GetAstNode() ast.Node { return c.Node }
 
-func NewGrammarContext(from ast.Node) GrammarContext { return GrammarContext{from} }
+func NewGrammarNode(from ast.Node) GrammarNode { return GrammarNode{from} }
 
-func Parse(input *parser.Scanner) (GrammarContext, error) {
+func Parse(input *parser.Scanner) (GrammarNode, error) {
 	p := Grammar()
 	tree, err := p.Parse("grammar", input)
 	if err != nil {
-		return GrammarContext{nil}, err
+		return GrammarNode{nil}, err
 	}
-	return GrammarContext{ast.FromParserNode(p.Grammar(), tree)}, nil
+	return GrammarNode{ast.FromParserNode(p.Grammar(), tree)}, nil
 }
 
-func ParseString(input string) (GrammarContext, error) {
+func ParseString(input string) (GrammarNode, error) {
 	return Parse(parser.NewScanner(input))
 }
 

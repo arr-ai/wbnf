@@ -49,9 +49,7 @@ var genCommand = cli.Command{
 
 func gen(c *cli.Context) error {
 	g := loadTestGrammar()
-
-	core := wbnf.Core()
-	tree := ast.FromParserNode(core.Grammar(), *g.Node())
+	tree := g.Node().(wbnf.GrammarContext).Node
 
 	root := goNode{name: "parser.Grammar", scope: squigglyScope}
 
@@ -70,8 +68,8 @@ import (
 	"github.com/arr-ai/wbnf/parser"
 )
 
-func Grammar() parser.Grammar {
-	return %s
+func Grammar() parser.Parsers {
+	return %s.Compile(nil)
 }
 
 %s
@@ -355,16 +353,17 @@ func (c {{.CtxName}}) GetAstNode() ast.Node { return c.Node }
 func New{{.CtxName}}(from ast.Node) {{.CtxName}} { return {{.CtxName}}{ from } }
 
 func Parse(input *parser.Scanner) ({{.CtxName}}, error) {
-	p := Grammar().Compile(nil)
-	tree, err := p.Parse("%s", input)
+	p := Grammar()
+	tree, err := p.Parse("{{startrule}}", input)
 	if err != nil {
 		return {{.CtxName}}{nil}, err
 	}
-    return {{.CtxName}}{ast.FromParserNode(p.Grammar(), tree)}, nil
+	return {{.CtxName}}{ast.FromParserNode(p.Grammar(), tree)}, nil
 }
 
 func ParseString(input string) ({{.CtxName}}, error) {
 	return Parse(parser.NewScanner(input))
 }`
-	return strings.ReplaceAll(tmpl, "{{.CtxName}}", goSafeName(startRule)+"Context")
+	return strings.NewReplacer("{{.CtxName}}", goSafeName(startRule)+"Context",
+		"{{startrule}}", startRule).Replace(tmpl)
 }

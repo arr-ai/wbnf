@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"go/format"
+	"html/template"
 	"os"
 	"strings"
 
@@ -51,10 +53,7 @@ func gen(c *cli.Context) error {
 	core := wbnf.Core()
 	tree := ast.FromParserNode(core.Grammar(), *g.Node())
 
-	idents := wbnf.IdentMap(tree)
-	fmt.Print(idents)
-
-	root := goNode{name: "parser.Grammar", scope: squiglyScope}
+	root := goNode{name: "parser.Grammar", scope: squigglyScope}
 
 	for _, stmt := range tree.Many("stmt") {
 		if p := stmt.One("prod"); p != nil {
@@ -75,20 +74,10 @@ func Grammar() parser.Grammar {
 	return %s
 }
 
-func Parse(input *parser.Scanner) (ast.Node, error) {
-	p := Grammar().Compile(nil)
-	tree, err := p.Parse("%s", input)
-	if err != nil {
-		return nil, err
-	}
-    return ast.FromParserNode(p.Grammar(), tree), nil
-}
+%s
 
-func ParseString(input string) (ast.Node, error) {
-	return Parse(parser.NewScanner(input))
-}
-
-`, strings.Join(os.Args[1:], " "), pkgName, root.String(), rootRuleName)
+%s
+`, strings.Join(os.Args[1:], " "), pkgName, root.String(), makeContextTypes(tree), makeExternalApiFuncs(rootRuleName))
 
 	out, err := format.Source([]byte(text))
 	if err != nil {
@@ -104,7 +93,7 @@ func ParseString(input string) (ast.Node, error) {
 const (
 	noScope int = iota
 	bracesScope
-	squiglyScope
+	squigglyScope
 	mapScope
 )
 
@@ -119,10 +108,10 @@ func (g *goNode) String() string {
 		open  string
 		close string
 	}{
-		noScope:      {"", ""},
-		mapScope:     {":", ""},
-		bracesScope:  {"(", ")"},
-		squiglyScope: {"{", "}"},
+		noScope:       {"", ""},
+		mapScope:      {":", ""},
+		bracesScope:   {"(", ")"},
+		squigglyScope: {"{", "}"},
 	}[g.scope]
 	var children []string
 	for _, c := range g.children {
@@ -202,9 +191,9 @@ func makeQuant(node ast.Node, term goNode) *goNode {
 			max = x.Scanner().String()
 		}
 		term.name = "Term: " + term.name
-		return &goNode{name: "parser.Quant", scope: squiglyScope, children: []goNode{term, {name: "Min:" + min}, {name: "Max:" + max}}}
+		return &goNode{name: "parser.Quant", scope: squigglyScope, children: []goNode{term, {name: "Min:" + min}, {name: "Max:" + max}}}
 	case 2:
-		delim := &goNode{name: "parser.Delim", scope: squiglyScope}
+		delim := &goNode{name: "parser.Delim", scope: squigglyScope}
 		var assoc string
 		switch node.One("op").Scanner().String() {
 		case "<:":
@@ -238,12 +227,12 @@ func makeTerm(node ast.Node) *goNode {
 		if ops := term.Many("op"); len(ops) > 0 {
 			switch ops[0].Scanner().String() {
 			case "|":
-				next = &goNode{name: "parser.Oneof", scope: squiglyScope}
+				next = &goNode{name: "parser.Oneof", scope: squigglyScope}
 			case ">":
-				next = &goNode{name: "parser.Stack", scope: squiglyScope}
+				next = &goNode{name: "parser.Stack", scope: squigglyScope}
 			}
 		} else {
-			next = &goNode{name: "parser.Seq", scope: squiglyScope}
+			next = &goNode{name: "parser.Seq", scope: squigglyScope}
 		}
 		for _, t := range term.Many("term") {
 			next.Add(*makeTerm(t))
@@ -279,4 +268,103 @@ func makeProd(tree ast.Node) *goNode {
 		p.Add(*makeTerm(t))
 	}
 	return p
+}
+
+func goSafeName(name string) string {
+	name = strings.NewReplacer(".", "").Replace(name)
+
+	return strings.Title(name)
+}
+
+const typefunctemplate = `
+
+func (c {{.CtxName}}) All{{.ChildName}}() []{{.RetType}} {
+	var out []{{.RetType}}
+	for _, child := range ast.All(c.Node, "{{.Child}}") {
+		out = append(out, {{.RetType}}{child})
+	}
+	return out
+}
+
+func (c {{.CtxName}}) One{{.ChildName}}() {{.RetType}} {
+	return {{.RetType}}{ast.First(c.Node, "{{.Child}}")}
+}
+
+`
+
+type tmplData struct {
+	CtxName   string
+	Child     string
+	ChildName string
+	RetType   string
+}
+
+func makeContextTypes(tree ast.Node) string {
+	out := bytes.Buffer{}
+	tmpl, err := template.New("funcs").Parse(typefunctemplate)
+	if err != nil {
+		panic(err)
+	}
+	allIdents := wbnf.IdentMap(tree.(ast.Branch))
+	for rule, idents := range allIdents {
+		typename := goSafeName(rule) + "Context"
+		out.WriteString(fmt.Sprintf("type %s struct { ast.Node} \n", typename))
+		if len(idents) == 0 {
+			out.WriteString(fmt.Sprintf(`
+func (c %s) String() string {
+	if c.Node == nil { return "" }
+	return c.Node.Scanner().String()
+}
+`, typename))
+		}
+		for _, id := range idents {
+			if id == "@" {
+				id = rule
+			} else if id == ast.ChoiceTag {
+				out.WriteString(fmt.Sprintf(`
+func (c %s) Choice() int {
+	return ast.Choice(c.Node)
+}
+`, typename))
+				continue
+			}
+			data := tmplData{
+				CtxName:   typename,
+				Child:     id,
+				ChildName: goSafeName(id),
+				RetType:   goSafeName(id) + "Context",
+			}
+
+			if strings.Contains(id, "@") {
+				parts := strings.Split(id, "@")
+				data.Child = parts[0]
+				data.ChildName = goSafeName(parts[0])
+				data.RetType = goSafeName(parts[1]) + "Context"
+			}
+			tmpl.Execute(&out, data)
+		}
+	}
+
+	return out.String()
+}
+
+func makeExternalApiFuncs(startRule string) string {
+	tmpl := `
+func (c {{.CtxName}}) GetAstNode() ast.Node { return c.Node }
+
+func New{{.CtxName}}(from ast.Node) {{.CtxName}} { return {{.CtxName}}{ from } }
+
+func Parse(input *parser.Scanner) ({{.CtxName}}, error) {
+	p := Grammar().Compile(nil)
+	tree, err := p.Parse("%s", input)
+	if err != nil {
+		return {{.CtxName}}{nil}, err
+	}
+    return {{.CtxName}}{ast.FromParserNode(p.Grammar(), tree)}, nil
+}
+
+func ParseString(input string) ({{.CtxName}}, error) {
+	return Parse(parser.NewScanner(input))
+}`
+	return strings.ReplaceAll(tmpl, "{{.CtxName}}", goSafeName(startRule)+"Context")
 }

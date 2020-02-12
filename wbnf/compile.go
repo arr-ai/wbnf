@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/arr-ai/wbnf/ast"
+
 	"github.com/arr-ai/wbnf/errors"
 	"github.com/arr-ai/wbnf/parser"
 )
@@ -261,17 +263,55 @@ func NewFromNode(node parser.Node) parser.Grammar {
 	return g
 }
 
+func buildTerm(t TermContext) parser.Term {
+	op := t.OneOp().String()
+	switch  {
+	case op == "|":
+
+	case op == ">":
+
+	case t.OneNamed().Node != nil:
+
+	default
+		// no op, must be a named + quant:
+	}
+}
+
+func buildProd(p ProdContext) parser.Term {
+	children := p.AllTerm()
+	if len(children) == 1 {
+		return buildTerm(children[0])
+	}
+	seq := make(parser.Seq, 0, len(children))
+	for _, child := range children {
+		seq = append(seq, buildTerm(child))
+	}
+	return seq
+}
+
+func buildGrammar(node ast.Node) parser.Grammar {
+	g := parser.Grammar{}
+	tree := NewGrammarContext(node)
+	for _, stmt := range tree.AllStmt() {
+		for _, prod := range stmt.AllProd() {
+			g[parser.Rule(prod.OneIDENT().String())] = buildProd(prod)
+		}
+	}
+	return g
+}
+
 func Compile(grammar string) (parser.Parsers, error) {
-	node, err := Core().Parse("grammar", parser.NewScanner(grammar))
+	node, err := ParseString(grammar)
 	if err != nil {
 		return parser.Parsers{}, err
 	}
-	n := node.(parser.Node)
-	return NewFromNode(n).Compile(&n), nil
+	return buildGrammar(node).Compile(nil /* fixme */), nil
 }
 
 func MustCompile(grammar string) parser.Parsers {
-	node := Core().MustParse("grammar", parser.NewScanner(grammar)).(parser.Node)
-
-	return NewFromNode(node).Compile(&node)
+	p, err := Compile(grammar)
+	if err != nil {
+		panic(err)
+	}
+	return p
 }

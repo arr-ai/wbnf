@@ -60,11 +60,12 @@ func idents(b ast.Branch) frozen.Set {
 		x, child := ast.Which(b, "named")
 		switch x {
 		case "named":
+			atom := ast.First(child.(ast.One).Node, "atom")
 			if id := child.(ast.One).Node.One("IDENT"); id != nil {
-				founds = founds.With(id.Scanner().String())
+				realType, _ := ast.Which(atom.(ast.Branch), "STR", "RE", "REF", "term", "IDENT")
+				founds = founds.With(id.Scanner().String() + "@" + realType)
 			} else {
-				atom := child.(ast.One).Node.One("atom")
-				if id := atom.One("IDENT"); id != nil {
+				if id := ast.First(atom, "IDENT"); id != nil {
 					founds = founds.With(id.Scanner().String())
 				}
 			}

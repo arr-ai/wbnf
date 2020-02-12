@@ -311,12 +311,15 @@ The actual regex is insertd into the `()`.
 
 Example:
 
-- `.wrapRE -> /{\s*()\s*};` ignore all whitespace surrounded every token in the
+- `.wrapRE -> /{\s*()\s*};` ignores all whitespace surrounding every token in the
   grammar.
+- `.wrapRE -> "--" | [0-9] | /{\s*()\s*};` ignores surrounding whitespace, as
+  above, but excludes any instance of terms `"--"`, and `[0-9]` (including
+  `/{[0-9]}`) from wrapping.
 
 #### Useful recipes
 
 Below are a collection of helpful rules which can be dropped into your grammar.
 
-- `block -> indent=(%indent="\n" \s+) stmt:%indent;` Accept an indented `stmt`
+- `block -> indent=(%indent="\n" \s+) stmt:%indent;` accepts an indented `stmt`
   node.

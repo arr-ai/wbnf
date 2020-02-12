@@ -38,3 +38,7 @@ var core = func() parser.Parsers {
 func Core() parser.Parsers {
 	return core
 }
+
+func GrammarGrammar() string {
+	return grammarGrammarSrc
+}

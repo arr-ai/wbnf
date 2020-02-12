@@ -100,6 +100,9 @@ func compileAtomNode(node parser.Node) parser.Term {
 		// Do this twice to cover adjacent escaped spaces `\_\_`.
 		s = escapedSpaceRE.ReplaceAllString(s, "$1 ")
 		s = escapedSpaceRE.ReplaceAllString(s, "$1 ")
+		if strings.HasPrefix(s, "/{") {
+			s = s[2 : len(s)-1]
+		}
 		return parser.RE(s)
 	case 3:
 		return compileRefNode(node.GetNode(0))

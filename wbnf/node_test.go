@@ -133,12 +133,12 @@ func TestNodeOneRuleWithNames(t *testing.T) {
 func TestNodeStack(t *testing.T) {
 	t.Parallel()
 
-	exprGrammar2 := `a -> @:op="+" > @:op="*" > /{[0-9]};`
-	exprGrammar3 := `a -> @:op="+" > @:op="*" > @:"**" > /{[0-9]};`
+	exprGrammar2 := `a -> @:op="+" > @:op="*" > \d;`
+	exprGrammar3 := `a -> @:op="+" > @:op="*" > @:"**" > \d;`
 
 	for _, s := range []nodeParseScenario{
-		{`(a: [('': 0‣1)])`, `a -> @:op="+" > /{[0-9]};`, `a`, `1`, true},
-		{`(a: [('': 0‣4), ('': 2‣5)], op: [('': 1‣+)])`, `a -> @:op="+" > /{[0-9]};`, `a`, `4+5`, true},
+		{`(a: [('': 0‣1)])`, `a -> @:op="+" > \d;`, `a`, `1`, true},
+		{`(a: [('': 0‣4), ('': 2‣5)], op: [('': 1‣+)])`, `a -> @:op="+" > \d;`, `a`, `4+5`, true},
 		{`(a: [(a: [('': 0‣5)])])`, exprGrammar2, `a`, `5`, true},
 		{`(a: [(a: [('': 0‣6), ('': 2‣7)], op: [('': 1‣*)])])`, exprGrammar2, `a`, `6*7`, true},
 		{`(a: [(a: [('': 0‣5)]), (a: [('': 2‣6), ('': 4‣7)], op: [('': 3‣*)])], op: [('': 1‣+)])`,

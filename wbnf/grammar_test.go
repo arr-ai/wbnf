@@ -22,20 +22,20 @@ var expr = parser.Rule("expr")
 
 var exprGrammarSrc = `
 // Simple expression grammar
-expr -> @:/{([-+])}
-      > @:/{([*/])}
+expr -> @:[-+]
+      > @:[*/]
       > "-"? @
-      > /{(\d+)} | @
+      > \d+ | @
       > @<:"**"
       > "(" @ ")";
 `
 
 var exprGrammar = parser.Grammar{
 	expr: parser.Stack{
-		parser.Delim{Term: parser.At, Sep: parser.RE(`([-+])`)},
-		parser.Delim{Term: parser.At, Sep: parser.RE(`([*/])`)},
+		parser.Delim{Term: parser.At, Sep: parser.RE(`[-+]`)},
+		parser.Delim{Term: parser.At, Sep: parser.RE(`[*/]`)},
 		parser.Seq{parser.Opt(parser.S("-")), parser.At},
-		parser.Oneof{parser.RE(`(\d+)`), parser.At},
+		parser.Oneof{parser.RE(`\d+`), parser.At},
 		parser.R2L(parser.At, parser.S("**")),
 		parser.Seq{parser.S("("), parser.At, parser.S(")")},
 	},
@@ -174,10 +174,10 @@ func TestExprGrammarGrammar(t *testing.T) {
 	require.Equal(t, len(exprGrammarSrc), r.Offset(), "r=%v\nv=%v", r.Context(), v)
 	assertUnparse(t,
 		`// Simple expression grammar`+
-			`expr->@:([-+])`+
-			`>@:([*/])`+
+			`expr->@:[-+]`+
+			`>@:[*/]`+
 			`>"-"?@`+
-			`>(\d+)|@`+
+			`>\d+|@`+
 			`>@<:"**"`+
 			`>"("@")";`,
 		parsers,

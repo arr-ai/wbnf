@@ -27,13 +27,13 @@ wrap -> "!wrap" NAME attribs?  ":" COMMENT*
 type_spec -> (NativeDataType=("int32" | "int64" | "int" |
                              "float" | "string" | "date" |
                              "bool" | "decimal" | "datetime") | UserType=APP_NAME)
-             SizeSpec=("(" /{\d+} (array=".."|sized=".")? /{\d*} ")")?;
+             SizeSpec=("(" \d+ (array=".."|sized=".")? \d* ")")?;
 collection_type -> ("set" | "sequence") "of" type_spec;
 
 
 // -------------- Endpoint     --------------- //
 
-endpoint -> "/" /{[^\n:]*} ":" COMMENT* INDENT /{[^\n]+}:INDENT_SEP;
+endpoint -> "/" [^\n:]* ":" COMMENT* INDENT [^\n]+:INDENT_SEP;
 
 
 // --------------    views    --------------- //
@@ -52,18 +52,18 @@ attribs     ->  "[" @:"," "]"
         ;
 
 // -------------- Tokens --------------- //
-NAME    -> /{[a-zA-Z_][-a-zA-Z0-9_]*};
-PATH    -> /{[a-zA-Z0-9.:]*}:"/";
+NAME    -> [a-zA-Z_][-a-zA-Z0-9_]*;
+PATH    -> [a-zA-Z0-9.:]*:"/";
 APP_NAME -> NAME:".";
 SHORTCUT -> "...";
 
 APPLICATION_NAME    -> pkg=(NAME:"::" ".")? APP_NAME;
 
-COMMENT -> "#" /{[^\n]*} "\n";
-EOL     -> COMMENT+ | /{[\_\t]*\n};
-QSTRING -> /{\"[^\"]*\"};
+COMMENT -> "#" [^\n]* "\n";
+EOL     -> COMMENT+ | [\_\t]*\n;
+QSTRING -> /{"[^"]*"};
 
 .wrapRE -> /{[\_]*()[\_]*};
 
-INDENT      -> %INDENT="\n" /{\s+};
-INDENT_SEP  -> %INDENT|/{\s+};
+INDENT      -> %INDENT="\n" \s+;
+INDENT_SEP  -> %INDENT|\s+;

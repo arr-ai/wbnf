@@ -238,6 +238,9 @@ func Compile(grammar string) (parser.Parsers, error) {
 	if err != nil {
 		return parser.Parsers{}, err
 	}
+	if err := validate(node); err != nil {
+		return parser.Parsers{}, err
+	}
 	g := buildGrammar(node)
 	return g.Compile(node), nil
 }

@@ -62,8 +62,15 @@ func idents(b ast.Branch) frozen.Set {
 		case "named":
 			atom := ast.First(child.(ast.One).Node, "atom")
 			if id := child.(ast.One).Node.One("IDENT"); id != nil {
-				realType, _ := ast.Which(atom.(ast.Branch), "STR", "RE", "REF", "term", "IDENT")
-				founds = founds.With(id.Scanner().String() + "@" + realType)
+				x, _ := ast.Which(atom.(ast.Branch), "RE", "STR", "IDENT", "REF", "term")
+				name := ""
+				switch x {
+				case "REF":
+					name = atom.One("IDENT").Scanner().String()
+				case "IDENT":
+					name = atom.One(x).Scanner().String()
+				}
+				founds = founds.With(id.Scanner().String() + "@" + name)
 			} else {
 				if id := ast.First(atom, "IDENT"); id != nil {
 					founds = founds.With(id.Scanner().String())

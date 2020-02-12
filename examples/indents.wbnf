@@ -1,4 +1,4 @@
-block -> indent=(%indent="\n" /{\s+}) stmt:%indent;
-stmt  -> op="print" /{\s+} IDENT
-       | op=("if"|"while") /{\s+} IDENT ":" block;
-IDENT -> /{\w+};
+block -> indent=(%indent="\n" \s+) stmt:%indent;
+stmt  -> op="print" \s+ IDENT
+       | op=("if"|"while") \s+ IDENT ":" block;
+IDENT -> \w+;

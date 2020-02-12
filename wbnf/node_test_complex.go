@@ -12,7 +12,7 @@ import (
 
 func TestParserNodeToNode(t *testing.T) {
 	p := Core()
-	v := p.MustParse("grammar", parser.NewScanner(`expr -> @:op="+" > @:op="*" > /{\d+};`)).(parser.Node)
+	v := p.MustParse("grammar", parser.NewScanner(`expr -> @:op="+" > @:op="*" > \d+;`)).(parser.Node)
 	g := p.Grammar()
 	n := ast.FromParserNode(g, v)
 	u := ast.ToParserNode(g, n).(parser.Node)
@@ -30,10 +30,10 @@ func TestTinyXMLGrammar(t *testing.T) {
 	t.Parallel()
 
 	v, err := Core().Parse("grammar", parser.NewScanner(`
-		xml  -> s "<" s NAME attr* s ">" xml* "</" s NAME s ">" | CDATA=/{[^<]+};
+		xml  -> s "<" s NAME attr* s ">" xml* "</" s NAME s ">" | CDATA=[^<]+;
 		attr -> s NAME s "=" s value=/{"[^"]*"};
-		NAME -> /{[A-Za-z_:][-A-Za-z0-9._:]*};
-		s    -> /{\s*};
+		NAME -> [A-Za-z_:][-A-Za-z0-9._:]*;
+		s    -> \s*;
 	`))
 	assert.NoError(t, err)
 

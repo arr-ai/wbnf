@@ -154,6 +154,9 @@ func makeAtom(node ast.Node) *goNode {
 	case "STR":
 		return &goNode{name: fmt.Sprintf("parser.S(%s)", name)}
 	case "RE":
+		if strings.HasPrefix(name, "/{") {
+			name = name[2 : len(name)-1]
+		}
 		return &goNode{name: fmt.Sprintf("parser.RE(`%s`)", name)}
 	case "REF":
 		return &goNode{name: fmt.Sprintf("parser.REF(`%s`)", name)}

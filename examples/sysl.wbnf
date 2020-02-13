@@ -57,7 +57,7 @@ view_params -> (NAME "<:" (collection_type|type_spec)):",";
 
 expr_block -> "";
 
-// --------------  statements  --------------- //
+// --------------    stmt    --------------- //
 statements -> (if_stmt
                 | for_stmt
                 | ret_stmt
@@ -123,10 +123,10 @@ TEXT_LINE -> /{\s* ( [^\s:(] [^(\r\n:]* [^\s\r\n(:] )};
 APP_NAME -> NAME:".";
 PREDICATE -> [^\r\n:]+;
 SHORTCUT -> "...";
-HTTP_VERBS -> ("GET" | "POST" | "DELETE" | "PUT" | "PATCH");
-NativeDataTypes -> ("int32" | "int64" | "int" |
+HTTP_VERBS -> "GET" | "POST" | "DELETE" | "PUT" | "PATCH";
+NativeDataTypes -> "int32" | "int64" | "int" |
                 "float" | "string" | "date" |
-                "bool" | "decimal" | "datetime");
+                "bool" | "decimal" | "datetime";
 APPLICATION_NAME    -> pkg=(NAME:"::" ".")? APP_NAME;
 
 COMMENT -> "#" [^\n]* "\n";

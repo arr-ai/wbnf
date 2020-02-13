@@ -222,7 +222,7 @@ func buildProd(p ProdNode) parser.Term {
 	return seq
 }
 
-func buildGrammar(node ast.Node) parser.Grammar {
+func NewFromAst(node ast.Node) parser.Grammar {
 	g := parser.Grammar{}
 	tree := NewGrammarNode(node)
 	for _, stmt := range tree.AllStmt() {
@@ -241,7 +241,7 @@ func Compile(grammar string) (parser.Parsers, error) {
 	if err := validate(node); err != nil {
 		return parser.Parsers{}, err
 	}
-	g := buildGrammar(node)
+	g := NewFromAst(node)
 	return g.Compile(node), nil
 }
 

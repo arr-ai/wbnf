@@ -214,7 +214,7 @@ func TestTinyGrammarGrammarGrammar(t *testing.T) {
 	require.NoError(t, err)
 	e := v.(parser.Node)
 
-	grammar2 := buildGrammar(ast.FromParserNode(parsers.Grammar(), e))
+	grammar2 := NewFromAst(ast.FromParserNode(parsers.Grammar(), e))
 	assert.EqualValues(t, tinyGrammar, grammar2)
 }
 
@@ -227,7 +227,7 @@ func TestExprGrammarGrammarGrammar(t *testing.T) {
 	require.NoError(t, err)
 	e := v.(parser.Node)
 
-	grammar2 := buildGrammar(ast.FromParserNode(parsers.Grammar(), e))
+	grammar2 := NewFromAst(ast.FromParserNode(parsers.Grammar(), e))
 	assert.EqualValues(t, exprGrammar, grammar2)
 }
 

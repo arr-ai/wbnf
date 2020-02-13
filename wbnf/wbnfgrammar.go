@@ -76,6 +76,15 @@ func (c WrapreNode) String() string {
 	}
 	return c.Node.Scanner().String()
 }
+func WalkWrapreNode(node WrapreNode, ops WalkerOps) {
+	if fn := ops.EnterWrapreNode; fn != nil {
+		fn(node)
+	}
+
+	if fn := ops.ExitWrapreNode; fn != nil {
+		fn(node)
+	}
+}
 
 type CommentNode struct{ ast.Node }
 
@@ -84,6 +93,15 @@ func (c CommentNode) String() string {
 		return ""
 	}
 	return c.Node.Scanner().String()
+}
+func WalkCommentNode(node CommentNode, ops WalkerOps) {
+	if fn := ops.EnterCommentNode; fn != nil {
+		fn(node)
+	}
+
+	if fn := ops.ExitCommentNode; fn != nil {
+		fn(node)
+	}
 }
 
 type IdentNode struct{ ast.Node }
@@ -94,6 +112,15 @@ func (c IdentNode) String() string {
 	}
 	return c.Node.Scanner().String()
 }
+func WalkIdentNode(node IdentNode, ops WalkerOps) {
+	if fn := ops.EnterIdentNode; fn != nil {
+		fn(node)
+	}
+
+	if fn := ops.ExitIdentNode; fn != nil {
+		fn(node)
+	}
+}
 
 type IntNode struct{ ast.Node }
 
@@ -103,6 +130,15 @@ func (c IntNode) String() string {
 	}
 	return c.Node.Scanner().String()
 }
+func WalkIntNode(node IntNode, ops WalkerOps) {
+	if fn := ops.EnterIntNode; fn != nil {
+		fn(node)
+	}
+
+	if fn := ops.ExitIntNode; fn != nil {
+		fn(node)
+	}
+}
 
 type ReNode struct{ ast.Node }
 
@@ -111,6 +147,15 @@ func (c ReNode) String() string {
 		return ""
 	}
 	return c.Node.Scanner().String()
+}
+func WalkReNode(node ReNode, ops WalkerOps) {
+	if fn := ops.EnterReNode; fn != nil {
+		fn(node)
+	}
+
+	if fn := ops.ExitReNode; fn != nil {
+		fn(node)
+	}
 }
 
 type RefNode struct{ ast.Node }
@@ -138,6 +183,18 @@ func (c RefNode) AllDefault() []StrNode {
 func (c RefNode) OneDefault() StrNode {
 	return StrNode{ast.First(c.Node, "default")}
 }
+func WalkRefNode(node RefNode, ops WalkerOps) {
+	if fn := ops.EnterRefNode; fn != nil {
+		fn(node)
+	}
+	for _, child := range node.AllIdent() {
+		WalkIdentNode(child, ops)
+	}
+
+	if fn := ops.ExitRefNode; fn != nil {
+		fn(node)
+	}
+}
 
 type StrNode struct{ ast.Node }
 
@@ -146,6 +203,15 @@ func (c StrNode) String() string {
 		return ""
 	}
 	return c.Node.Scanner().String()
+}
+func WalkStrNode(node StrNode, ops WalkerOps) {
+	if fn := ops.EnterStrNode; fn != nil {
+		fn(node)
+	}
+
+	if fn := ops.ExitStrNode; fn != nil {
+		fn(node)
+	}
 }
 
 type AtomNode struct{ ast.Node }
@@ -213,6 +279,30 @@ func (c AtomNode) AllTerm() []TermNode {
 func (c AtomNode) OneTerm() TermNode {
 	return TermNode{ast.First(c.Node, "term")}
 }
+func WalkAtomNode(node AtomNode, ops WalkerOps) {
+	if fn := ops.EnterAtomNode; fn != nil {
+		fn(node)
+	}
+	for _, child := range node.AllIdent() {
+		WalkIdentNode(child, ops)
+	}
+	for _, child := range node.AllRe() {
+		WalkReNode(child, ops)
+	}
+	for _, child := range node.AllRef() {
+		WalkRefNode(child, ops)
+	}
+	for _, child := range node.AllStr() {
+		WalkStrNode(child, ops)
+	}
+	for _, child := range node.AllTerm() {
+		WalkTermNode(child, ops)
+	}
+
+	if fn := ops.ExitAtomNode; fn != nil {
+		fn(node)
+	}
+}
 
 type GrammarNode struct{ ast.Node }
 
@@ -226,6 +316,18 @@ func (c GrammarNode) AllStmt() []StmtNode {
 
 func (c GrammarNode) OneStmt() StmtNode {
 	return StmtNode{ast.First(c.Node, "stmt")}
+}
+func WalkGrammarNode(node GrammarNode, ops WalkerOps) {
+	if fn := ops.EnterGrammarNode; fn != nil {
+		fn(node)
+	}
+	for _, child := range node.AllStmt() {
+		WalkStmtNode(child, ops)
+	}
+
+	if fn := ops.ExitGrammarNode; fn != nil {
+		fn(node)
+	}
 }
 
 type NamedNode struct{ ast.Node }
@@ -268,6 +370,21 @@ func (c NamedNode) OneOp() string {
 	}
 	return ""
 }
+func WalkNamedNode(node NamedNode, ops WalkerOps) {
+	if fn := ops.EnterNamedNode; fn != nil {
+		fn(node)
+	}
+	for _, child := range node.AllIdent() {
+		WalkIdentNode(child, ops)
+	}
+	for _, child := range node.AllAtom() {
+		WalkAtomNode(child, ops)
+	}
+
+	if fn := ops.ExitNamedNode; fn != nil {
+		fn(node)
+	}
+}
 
 type ProdNode struct{ ast.Node }
 
@@ -293,6 +410,21 @@ func (c ProdNode) AllTerm() []TermNode {
 
 func (c ProdNode) OneTerm() TermNode {
 	return TermNode{ast.First(c.Node, "term")}
+}
+func WalkProdNode(node ProdNode, ops WalkerOps) {
+	if fn := ops.EnterProdNode; fn != nil {
+		fn(node)
+	}
+	for _, child := range node.AllIdent() {
+		WalkIdentNode(child, ops)
+	}
+	for _, child := range node.AllTerm() {
+		WalkTermNode(child, ops)
+	}
+
+	if fn := ops.ExitProdNode; fn != nil {
+		fn(node)
+	}
 }
 
 type QuantNode struct{ ast.Node }
@@ -381,6 +513,18 @@ func (c QuantNode) OneOptTrailing() string {
 	}
 	return ""
 }
+func WalkQuantNode(node QuantNode, ops WalkerOps) {
+	if fn := ops.EnterQuantNode; fn != nil {
+		fn(node)
+	}
+	for _, child := range node.AllNamed() {
+		WalkNamedNode(child, ops)
+	}
+
+	if fn := ops.ExitQuantNode; fn != nil {
+		fn(node)
+	}
+}
 
 type StmtNode struct{ ast.Node }
 
@@ -410,6 +554,21 @@ func (c StmtNode) AllProd() []ProdNode {
 
 func (c StmtNode) OneProd() ProdNode {
 	return ProdNode{ast.First(c.Node, "prod")}
+}
+func WalkStmtNode(node StmtNode, ops WalkerOps) {
+	if fn := ops.EnterStmtNode; fn != nil {
+		fn(node)
+	}
+	for _, child := range node.AllComment() {
+		WalkCommentNode(child, ops)
+	}
+	for _, child := range node.AllProd() {
+		WalkProdNode(child, ops)
+	}
+
+	if fn := ops.ExitStmtNode; fn != nil {
+		fn(node)
+	}
 }
 
 type TermNode struct{ ast.Node }
@@ -464,7 +623,57 @@ func (c TermNode) AllQuant() []QuantNode {
 func (c TermNode) OneQuant() QuantNode {
 	return QuantNode{ast.First(c.Node, "quant")}
 }
+func WalkTermNode(node TermNode, ops WalkerOps) {
+	if fn := ops.EnterTermNode; fn != nil {
+		fn(node)
+	}
+	for _, child := range node.AllTerm() {
+		WalkTermNode(child, ops)
+	}
+	for _, child := range node.AllNamed() {
+		WalkNamedNode(child, ops)
+	}
+	for _, child := range node.AllQuant() {
+		WalkQuantNode(child, ops)
+	}
 
+	if fn := ops.ExitTermNode; fn != nil {
+		fn(node)
+	}
+}
+
+type WalkerOps struct {
+	EnterWrapreNode  func(WrapreNode)
+	ExitWrapreNode   func(WrapreNode)
+	EnterCommentNode func(CommentNode)
+	ExitCommentNode  func(CommentNode)
+	EnterIdentNode   func(IdentNode)
+	ExitIdentNode    func(IdentNode)
+	EnterIntNode     func(IntNode)
+	ExitIntNode      func(IntNode)
+	EnterReNode      func(ReNode)
+	ExitReNode       func(ReNode)
+	EnterRefNode     func(RefNode)
+	ExitRefNode      func(RefNode)
+	EnterStrNode     func(StrNode)
+	ExitStrNode      func(StrNode)
+	EnterAtomNode    func(AtomNode)
+	ExitAtomNode     func(AtomNode)
+	EnterGrammarNode func(GrammarNode)
+	ExitGrammarNode  func(GrammarNode)
+	EnterNamedNode   func(NamedNode)
+	ExitNamedNode    func(NamedNode)
+	EnterProdNode    func(ProdNode)
+	ExitProdNode     func(ProdNode)
+	EnterQuantNode   func(QuantNode)
+	ExitQuantNode    func(QuantNode)
+	EnterStmtNode    func(StmtNode)
+	ExitStmtNode     func(StmtNode)
+	EnterTermNode    func(TermNode)
+	ExitTermNode     func(TermNode)
+}
+
+func (w WalkerOps) Walk(tree GrammarNode)  { WalkGrammarNode(tree, w) }
 func (c GrammarNode) GetAstNode() ast.Node { return c.Node }
 
 func NewGrammarNode(from ast.Node) GrammarNode { return GrammarNode{from} }

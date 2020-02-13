@@ -283,6 +283,16 @@ func (c {{.CtxName}}) All{{.ChildName}}() []{{.RetType}} {
 func (c {{.CtxName}}) One{{.ChildName}}() {{.RetType}} {
 	return {{.RetType}}{ast.First(c.Node, "{{.Child}}")}
 }
+`
+
+const walkerTemplate = `
+func Walk{{.CtxName}}(node {{.CtxName}}, ops WalkerOps) {
+	if fn := ops.Enter{{.CtxName}}; fn != nil { fn(tree) }
+
+	for _, child := range node.All{{.ChildName}}() { Walk{{.ChildName}}(child, ops) }
+
+	if fn := ops.Exit{{.CtxName}}; fn != nil { fn(tree) }
+}
 
 `
 
@@ -325,10 +335,14 @@ func makeContextTypes(tree ast.Node) string {
 	if err != nil {
 		panic(err)
 	}
-	tokentmpl, err := template.New("funcs").Parse(tokenGetterTemplate)
+	tokentmpl, err := template.New("token").Parse(tokenGetterTemplate)
 	if err != nil {
 		panic(err)
 	}
+
+	var walkerOpsBuf bytes.Buffer
+	walkerOpsBuf.WriteString("\ntype WalkerOps struct {\n")
+
 	allIdents := wbnf.IdentMap(tree.(ast.Branch))
 	for _, rule := range sortMapKeys(allIdents) {
 		idents := allIdents[rule]
@@ -342,6 +356,14 @@ func (c %s) String() string {
 }
 `, typename))
 		}
+		// walker func start
+		var walkerbuf bytes.Buffer
+		walkerbuf.WriteString(strings.ReplaceAll(`func Walk{{.CtxName}}(node {{.CtxName}}, ops WalkerOps) {
+	if fn := ops.Enter{{.CtxName}}; fn != nil { fn(node) }`+"\n", "{{.CtxName}}", typename))
+
+		walkerOpsBuf.WriteString(strings.ReplaceAll("Enter{{.CtxName}} func ({{.CtxName}})\n", "{{.CtxName}}", typename))
+		walkerOpsBuf.WriteString(strings.ReplaceAll("Exit{{.CtxName}} func ({{.CtxName}})\n", "{{.CtxName}}", typename))
+
 		for _, id := range idents {
 			if id == "@" {
 				id = rule
@@ -371,14 +393,27 @@ func (c %s) Choice() int {
 				data.RetType = strcase.ToCamel(strings.ToLower(parts[1])) + "Node"
 			}
 			tmpl.Execute(&out, data)
+			if !strings.Contains(id, "@") {
+				text := strings.ReplaceAll("for _, child := range node.All{{}}() { Walk{{}}Node(child, ops) }\n", "{{}}",
+					data.ChildName)
+				walkerbuf.WriteString(text)
+			}
 		}
+
+		walkerbuf.WriteString(strings.ReplaceAll("\n if fn := ops.Exit{{.CtxName}}; fn != nil { fn(node) } }\n",
+			"{{.CtxName}}", typename))
+		out.Write(walkerbuf.Bytes())
 	}
+
+	walkerOpsBuf.WriteString("\n}\n")
+	out.Write(walkerOpsBuf.Bytes())
 
 	return out.String()
 }
 
 func makeExternalApiFuncs(startRule string) string {
 	tmpl := `
+func (w WalkerOps) Walk(tree {{.CtxName}}) { Walk{{.CtxName}}(tree, w) }
 func (c {{.CtxName}}) GetAstNode() ast.Node { return c.Node }
 
 func New{{.CtxName}}(from ast.Node) {{.CtxName}} { return {{.CtxName}}{ from } }

@@ -4,23 +4,33 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-
-	"github.com/arr-ai/wbnf/parser"
 )
 
 func findDefinedRules(tree GrammarNode) map[string]struct{} {
 	out := map[string]struct{}{}
 	for _, stmt := range tree.AllStmt() {
 		for _, prod := range stmt.AllProd() {
-			out[prod.OneIdent().Scanner().String()] = struct{}{}
+			out[prod.OneIdent().String()] = struct{}{}
 		}
 	}
 	return out
 }
 
 func validate(tree GrammarNode) error {
-	v := validator{}
-	return v.Validate(tree)
+	v := validator{
+		knownRules: findDefinedRules(tree),
+	}
+
+	ops := WalkerOps{
+		EnterAtomNode:  v.validateAtom,
+		EnterQuantNode: v.validateQuant,
+	}
+	ops.Walk(tree)
+
+	if len(v.err) == 0 {
+		return nil
+	}
+	return &v
 }
 
 type validator struct {
@@ -30,54 +40,6 @@ type validator struct {
 
 func (v *validator) Error() string {
 	return fmt.Sprint(v.err)
-}
-
-func (v *validator) Validate(tree GrammarNode) error {
-	v.knownRules = findDefinedRules(tree)
-
-	for _, stmt := range tree.AllStmt() {
-		v.validateStmt(stmt)
-	}
-
-	if len(v.err) > 0 {
-		return v
-	}
-	return nil
-}
-
-func (v *validator) validateStmt(tree StmtNode) {
-	for _, prod := range tree.AllProd() {
-		v.validateProd(prod)
-	}
-}
-
-func (v *validator) validateProd(tree ProdNode) {
-	name := tree.OneIdent().Scanner().String()
-	if name == parser.WrapRE.String() {
-		// todo: validate the .wrapRE rule
-	} else {
-		for _, term := range tree.AllTerm() {
-			v.validateTerm(term)
-		}
-	}
-}
-
-func (v *validator) validateTerm(tree TermNode) {
-	for _, term := range tree.AllTerm() {
-		v.validateTerm(term)
-	}
-	for _, named := range tree.AllNamed() {
-		v.validateNamed(named)
-	}
-	for _, quant := range tree.AllQuant() {
-		v.validateQuant(quant)
-	}
-}
-
-func (v *validator) validateNamed(tree NamedNode) {
-	if atom := tree.OneAtom(); atom.Node != nil {
-		v.validateAtom(atom)
-	}
 }
 
 func (v *validator) validateAtom(tree AtomNode) {
@@ -96,8 +58,6 @@ func (v *validator) validateAtom(tree AtomNode) {
 		}
 	} else if x := tree.OneRef(); x.Node != nil {
 
-	} else if x := tree.OneTerm(); x.Node != nil {
-		v.validateTerm(x)
 	}
 }
 

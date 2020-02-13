@@ -325,12 +325,14 @@ func (p *seqParser) attemptRuleCompletion(scope frozen.Map, first, input *Scanne
 	default:
 		return nil
 	}
-	oldSlice := append([]Parser{}, p.parsers...)
-	defer func() { p.parsers = oldSlice }()
-	p.parsers = p.parsers[failedIndex+1:]
+
+	pclone := *p
+	pclone.parsers = append([]Parser{}, p.parsers...)
+
+	pclone.parsers = pclone.parsers[failedIndex+1:]
 	var v TreeElement
-	if p.Parse(scope, NewScanner(input.String()), &v) == nil {
-		switch child := oldSlice[failedIndex].(type) {
+	if pclone.Parse(scope, NewScanner(input.String()), &v) == nil {
+		switch child := p.parsers[failedIndex].(type) {
 		case *sParser:
 			ctx := first.Slice(0, strings.Index(first.String(), input.String()))
 

@@ -34,11 +34,11 @@ collection_type -> ("set" | "sequence") "of" type_spec;
 endpoint -> (rest_endpoint | simple_endpoint) EOL;
 
 simple_endpoint -> SHORTCUT | (endpoint_name=(PATH) QSTRING? params? attribs? ":"
-                        (SHORTCUT | \n+ level=INDENT statements:INDENT_SEP));
+                        (SHORTCUT | \n+ level=INDENT stmt:INDENT_SEP));
 
 rest_endpoint -> http_path attribs? ":" \n+ level=INDENT (method_def | rest_endpoint):INDENT_SEP;
 
-method_def -> method=(HTTP_VERBS) params? query_param? attribs? ":" \n+ level=INDENT statements:INDENT_SEP;
+method_def -> method=(HTTP_VERBS) params? query_param? attribs? ":" \n+ level=INDENT stmt:INDENT_SEP;
 
 params -> "(" ( reference | field ):"," ")";
 
@@ -58,7 +58,7 @@ view_params -> (NAME "<:" (collection_type|type_spec)):",";
 expr_block -> "";
 
 // --------------    stmt    --------------- //
-statements -> (if_stmt
+stmt -> (if_stmt
                 | for_stmt
                 | ret_stmt
                 | call_stmt
@@ -71,16 +71,16 @@ statements -> (if_stmt
 
 if_else -> if_stmt else_stmt*;
 
-if_stmt -> "if" PREDICATE ":" \n+ level=INDENT statements:INDENT_SEP;
+if_stmt -> "if" PREDICATE ":" \n+ level=INDENT stmt:INDENT_SEP;
 
-else_stmt -> "else" PREDICATE? ":" \n+ level=INDENT statements:INDENT_SEP;
+else_stmt -> "else" PREDICATE? ":" \n+ level=INDENT stmt:INDENT_SEP;
 
-for_stmt -> for_type=("alt" | "until" | "for each" | "for" | "loop" | "while") PREDICATE ":" \n+ level=INDENT statements:INDENT_SEP;
+for_stmt -> for_type=("alt" | "until" | "for each" | "for" | "loop" | "while") PREDICATE ":" \n+ level=INDENT stmt:INDENT_SEP;
 
 one_of_stmt -> "one" "of" ":" \n+ level=INDENT one_of_cases:INDENT_SEP;
 
 // TODO: make this simpler
-one_of_cases -> one_of_case_label=(QSTRING ":"| NAME ":" | TEXT_LINE ":" | ":")  \n+ level=INDENT statements:INDENT_SEP;
+one_of_cases -> one_of_case_label=(QSTRING ":"| NAME ":" | TEXT_LINE ":" | ":")  \n+ level=INDENT stmt:INDENT_SEP;
 
 call_stmt -> target=("." | NAME:"::") "<-" target_endpoint=(TEXT_LINE) call_args?;
 
@@ -88,7 +88,7 @@ call_args -> "(" ((QSTRING | NAME)+ | (NAME "<:" (NAME | NativeDataTypes))):"," 
 
 ret_stmt -> "return" ret_val=(TEXT);
 
-group_stmt -> name=(NAME) ":" \n+ level=INDENT statements:INDENT_SEP;
+group_stmt -> name=(NAME) ":" \n+ level=INDENT stmt:INDENT_SEP;
 
 text_stmt -> doc_string=("|" [^\r\n]*) | QSTRING | app_name=(APPLICATION_NAME) ("<-" NAME)?| SHORTCUT;
 

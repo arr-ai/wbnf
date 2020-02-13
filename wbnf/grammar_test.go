@@ -258,3 +258,11 @@ func TestCombo2(t *testing.T) {
 	assert.NoError(t, err)
 	log.Print(p.Grammar())
 }
+
+func TestEmptyNamedTerm(t *testing.T) {
+	t.Parallel()
+
+	p, err := Compile(`x -> rel=();`)
+	assert.NoError(t, err)
+	log.Print(p.Grammar())
+}

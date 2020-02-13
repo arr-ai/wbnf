@@ -127,7 +127,8 @@ func buildAtom(atom AtomNode) parser.Term {
 	case "term":
 		return buildTerm(atom.OneTerm())
 	}
-	panic("bad input")
+	// Must be the empty term '()'
+	return parser.Seq{}
 }
 
 func buildQuant(q QuantNode, term parser.Term) parser.Term {

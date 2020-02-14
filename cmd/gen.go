@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/format"
 	"html/template"
+	"io/ioutil"
 	"os"
 	"sort"
 	"strings"
@@ -19,6 +20,7 @@ import (
 )
 
 var pkgName string
+var outFile string
 var genCommand = cli.Command{
 	Name:    "gen",
 	Aliases: []string{"g"},
@@ -45,6 +47,13 @@ var genCommand = cli.Command{
 			Required:    true,
 			TakesFile:   false,
 			Destination: &startingRule,
+		},
+		cli.StringFlag{
+			Name:        "output",
+			Usage:       "filename to write the output to",
+			Required:    false,
+			TakesFile:   false,
+			Destination: &outFile,
 		},
 	},
 }
@@ -74,6 +83,18 @@ func Grammar() parser.Parsers {
 	return %s.Compile(nil)
 }
 
+type Stopper interface {
+	 ExitNode() bool
+	 Abort() bool
+}
+type nodeExiter struct{}
+func (n *nodeExiter) ExitNode() bool {return true }
+func (n *nodeExiter) Abort() bool {return false }
+
+type aborter struct{}
+func (n *aborter) ExitNode() bool {return true }
+func (n *aborter) Abort() bool {return true }
+
 %s
 
 %s
@@ -82,10 +103,14 @@ func Grammar() parser.Parsers {
 	out, err := format.Source([]byte(text))
 	if err != nil {
 		fmt.Println(err, root.String())
-
 	}
 
-	os.Stdout.Write(out)
+	switch outFile {
+	case "", "-":
+		os.Stdout.Write(out)
+	default:
+		ioutil.WriteFile(outFile, out, 0644)
+	}
 
 	return nil
 }
@@ -113,7 +138,7 @@ func (g *goNode) String() string {
 		bracesScope:   {"(", ")"},
 		squigglyScope: {"{", "}"},
 	}[g.scope]
-	var children []string
+	children := make([]string, 0, len(g.children))
 	for _, c := range g.children {
 		children = append(children, c.String())
 	}
@@ -250,7 +275,6 @@ func makeTerm(node ast.Node) *goNode {
 			next = makeQuant(quants[len(quants)-1-i], *next)
 		}
 		return next
-
 	}
 	return &goNode{name: "todo"}
 }
@@ -285,29 +309,18 @@ func (c {{.CtxName}}) One{{.ChildName}}() {{.RetType}} {
 }
 `
 
-const walkerTemplate = `
-func Walk{{.CtxName}}(node {{.CtxName}}, ops WalkerOps) {
-	if fn := ops.Enter{{.CtxName}}; fn != nil { fn(tree) }
-
-	for _, child := range node.All{{.ChildName}}() { Walk{{.ChildName}}(child, ops) }
-
-	if fn := ops.Exit{{.CtxName}}; fn != nil { fn(tree) }
-}
-
-`
-
 const tokenGetterTemplate = `
 func (c {{.CtxName}}) All{{.ChildName}}() []string {
 	var out []string
 	for _, child := range ast.All(c.Node, "{{.Child}}") {
-		out = append(out, child.Scanner().String())
+		out = append(out, ast.First(child, "").Scanner().String())
 	}
 	return out
 }
 
 func (c {{.CtxName}}) One{{.ChildName}}() string {
 	if child := ast.First(c.Node, "{{.Child}}"); child != nil {
-		return child.Scanner().String()
+		return ast.First(child, "").Scanner().String()
 	}
 	return ""
 }
@@ -321,7 +334,7 @@ type tmplData struct {
 }
 
 func sortMapKeys(m map[string][]string) []string {
-	var keys []string
+	keys := make([]string, 0, len(m))
 	for rule := range m {
 		keys = append(keys, rule)
 	}
@@ -358,11 +371,21 @@ func (c %s) String() string {
 		}
 		// walker func start
 		var walkerbuf bytes.Buffer
-		walkerbuf.WriteString(strings.ReplaceAll(`func Walk{{.CtxName}}(node {{.CtxName}}, ops WalkerOps) {
-	if fn := ops.Enter{{.CtxName}}; fn != nil { fn(node) }`+"\n", "{{.CtxName}}", typename))
+		walkerbuf.WriteString(strings.ReplaceAll(`func Walk{{.CtxName}}(node {{.CtxName}}, ops WalkerOps) Stopper {
+	if fn := ops.Enter{{.CtxName}}; fn != nil {
+		s := fn(node)
+		switch {
+			case s == nil:
+			case s.ExitNode():
+				return nil
+			case s.Abort():
+				return s
+		}
+}
+`, "{{.CtxName}}", typename))
 
-		walkerOpsBuf.WriteString(strings.ReplaceAll("Enter{{.CtxName}} func ({{.CtxName}})\n", "{{.CtxName}}", typename))
-		walkerOpsBuf.WriteString(strings.ReplaceAll("Exit{{.CtxName}} func ({{.CtxName}})\n", "{{.CtxName}}", typename))
+		walkerOpsBuf.WriteString(strings.ReplaceAll("Enter{{.CtxName}} func ({{.CtxName}}) Stopper\n", "{{.CtxName}}", typename))
+		walkerOpsBuf.WriteString(strings.ReplaceAll("Exit{{.CtxName}} func ({{.CtxName}}) Stopper\n", "{{.CtxName}}", typename))
 
 		for _, id := range idents {
 			if id == "@" {
@@ -394,13 +417,29 @@ func (c %s) Choice() int {
 			}
 			tmpl.Execute(&out, data)
 			if !strings.Contains(id, "@") {
-				text := strings.ReplaceAll("for _, child := range node.All{{}}() { Walk{{}}Node(child, ops) }\n", "{{}}",
+				text := strings.ReplaceAll(`
+for _, child := range node.All{{}}() {
+	s := Walk{{}}Node(child, ops)
+		switch {
+			case s == nil:
+			case s.ExitNode():
+				return nil
+			case s.Abort():
+				return s
+		}
+}`, "{{}}",
 					data.ChildName)
 				walkerbuf.WriteString(text)
 			}
 		}
 
-		walkerbuf.WriteString(strings.ReplaceAll("\n if fn := ops.Exit{{.CtxName}}; fn != nil { fn(node) } }\n",
+		walkerbuf.WriteString(strings.ReplaceAll(`
+if fn := ops.Exit{{.CtxName}}; fn != nil {
+	if s := fn(node); s != nil && s.Abort() { return s }
+}
+	return nil
+}
+`,
 			"{{.CtxName}}", typename))
 		out.Write(walkerbuf.Bytes())
 	}

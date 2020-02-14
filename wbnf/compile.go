@@ -133,7 +133,7 @@ func compileREF(name string, atom AtomNode) parser.Term {
 		Default: nil,
 	}
 
-	defTerm := atom.OneRef().OneDefault()
+	defTerm := atom.OneRef()
 	switch defTerm.Choice() {
 	case 0:
 		ref.Default = parser.S(parseString(defTerm.OneStr().String()))

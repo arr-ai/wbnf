@@ -42,7 +42,7 @@ func (v *validator) Error() string {
 	return fmt.Sprint(v.err)
 }
 
-func (v *validator) validateAtom(tree AtomNode) {
+func (v *validator) validateAtom(tree AtomNode) Stopper {
 	if x := tree.OneIdent(); x.Node != nil {
 		ident := x.String()
 		if ident != "" && ident != "@" {
@@ -50,18 +50,15 @@ func (v *validator) validateAtom(tree AtomNode) {
 				v.err = append(v.err, fmt.Errorf("identifier '%s' is not a defined rule", ident))
 			}
 		}
-	} else if x := tree.OneStr(); x.Node != nil {
-
 	} else if x := tree.OneRe(); x.Node != nil {
 		if _, err := regexp.Compile(x.String()); err != nil {
 			v.err = append(v.err, fmt.Errorf("regex '%s' is not valid, %s", x.String(), err))
 		}
-	} else if x := tree.OneRef(); x.Node != nil {
-
 	}
+	return nil
 }
 
-func (v *validator) validateQuant(tree QuantNode) {
+func (v *validator) validateQuant(tree QuantNode) Stopper {
 	switch tree.Choice() {
 	case 0:
 	case 1:
@@ -88,4 +85,5 @@ func (v *validator) validateQuant(tree QuantNode) {
 		}
 	case 2:
 	}
+	return nil
 }

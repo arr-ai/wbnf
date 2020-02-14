@@ -377,7 +377,7 @@ func makeContextTypes(tree ast.Node) string {
 			out.WriteString(fmt.Sprintf(`
 func (c %s) String() string {
 	if c.Node == nil { return "" }
-	return ast.First(c.Node, "").Scanner().String()
+	return c.Node.Scanner().String()
 }
 `, typename))
 		}

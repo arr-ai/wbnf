@@ -94,9 +94,7 @@ func buildAtom(atom AtomNode) parser.Term {
 	x, _ := ast.Which(atom.Node.(ast.Branch), IdentRE, IdentSTR, IdentIDENT, IdentREF, IdentTerm)
 	name := ""
 	switch x {
-	case IdentTerm, "":
-	case IdentREF:
-		name = atom.OneIdent().String()
+	case IdentTerm, IdentREF, "":
 	default:
 		name = atom.One(x).Scanner().String()
 	}
@@ -116,11 +114,12 @@ func buildAtom(atom AtomNode) parser.Term {
 		}
 		return parser.RE(s)
 	case IdentREF:
+		refNode := atom.OneRef()
 		ref := parser.REF{
-			Ident:   name,
+			Ident:   refNode.OneIdent().String(),
 			Default: nil,
 		}
-		defTerm := atom.OneRef().OneDefault().String()
+		defTerm := refNode.OneDefault().String()
 		if defTerm != "" {
 			ref.Default = parser.S(parseString(defTerm))
 		}

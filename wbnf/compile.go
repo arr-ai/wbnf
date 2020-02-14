@@ -106,29 +106,42 @@ func buildAtom(atom AtomNode) parser.Term {
 	case "STR":
 		return parser.S(parseString(name))
 	case "RE":
-		s := whitespaceRE.ReplaceAllString(name, "")
-		// Do this twice to cover adjacent escaped spaces `\_\_`.
-		s = escapedSpaceRE.ReplaceAllString(s, "$1 ")
-		s = escapedSpaceRE.ReplaceAllString(s, "$1 ")
-		if strings.HasPrefix(s, "/{") {
-			s = s[2 : len(s)-1]
-		}
-		return parser.RE(s)
+		return compileRE(name)
 	case "REF":
-		ref := parser.REF{
-			Ident:   name,
-			Default: nil,
-		}
-		defTerm := atom.OneRef().OneDefault().String()
-		if defTerm != "" {
-			ref.Default = parser.S(parseString(defTerm))
-		}
-		return ref
+		return compileREF(name, atom)
 	case "term":
 		return buildTerm(atom.OneTerm())
 	}
 	// Must be the empty term '()'
 	return parser.Seq{}
+}
+
+func compileRE(name string) parser.Term {
+	s := whitespaceRE.ReplaceAllString(name, "")
+	// Do this twice to cover adjacent escaped spaces `\_\_`.
+	s = escapedSpaceRE.ReplaceAllString(s, "$1 ")
+	s = escapedSpaceRE.ReplaceAllString(s, "$1 ")
+	if strings.HasPrefix(s, "/{") {
+		s = s[2 : len(s)-1]
+	}
+	return parser.RE(s)
+}
+
+func compileREF(name string, atom AtomNode) parser.Term {
+	ref := parser.REF{
+		Ident:   name,
+		Default: nil,
+	}
+
+	defTerm := atom.OneRef().OneDefault()
+	switch defTerm.Choice() {
+	case 0:
+		ref.Default = parser.S(parseString(defTerm.OneStr().String()))
+	case 1:
+		ref.Default = compileRE(defTerm.OneRe().String())
+	}
+
+	return ref
 }
 
 func buildQuant(q QuantNode, term parser.Term) parser.Term {

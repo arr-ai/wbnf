@@ -1,0 +1,10 @@
+import bff_fenergo
+import bff_qas
+
+Bff "ANZx Statement of position" [package="bff"]:
+    x/y/z:
+
+
+
+
+        return str

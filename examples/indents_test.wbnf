@@ -1,0 +1,5 @@
+stmt   -> [a-zA-Z0-9.]+ \n+ level=/{\*+} child:(\n+ %level);
+child  -> [a-zA-Z0-9.]+ (\n+ level=(%level /{\*+}) child:(\n+ %level))?;
+// .wrapRE -> \n+ | \s+ | /{[\_]*()[\_]*};
+INDENT -> %level="" \s+;
+INDENT_SEP -> \n+ %level;

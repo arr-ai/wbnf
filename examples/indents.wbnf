@@ -1,4 +1,6 @@
 block -> indent=(%indent="\n" \s+) stmt:%indent;
 stmt  -> op="print" \s+ IDENT
-       | op=("if"|"while") \s+ IDENT ":" block;
+       | op=("if"|"while") \s+ IDENT ":" \n+ level=INDENT block:INDENT_SEP;
 IDENT -> \w+;
+INDENT -> %level="" \s+;
+INDENT_SEP -> \n+ %level;

@@ -8,11 +8,13 @@ import (
 
 func findDefinedRules(tree GrammarNode) map[string]struct{} {
 	out := map[string]struct{}{}
-	for _, stmt := range tree.AllStmt() {
-		for _, prod := range stmt.AllProd() {
-			out[prod.OneIdent().String()] = struct{}{}
-		}
+	ops := WalkerOps{
+		EnterProdNode: func(node ProdNode) Stopper {
+			out[node.OneIdent().String()] = struct{}{}
+			return &nodeExiter{}
+		},
 	}
+	ops.Walk(tree)
 	return out
 }
 

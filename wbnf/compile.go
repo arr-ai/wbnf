@@ -91,21 +91,22 @@ var whitespaceRE = regexp.MustCompile(`\s`)
 var escapedSpaceRE = regexp.MustCompile(`((?:\A|[^\\])(?:\\\\)*)\\_`)
 
 func buildAtom(atom AtomNode) parser.Term {
-	x, _ := ast.Which(atom.Node.(ast.Branch), "RE", "STR", "IDENT", "REF", "term")
+	x, _ := ast.Which(atom.Node.(ast.Branch), IdentRE, IdentSTR, IdentIDENT, IdentREF, IdentTerm)
 	name := ""
 	switch x {
-	case "term", "":
-	case "REF":
+	case IdentTerm, "":
+	case IdentREF:
 		name = atom.OneIdent().String()
 	default:
 		name = atom.One(x).Scanner().String()
 	}
+
 	switch x {
-	case "IDENT":
+	case IdentIDENT:
 		return parser.Rule(name)
-	case "STR":
+	case IdentSTR:
 		return parser.S(parseString(name))
-	case "RE":
+	case IdentRE:
 		s := whitespaceRE.ReplaceAllString(name, "")
 		// Do this twice to cover adjacent escaped spaces `\_\_`.
 		s = escapedSpaceRE.ReplaceAllString(s, "$1 ")
@@ -114,7 +115,7 @@ func buildAtom(atom AtomNode) parser.Term {
 			s = s[2 : len(s)-1]
 		}
 		return parser.RE(s)
-	case "REF":
+	case IdentREF:
 		ref := parser.REF{
 			Ident:   name,
 			Default: nil,
@@ -124,7 +125,7 @@ func buildAtom(atom AtomNode) parser.Term {
 			ref.Default = parser.S(parseString(defTerm))
 		}
 		return ref
-	case "term":
+	case IdentTerm:
 		return buildTerm(atom.OneTerm())
 	}
 	// Must be the empty term '()'

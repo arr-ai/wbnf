@@ -82,13 +82,33 @@ type aborter struct{}
 func (n *aborter) ExitNode() bool { return true }
 func (n *aborter) Abort() bool    { return true }
 
+const (
+	IdentCOMMENT     = "COMMENT"
+	IdentIDENT       = "IDENT"
+	IdentRE          = "RE"
+	IdentREF         = "REF"
+	IdentSTR         = "STR"
+	IdentAtom        = "atom"
+	IdentDefault     = "default"
+	IdentMax         = "max"
+	IdentMin         = "min"
+	IdentNamed       = "named"
+	IdentOp          = "op"
+	IdentOptLeading  = "opt_leading"
+	IdentOptTrailing = "opt_trailing"
+	IdentProd        = "prod"
+	IdentQuant       = "quant"
+	IdentStmt        = "stmt"
+	IdentTerm        = "term"
+)
+
 type WrapreNode struct{ ast.Node }
 
 func (c WrapreNode) String() string {
 	if c.Node == nil {
 		return ""
 	}
-	return c.Node.Scanner().String()
+	return ast.First(c.Node, "").Scanner().String()
 }
 func WalkWrapreNode(node WrapreNode, ops WalkerOps) Stopper {
 	if fn := ops.EnterWrapreNode; fn != nil {
@@ -116,7 +136,7 @@ func (c CommentNode) String() string {
 	if c.Node == nil {
 		return ""
 	}
-	return c.Node.Scanner().String()
+	return ast.First(c.Node, "").Scanner().String()
 }
 func WalkCommentNode(node CommentNode, ops WalkerOps) Stopper {
 	if fn := ops.EnterCommentNode; fn != nil {
@@ -144,7 +164,7 @@ func (c IdentNode) String() string {
 	if c.Node == nil {
 		return ""
 	}
-	return c.Node.Scanner().String()
+	return ast.First(c.Node, "").Scanner().String()
 }
 func WalkIdentNode(node IdentNode, ops WalkerOps) Stopper {
 	if fn := ops.EnterIdentNode; fn != nil {
@@ -172,7 +192,7 @@ func (c IntNode) String() string {
 	if c.Node == nil {
 		return ""
 	}
-	return c.Node.Scanner().String()
+	return ast.First(c.Node, "").Scanner().String()
 }
 func WalkIntNode(node IntNode, ops WalkerOps) Stopper {
 	if fn := ops.EnterIntNode; fn != nil {
@@ -200,7 +220,7 @@ func (c ReNode) String() string {
 	if c.Node == nil {
 		return ""
 	}
-	return c.Node.Scanner().String()
+	return ast.First(c.Node, "").Scanner().String()
 }
 func WalkReNode(node ReNode, ops WalkerOps) Stopper {
 	if fn := ops.EnterReNode; fn != nil {
@@ -283,7 +303,7 @@ func (c StrNode) String() string {
 	if c.Node == nil {
 		return ""
 	}
-	return c.Node.Scanner().String()
+	return ast.First(c.Node, "").Scanner().String()
 }
 func WalkStrNode(node StrNode, ops WalkerOps) Stopper {
 	if fn := ops.EnterStrNode; fn != nil {

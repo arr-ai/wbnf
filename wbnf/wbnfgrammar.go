@@ -60,6 +60,8 @@ func Grammar() parser.Grammar {
 		"STR":     parser.RE(`"(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*'|` + "`" + `(?:` + "`" + `` + "`" + `|[^` + "`" + `])*` + "`" + ``),
 		"RE":      parser.RE(`/{(?:\\.|{(?:(?:\d+(?:,\d*)?|,\d+)\})?|\[(?:\\.|\[:^?[a-z]+:\]|[^\]])+]|[^\\{\}])*\}|(?:(?:\[(?:\\.|\[:^?[a-z]+:\]|[^\]])+]|\\[pP](?:[a-z]|\{[a-zA-Z_]+\})|\\[a-zA-Z]|[.^$])(?:(?:[+*?]|\{\d+,?\d?\})\??)?)+`),
 		"REF": parser.Seq{parser.S("%"),
+			parser.Opt(parser.Eq("external",
+				parser.S("%"))),
 			parser.Rule(`IDENT`),
 			parser.Opt(parser.Seq{parser.S("="),
 				parser.Eq("default",
@@ -123,7 +125,7 @@ RE      -> /{
                )(?: (?:[+*?]|\{\d+,?\d?\}) \?? )?
              )+
            };
-REF     -> "%" IDENT ("=" default=STR)?;
+REF     -> "%" external="%"? IDENT ("=" default=STR)?;
 
 // Special
 .wrapRE -> /{\s*()\s*};

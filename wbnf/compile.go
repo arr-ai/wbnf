@@ -116,9 +116,12 @@ func compileAtomNode(node parser.Node) parser.Term {
 }
 
 func compileRefNode(node parser.Node) parser.Term {
-	ref := parser.REF{Ident: node.GetString(1)}
+	ref := parser.REF{
+		Ident:    node.GetString(2),
+		External: node.GetNode(1).Count() == 1,
+	}
 
-	term := node.GetNode(2)
+	term := node.GetNode(3)
 	if term.Count() != 0 {
 		ref.Default = parser.S(parseString(term.GetString(0, 1)))
 	}

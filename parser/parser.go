@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/arr-ai/frozen"
-
 	"github.com/arr-ai/wbnf/errors"
 )
 
@@ -64,14 +63,34 @@ type scopeVal struct {
 	val TreeElement
 }
 
-func NewScopeWith(s frozen.Map, ident string, p Parser, val TreeElement) frozen.Map {
+type Scope struct {
+	m frozen.Map
+}
+
+func (s Scope) With(ident string, v interface{}) Scope {
+	return Scope{m: s.m.With(ident, v)}
+}
+
+func (s Scope) Has(ident string) bool {
+	return s.m.Has(ident)
+}
+
+func (s Scope) GetExternal(ident externalRef) (External, bool) {
+	if v, has := s.m.Get(ident); has {
+		return v.(External), true
+	}
+	return nil, false
+}
+
+func (s Scope) WithVal(ident string, p Parser, val TreeElement) Scope {
 	if ident == "" {
 		return s
 	}
-	return s.With(ident, &scopeVal{p, val})
+	return Scope{m: s.m.With(ident, &scopeVal{p: p, val: val})}
 }
-func valFrom(s frozen.Map, ident string) (*scopeVal, bool) {
-	if val, ok := s.Get(ident); ok {
+
+func (s Scope) GetVal(ident string) (*scopeVal, bool) {
+	if val, ok := s.m.Get(ident); ok {
 		return val.(*scopeVal), ok
 	}
 	return nil, false
@@ -97,7 +116,7 @@ func (g Grammar) clone() Grammar {
 	return clone
 }
 
-func (g Grammar) resolveStacks() {
+func (g Grammar) ResolveStacks() {
 	for rule, term := range g {
 		if stack, ok := term.(Stack); ok {
 			oldRule := rule
@@ -119,7 +138,7 @@ func (g Grammar) Compile(node *Node) Parsers {
 	for _, term := range g {
 		if _, ok := term.(Stack); ok {
 			g = g.clone()
-			g.resolveStacks()
+			g.ResolveStacks()
 			break
 		}
 	}
@@ -162,7 +181,7 @@ type ruleParser struct {
 	t    Rule
 }
 
-func (p ruleParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement) error {
+func (p ruleParser) Parse(scope Scope, input *Scanner, output *TreeElement) error {
 	panic(errors.Inconceivable)
 }
 
@@ -199,7 +218,7 @@ type sParser struct {
 	re   *regexp.Regexp
 }
 
-func (p *sParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement) error {
+func (p *sParser) Parse(scope Scope, input *Scanner, output *TreeElement) error {
 	if ok := eatRegexp(input, p.re, output); !ok {
 		return newParseError(p.rule, "",
 			fmt.Errorf("expect: %s", NewScanner(p.t.String()).Context()),
@@ -226,7 +245,7 @@ type reParser struct {
 	re   *regexp.Regexp
 }
 
-func (p *reParser) Parse(_ frozen.Map, input *Scanner, output *TreeElement) error {
+func (p *reParser) Parse(_ Scope, input *Scanner, output *TreeElement) error {
 	if ok := eatRegexp(input, p.re, output); !ok {
 		return newParseError(p.rule, "",
 			fmt.Errorf("expect: %s", NewScanner(p.re.String()).Context()),
@@ -300,7 +319,7 @@ const dontAttemptSeqFix = "dont-attempt-seq-fix"
 
 // Special helper function to try and determine if the sequence could be completed with simple missing strings
 // The main purpose of this is to catch `missing ;` style errors at end-of-line
-func (p *seqParser) attemptRuleCompletion(scope frozen.Map, first, input *Scanner, failedIndex int) error {
+func (p *seqParser) attemptRuleCompletion(scope Scope, first, input *Scanner, failedIndex int) error {
 	if scope.Has(dontAttemptSeqFix) {
 		return nil
 	}
@@ -324,7 +343,7 @@ func (p *seqParser) attemptRuleCompletion(scope frozen.Map, first, input *Scanne
 	return nil
 }
 
-func (p *seqParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement) (out error) {
+func (p *seqParser) Parse(scope Scope, input *Scanner, output *TreeElement) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	result := make([]TreeElement, 0, len(p.parsers))
 	furthest := *input
@@ -341,7 +360,7 @@ func (p *seqParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement)
 			*input = furthest
 			return newParseError(p.rule, "could not complete sequence", elist...)
 		}
-		scope = NewScopeWith(scope, ident, p.parsers[i], v)
+		scope = scope.WithVal(ident, p.parsers[i], v)
 		furthest = *input
 		result = append(result, v)
 	}
@@ -367,7 +386,7 @@ type delimParser struct {
 	put  putter
 }
 
-func parseAppend(p Parser, scope frozen.Map,
+func parseAppend(p Parser, scope Scope,
 	input *Scanner, slice *[]TreeElement, errOut *error) bool {
 	var v TreeElement
 	if err := p.Parse(scope, input, &v); err != nil {
@@ -382,7 +401,7 @@ type Empty struct{}
 
 func (Empty) IsTreeElement() {}
 
-func (p *delimParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement) (out error) {
+func (p *delimParser) Parse(scope Scope, input *Scanner, output *TreeElement) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	var result []TreeElement
 
@@ -407,7 +426,7 @@ func (p *delimParser) Parse(scope frozen.Map, input *Scanner, output *TreeElemen
 		if !parseAppend(p.sep, scope, input, &result, &parseErr) {
 			return parseErr
 		}
-		scope = NewScopeWith(scope, identFromTerm(p.t.Sep), p.sep, result[len(result)-1])
+		scope = scope.WithVal(identFromTerm(p.t.Sep), p.sep, result[len(result)-1])
 		if !parseAppend(p.term, scope, input, &result, &parseErr) {
 			return parseErr
 		}
@@ -416,7 +435,7 @@ func (p *delimParser) Parse(scope frozen.Map, input *Scanner, output *TreeElemen
 	}
 
 	s := *input
-	scope = NewScopeWith(scope, identFromTerm(p.t.Term), p.term, result[len(result)-1])
+	scope = scope.WithVal(identFromTerm(p.t.Term), p.term, result[len(result)-1])
 	for parseAppend(p.sep, scope, input, &result, &parseErr) {
 		if !parseAppend(p.term, scope, input, &result, &parseErr) {
 			if p.t.CanEndWithSep {
@@ -427,7 +446,7 @@ func (p *delimParser) Parse(scope frozen.Map, input *Scanner, output *TreeElemen
 			}
 			break
 		}
-		scope = NewScopeWith(scope, identFromTerm(p.t.Term), p.term, result[len(result)-1])
+		scope = scope.WithVal(identFromTerm(p.t.Term), p.term, result[len(result)-1])
 		s = *input
 	}
 	*input = s
@@ -507,7 +526,7 @@ type quantParser struct {
 	put  putter
 }
 
-func (p *quantParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement) (out error) {
+func (p *quantParser) Parse(scope Scope, input *Scanner, output *TreeElement) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	result := make([]TreeElement, 0, p.t.Min)
 	var v TreeElement
@@ -525,7 +544,7 @@ func (p *quantParser) Parse(scope frozen.Map, input *Scanner, output *TreeElemen
 	}
 
 	return newParseError(p.rule,
-		fmt.Sprintf("quant failed, expected: (%d, %d), have %d value(s)", p.t.Min, p.t.Max, len(result)), out)
+		fmt.Sprintf("quant failed, expected: %v, have %d value(s)", p.t, len(result)), out)
 }
 
 func (t Quant) Parser(rule Rule, c cache) Parser {
@@ -548,7 +567,7 @@ type oneofParser struct {
 	put     putter
 }
 
-func (p *oneofParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement) (out error) {
+func (p *oneofParser) Parse(scope Scope, input *Scanner, output *TreeElement) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	furthest := *input
 
@@ -609,39 +628,41 @@ func termFromRefVal(from TreeElement) Term {
 	return term
 }
 
-func (t *REF) Parse(scope frozen.Map, input *Scanner, output *TreeElement) (out error) {
-	var v TreeElement
-	if expected, ok := valFrom(scope, t.Ident); ok {
-		term := termFromRefVal(expected.val)
-		if t.External {
-			if external, has := scope.Get(externalRef(t.Ident)); has {
-				foreigner, subgrammar, err := external.(External)(term, expected.val, input)
+func (t *REF) Parse(scope Scope, input *Scanner, output *TreeElement) error {
+	if t.External {
+		if external, has := scope.GetExternal(externalRef(t.Ident)); has {
+			if expected, ok := scope.GetVal(t.Ident); ok {
+				foreigner, subgrammar, err := external(expected.val, input, false)
 				if err != nil {
 					return newParseError(Rule(t.Ident), "External parse failed", err)
 				}
-				v = NewNode(externTag, SubGrammar{subgrammar}, foreigner)
+				*output = NewNode(externTag, SubGrammar{subgrammar}, foreigner)
 			} else {
 				return newParseError(Rule(t.Ident), "External ref handler not found")
 			}
-		} else {
-			if err := term.Parser(Rule(t.Ident), cache{}).Parse(scope, input, &v); err != nil {
-				return err
-			}
-			if !nodesEqual(v, expected.val) {
-				return newParseError(Rule(t.Ident), "Backref not matched",
-					fmt.Errorf("expected: %s", expected),
-					fmt.Errorf("actual: %s", v))
-			}
+			return nil
 		}
-	} else if t.Default != nil {
-		if err := t.Default.Parser(Rule(t.Ident), cache{}).Parse(scope, input, &v); err != nil {
+		panic("wat?")
+	}
+	if expected, ok := scope.GetVal(t.Ident); ok {
+		term := termFromRefVal(expected.val)
+		if err := term.Parser(Rule(t.Ident), cache{}).Parse(scope, input, output); err != nil {
 			return err
 		}
-	} else {
-		return newParseError(Rule(t.Ident), "Backref not found")
+		if !nodesEqual(*output, expected.val) {
+			return newParseError(Rule(t.Ident), "Backref not matched",
+				fmt.Errorf("expected: %s", expected),
+				fmt.Errorf("actual: %s", *output))
+		}
+		return nil
 	}
-	*output = v
-	return nil
+	if t.Default != nil {
+		if err := t.Default.Parser(Rule(t.Ident), cache{}).Parse(scope, input, output); err != nil {
+			return err
+		}
+		return nil
+	}
+	return newParseError(Rule(t.Ident), "Backref not found")
 }
 
 func (t REF) Parser(rule Rule, c cache) Parser {

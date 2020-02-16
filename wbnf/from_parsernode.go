@@ -175,9 +175,10 @@ func (n Branch) fromParserNode(g parser.Grammar, term parser.Term, ctrs counters
 			node := e.(*parser.Node)
 			subgrammarNode := node.Extra.(parser.SubGrammar).Node
 			subgrammar := FromParserNode(Core().Grammar(), subgrammarNode)
-			subnode := FromParserNode(NewFromNode(subgrammarNode), node.Children[0])
-			n.add("", Branch{"@grammar": One{Node: subgrammar}, "@node": One{subnode}}, ctrs[""])
-			panic(subnode)
+			g := NewFromNode(subgrammarNode)
+			g.ResolveStacks()
+			subnode := FromParserNode(g, node.Children[0])
+			n.add("", Branch{"@grammar": One{Node: subgrammar}, "@node": One{subnode}}, oneOne)
 		} else {
 			switch e := e.(type) {
 			case parser.Scanner:

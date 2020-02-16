@@ -45,18 +45,18 @@ func (p Parsers) Unparse(e TreeElement, w io.Writer) (n int, err error) {
 }
 
 // Parse parses some source per a given rule.
-func (p Parsers) parse(rule Rule, input *Scanner, scope frozen.Map) (TreeElement, error) {
+func (p Parsers) parse(rule Rule, input *Scanner, scope Scope) (TreeElement, error) {
 	var e TreeElement
 	err := p.parsers[rule].Parse(scope, input, &e)
 	return e, err
 }
 
-func prepareExternals(externals Externals) frozen.Map {
+func prepareExternals(externals Externals) Scope {
 	var b frozen.MapBuilder
 	for name, external := range externals {
 		b.Put(externalRef(name), external)
 	}
-	return b.Finish()
+	return Scope{m: b.Finish()}
 }
 
 // Parse parses some source per a given rule.

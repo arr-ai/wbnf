@@ -58,15 +58,15 @@ view_params -> (NAME "<:" (collection_type|type_spec)):",";
 expr_block -> "";
 
 // --------------    stmt    --------------- //
-stmt -> (if_stmt
-                | for_stmt
-                | ret_stmt
-                | call_stmt
-                | one_of_stmt
-                | http_method_comment=(COMMENT)
-                | group_stmt
-                | text_stmt
-                | annotation
+stmt -> (if_else
+            | for_stmt
+            | ret_stmt
+            | call_stmt
+            | one_of_stmt
+            | http_method_comment=(COMMENT)
+            | group_stmt
+            | text_stmt
+            | annotation
         ) attribs?;
 
 if_else -> if_stmt else_stmt*;
@@ -79,7 +79,6 @@ for_stmt -> for_type=("alt" | "until" | "for each" | "for" | "loop" | "while") P
 
 one_of_stmt -> "one" "of" ":" \n+ level=INDENT one_of_cases:INDENT_SEP;
 
-// TODO: make this simpler
 one_of_cases -> one_of_case_label=(QSTRING ":"| NAME ":" | TEXT_LINE ":" | ":")  \n+ level=INDENT stmt:INDENT_SEP;
 
 call_stmt -> target=("." | NAME:"::") "<-" target_endpoint=(TEXT_LINE) call_args?;

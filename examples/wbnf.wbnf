@@ -42,5 +42,6 @@ RE      -> /{
            };
 pragma  -> (
                 import=(".import" path=((".."|"."|[a-zA-Z0-9.:]+):,"/"))
+REF     -> "%" IDENT ("=" default=STR)?;
 
 .wrapRE -> /{\s*()\s*};

@@ -173,12 +173,14 @@ func (n Branch) fromParserNode(g parser.Grammar, term parser.Term, ctrs counters
 	case parser.REF:
 		if t.External {
 			node := e.(*parser.Node)
-			subgrammarNode := node.Extra.(parser.SubGrammar).Node
-			subgrammar := FromParserNode(Core().Grammar(), subgrammarNode)
-			g := NewFromNode(subgrammarNode)
-			g.ResolveStacks()
-			subnode := FromParserNode(g, node.Children[0])
-			n.add("", Branch{"@grammar": One{Node: subgrammar}, "@node": One{subnode}}, oneOne)
+			if len(node.Children) > 0 {
+				subgrammarNode := node.Extra.(parser.SubGrammar).Node
+				subgrammar := FromParserNode(Core().Grammar(), subgrammarNode)
+				g := NewFromNode(subgrammarNode)
+				g.ResolveStacks()
+				subnode := FromParserNode(g, node.Children[0])
+				n.add("", Branch{"@grammar": One{Node: subgrammar}, "@node": One{subnode}}, oneOne)
+			}
 		} else {
 			switch e := e.(type) {
 			case parser.Scanner:

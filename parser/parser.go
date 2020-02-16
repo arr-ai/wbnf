@@ -67,6 +67,14 @@ type Scope struct {
 	m frozen.Map
 }
 
+func (s Scope) String() string {
+	return s.m.String()
+}
+
+func (s Scope) Keys() frozen.Set {
+	return s.m.Keys()
+}
+
 func (s Scope) With(ident string, v interface{}) Scope {
 	return Scope{m: s.m.With(ident, v)}
 }
@@ -89,11 +97,12 @@ func (s Scope) WithVal(ident string, p Parser, val TreeElement) Scope {
 	return Scope{m: s.m.With(ident, &scopeVal{p: p, val: val})}
 }
 
-func (s Scope) GetVal(ident string) (*scopeVal, bool) {
+func (s Scope) GetVal(ident string) (Parser, TreeElement, bool) {
 	if val, ok := s.m.Get(ident); ok {
-		return val.(*scopeVal), ok
+		sv := val.(*scopeVal)
+		return sv.p, sv.val, ok
 	}
-	return nil, false
+	return nil, nil, false
 }
 
 func tag(rule Rule, alt Rule) putter {
@@ -631,36 +640,33 @@ func termFromRefVal(from TreeElement) Term {
 func (t *REF) Parse(scope Scope, input *Scanner, output *TreeElement) error {
 	if t.External {
 		if external, has := scope.GetExternal(externalRef(t.Ident)); has {
-			if expected, ok := scope.GetVal(t.Ident); ok {
-				foreigner, subgrammar, err := external(expected.val, input, false)
-				if err != nil {
-					return newParseError(Rule(t.Ident), "External parse failed", err)
-				}
+			foreigner, subgrammar, err := external(scope, input, false)
+			if err != nil {
+				return newParseError(Rule(t.Ident), "External parse failed", err)
+			}
+			if foreigner != nil {
 				*output = NewNode(externTag, SubGrammar{subgrammar}, foreigner)
 			} else {
-				return newParseError(Rule(t.Ident), "External ref handler not found")
+				*output = NewNode(externTag, nil)
 			}
 			return nil
 		}
-		panic("wat?")
+		return newParseError(Rule(t.Ident), "External ref handler not found")
 	}
-	if expected, ok := scope.GetVal(t.Ident); ok {
-		term := termFromRefVal(expected.val)
+	if parser, val, has := scope.GetVal(t.Ident); has {
+		term := termFromRefVal(val)
 		if err := term.Parser(Rule(t.Ident), cache{}).Parse(scope, input, output); err != nil {
 			return err
 		}
-		if !nodesEqual(*output, expected.val) {
+		if !nodesEqual(*output, val) {
 			return newParseError(Rule(t.Ident), "Backref not matched",
-				fmt.Errorf("expected: %s", expected),
+				fmt.Errorf("expected: parser=%s, val=%s", parser, val),
 				fmt.Errorf("actual: %s", *output))
 		}
 		return nil
 	}
 	if t.Default != nil {
-		if err := t.Default.Parser(Rule(t.Ident), cache{}).Parse(scope, input, output); err != nil {
-			return err
-		}
-		return nil
+		return t.Default.Parser(Rule(t.Ident), cache{}).Parse(scope, input, output)
 	}
 	return newParseError(Rule(t.Ident), "Backref not found")
 }

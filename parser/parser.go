@@ -347,16 +347,16 @@ func (p *seqParser) Parse(scope Scope, input *Scanner, output *TreeElement) (out
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	result := make([]TreeElement, 0, len(p.parsers))
 	furthest := *input
-	first := NewScanner(input.String())
+	// first := NewScanner(input.String())
 
 	for i, item := range p.parsers {
 		var v TreeElement
 		ident := identFromTerm(p.t[i])
 		if err := item.Parse(scope, input, &v); err != nil {
 			elist := []error{err}
-			if fixup := p.attemptRuleCompletion(scope, first, input, i); fixup != nil {
-				elist = append(elist, fixup)
-			}
+			// if fixup := p.attemptRuleCompletion(scope, first, input, i); fixup != nil {
+			// 	elist = append(elist, fixup)
+			// }
 			*input = furthest
 			return newParseError(p.rule, "could not complete sequence", elist...)
 		}

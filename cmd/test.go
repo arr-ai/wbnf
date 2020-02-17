@@ -105,6 +105,9 @@ func test(c *cli.Context) error {
 	if verboseMode {
 		logrus.SetLevel(logrus.TraceLevel)
 	}
+	if !g.HasRule(parser.Rule(startingRule)) {
+		return fmt.Errorf("starting rule '%s' not in test grammar", startingRule)
+	}
 	tree, err := g.Parse(parser.Rule(startingRule), parser.NewScanner(input))
 	if err != nil {
 		return err

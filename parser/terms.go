@@ -40,6 +40,11 @@ func (p Parsers) Node() interface{} {
 	return p.node
 }
 
+func (p Parsers) HasRule(rule Rule) bool {
+	_, has := p.parsers[rule]
+	return has
+}
+
 func (p Parsers) Unparse(e TreeElement, w io.Writer) (n int, err error) {
 	return p.grammar.Unparse(e, w)
 }

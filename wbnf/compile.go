@@ -2,6 +2,8 @@ package wbnf
 
 import (
 	"fmt"
+	"io/ioutil"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -234,16 +236,56 @@ func NewFromAst(node ast.Node) parser.Grammar {
 	return g
 }
 
+func mergeGrammarNodes(a, b ast.Branch) ast.Node {
+	a["stmt"] = append(a["stmt"].(ast.Many), b.Many("stmt")...)
+	return a
+}
+
 func Compile(grammar string) (parser.Parsers, error) {
 	node, err := ParseString(grammar)
 	if err != nil {
 		return parser.Parsers{}, err
 	}
+
+	WalkerOps{
+		EnterPragmaNode: func(pragma PragmaNode) Stopper {
+			// TODO: gen.go doesnt generate the correct callbacks for this node yet.
+			if imp := ast.First(pragma.Node, "import"); imp != nil {
+				var parts []string
+				for _, p := range ast.All(imp, "path") {
+					_, child := ast.Which(p.(ast.Branch), "")
+					switch child := child.(type) {
+					case ast.Many:
+						for _, c := range child {
+							parts = append(parts, c.Scanner().String())
+						}
+					case ast.One:
+						parts = append(parts, child.Scanner().String())
+					}
+
+				}
+				filename := path.Join(parts...)
+				text, nestErr := ioutil.ReadFile(filename)
+				if nestErr != nil {
+					err = nestErr
+					return &aborter{}
+				}
+				nested, nestErr := ParseString(string(text))
+				if nestErr != nil {
+					err = nestErr
+					return &aborter{}
+				}
+				x := mergeGrammarNodes(node.Node.(ast.Branch), nested.Node.(ast.Branch))
+				node = GrammarNode{Node: x}
+			}
+			return nil
+		},
+	}.Walk(node)
+
 	if err := validate(node); err != nil {
 		return parser.Parsers{}, err
 	}
-	g := NewFromAst(node)
-	return g.Compile(node), nil
+	return NewFromAst(node).Compile(node), nil
 }
 
 func MustCompile(grammar string) parser.Parsers {

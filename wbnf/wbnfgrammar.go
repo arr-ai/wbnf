@@ -10,7 +10,8 @@ import (
 func Grammar() parser.Parsers {
 	return parser.Grammar{"grammar": parser.Some(parser.Rule(`stmt`)),
 		"stmt": parser.Oneof{parser.Rule(`COMMENT`),
-			parser.Rule(`prod`)},
+			parser.Rule(`prod`),
+			parser.Rule(`pragma`)},
 		"prod": parser.Seq{parser.Rule(`IDENT`),
 			parser.S("->"),
 			parser.Some(parser.Rule(`term`)),
@@ -65,6 +66,15 @@ func Grammar() parser.Parsers {
 			parser.Opt(parser.Seq{parser.S("="),
 				parser.Eq("default",
 					parser.Rule(`STR`))})},
+		"pragma": parser.Eq("import",
+			parser.Seq{parser.S(".import"),
+				parser.Eq("path",
+					parser.Delim{Term: parser.Oneof{parser.S(".."),
+						parser.S("."),
+						parser.RE(`[a-zA-Z0-9.:]+`)},
+						Sep:             parser.S("/"),
+						Assoc:           parser.NonAssociative,
+						CanStartWithSep: true})}),
 		".wrapRE": parser.RE(`\s*()\s*`)}.Compile(nil)
 }
 
@@ -90,12 +100,15 @@ const (
 	IdentSTR         = "STR"
 	IdentAtom        = "atom"
 	IdentDefault     = "default"
+	IdentImport      = "import"
 	IdentMax         = "max"
 	IdentMin         = "min"
 	IdentNamed       = "named"
 	IdentOp          = "op"
 	IdentOptLeading  = "opt_leading"
 	IdentOptTrailing = "opt_trailing"
+	IdentPath        = "path"
+	IdentPragma      = "pragma"
 	IdentProd        = "prod"
 	IdentQuant       = "quant"
 	IdentStmt        = "stmt"
@@ -583,6 +596,55 @@ func WalkNamedNode(node NamedNode, ops WalkerOps) Stopper {
 	return nil
 }
 
+type PragmaNode struct{ ast.Node }
+
+func (c PragmaNode) Choice() int {
+	return ast.Choice(c.Node)
+}
+
+func (c PragmaNode) AllImport() []TermNode {
+	var out []TermNode
+	for _, child := range ast.All(c.Node, "import") {
+		out = append(out, TermNode{child})
+	}
+	return out
+}
+
+func (c PragmaNode) OneImport() TermNode {
+	return TermNode{ast.First(c.Node, "import")}
+}
+
+func (c PragmaNode) AllPath() []TermNode {
+	var out []TermNode
+	for _, child := range ast.All(c.Node, "path") {
+		out = append(out, TermNode{child})
+	}
+	return out
+}
+
+func (c PragmaNode) OnePath() TermNode {
+	return TermNode{ast.First(c.Node, "path")}
+}
+func WalkPragmaNode(node PragmaNode, ops WalkerOps) Stopper {
+	if fn := ops.EnterPragmaNode; fn != nil {
+		s := fn(node)
+		switch {
+		case s == nil:
+		case s.ExitNode():
+			return nil
+		case s.Abort():
+			return s
+		}
+	}
+
+	if fn := ops.ExitPragmaNode; fn != nil {
+		if s := fn(node); s != nil && s.Abort() {
+			return s
+		}
+	}
+	return nil
+}
+
 type ProdNode struct{ ast.Node }
 
 func (c ProdNode) AllIdent() []IdentNode {
@@ -782,6 +844,18 @@ func (c StmtNode) OneComment() CommentNode {
 	return CommentNode{ast.First(c.Node, "COMMENT")}
 }
 
+func (c StmtNode) AllPragma() []PragmaNode {
+	var out []PragmaNode
+	for _, child := range ast.All(c.Node, "pragma") {
+		out = append(out, PragmaNode{child})
+	}
+	return out
+}
+
+func (c StmtNode) OnePragma() PragmaNode {
+	return PragmaNode{ast.First(c.Node, "pragma")}
+}
+
 func (c StmtNode) AllProd() []ProdNode {
 	var out []ProdNode
 	for _, child := range ast.All(c.Node, "prod") {
@@ -807,6 +881,16 @@ func WalkStmtNode(node StmtNode, ops WalkerOps) Stopper {
 
 	for _, child := range node.AllComment() {
 		s := WalkCommentNode(child, ops)
+		switch {
+		case s == nil:
+		case s.ExitNode():
+			return nil
+		case s.Abort():
+			return s
+		}
+	}
+	for _, child := range node.AllPragma() {
+		s := WalkPragmaNode(child, ops)
 		switch {
 		case s == nil:
 		case s.ExitNode():
@@ -956,6 +1040,8 @@ type WalkerOps struct {
 	ExitGrammarNode  func(GrammarNode) Stopper
 	EnterNamedNode   func(NamedNode) Stopper
 	ExitNamedNode    func(NamedNode) Stopper
+	EnterPragmaNode  func(PragmaNode) Stopper
+	ExitPragmaNode   func(PragmaNode) Stopper
 	EnterProdNode    func(ProdNode) Stopper
 	ExitProdNode     func(ProdNode) Stopper
 	EnterQuantNode   func(QuantNode) Stopper
@@ -987,7 +1073,7 @@ func ParseString(input string) (GrammarNode, error) {
 var grammarGrammarSrc = unfakeBackquote(`
 // Non-terminals
 grammar -> stmt+;
-stmt    -> COMMENT | prod;
+stmt    -> COMMENT | prod | pragma;
 prod    -> IDENT "->" term+ ";";
 term    -> @:op=">"
          > @:op="|"
@@ -1028,7 +1114,10 @@ RE      -> /{
              )+
            };
 REF     -> "%" IDENT ("=" default=STR)?;
-
 // Special
+pragma  -> (
+                import=(".import" path=((".."|"."|[a-zA-Z0-9.:]+):,"/"))
+           );
+
 .wrapRE -> /{\s*()\s*};
 `)

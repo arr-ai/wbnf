@@ -69,6 +69,8 @@ func idents(b ast.Branch) frozen.Set {
 					name = atom.One("IDENT").Scanner().String()
 				case "IDENT":
 					name = atom.One(x).Scanner().String()
+				case "term":
+					name = x
 				}
 				founds = founds.With(id.Scanner().String() + "@" + name)
 			} else {

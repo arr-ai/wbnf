@@ -28,14 +28,14 @@ var testCommand = cli.Command{
 		cli.StringFlag{
 			Name:        "grammar",
 			Usage:       "input grammar file",
-			Required:    true,
+			Required:    false,
 			TakesFile:   true,
 			Destination: &inGrammarFile,
 		},
 		cli.StringFlag{
 			Name:        "start",
 			Usage:       "starting rule to process the input text",
-			Required:    true,
+			Required:    false,
 			TakesFile:   false,
 			Destination: &startingRule,
 		},
@@ -72,7 +72,21 @@ func loadTestGrammar() parser.Parsers {
 	if err != nil {
 		panic(err)
 	}
+	if startingRule == "" {
+		panic(fmt.Errorf("--start missing"))
+	}
 	return wbnf.MustCompile(string(text))
+}
+
+func testWbnfFile(grammar string) error {
+	g := wbnf.MustCompile(grammar)
+	if printTree {
+		fmt.Println(ast.BuildTreeView("grammar", g.Node().(wbnf.GrammarNode).Node, true))
+	} else {
+		fmt.Println(g.Node().(ast.Node))
+	}
+
+	return nil
 }
 
 func test(c *cli.Context) error {
@@ -84,7 +98,6 @@ func test(c *cli.Context) error {
 			os.Exit(1)
 		}
 	}()
-	g := loadTestGrammar()
 
 	var input string
 	switch source {
@@ -101,6 +114,10 @@ func test(c *cli.Context) error {
 		}
 		input = string(buf)
 	}
+	if inGrammarFile == "" {
+		return testWbnfFile(input)
+	}
+	g := loadTestGrammar()
 
 	if verboseMode {
 		logrus.SetLevel(logrus.TraceLevel)

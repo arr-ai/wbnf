@@ -26,7 +26,7 @@ The hope is that the packages will evolved such that parser and ast are merged, 
 ```text
 // Non-terminals
 grammar -> stmt+;
-stmt    -> COMMENT | prod;
+stmt    -> COMMENT | prod | pragma;
 prod    -> IDENT "->" term+ ";";
 term    -> @:op=">"
          > @:op="|"
@@ -67,8 +67,11 @@ RE      -> /{
              )+
            };
 REF     -> "%" IDENT ("=" default=STR)?;
-
 // Special
+pragma  -> (
+                import=(".import" path=((".."|"."|[a-zA-Z0-9.:]+):,"/"))
+           );
+
 .wrapRE -> /{\s*()\s*};
 ```
 <!-- /INJECT -->

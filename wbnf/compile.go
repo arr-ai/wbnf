@@ -3,7 +3,7 @@ package wbnf
 import (
 	"fmt"
 	"io/ioutil"
-	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -272,7 +272,7 @@ func (c *compiler) makeGrammar(filename, text string) (GrammarNode, error) {
 						parts = append(parts, child.Scanner().String())
 					}
 				}
-				importPath := path.Join(parts...)
+				importPath := filepath.Join(parts...)
 				if c.resolver != nil {
 					importPath = c.resolver.Resolve(filename, importPath)
 				}
@@ -293,7 +293,7 @@ func (c *compiler) makeGrammar(filename, text string) (GrammarNode, error) {
 }
 
 func (c *compiler) loadGrammarFile(filename string) (GrammarNode, error) {
-	filename = path.Clean(filename)
+	filename = filepath.Clean(filename)
 	if _, has := c.imports[filename]; !has {
 		text, err := ioutil.ReadFile(filename)
 		if err != nil {

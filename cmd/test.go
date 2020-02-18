@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 
 	"github.com/sirupsen/logrus"
 
@@ -74,9 +74,9 @@ type resolver struct {
 
 func (r resolver) Resolve(from, file string) string {
 	if from == "" {
-		return path.Clean(path.Join(r.base, file))
+		return filepath.Clean(filepath.Join(r.base, file))
 	}
-	return path.Clean(path.Join(r.base, from, file))
+	return filepath.Clean(filepath.Join(r.base, from, file))
 }
 
 func makeResolver() resolver {

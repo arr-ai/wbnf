@@ -664,6 +664,11 @@ func (t ScopedGrammar) Parser(name Rule, c cache) Parser {
 			break
 		}
 	}
+	if wrap, has := c.grammar[WrapRE]; has {
+		if _, has := t.Grammar[WrapRE]; !has {
+			t.Grammar[WrapRE] = wrap
+		}
+	}
 
 	cc := cache{
 		parsers:    map[Rule]Parser{},

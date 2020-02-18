@@ -290,3 +290,26 @@ func TestScopeGrammar(t *testing.T) {
 
 	parser.AssertEqualNodes(t, te.(parser.Node), te2.(parser.Node))
 }
+
+func TestScopeGrammarwithWrapping(t *testing.T) {
+	t.Parallel()
+	g := parser.Grammar{
+		".wrapRE": parser.RE(`\s*()\s*`),
+		"pragma": parser.ScopedGrammar{Term: parser.Oneof{parser.Rule(`import`)},
+			Grammar: parser.Grammar{"import": parser.Seq{parser.S(".import"),
+				parser.Eq("path",
+					parser.Delim{Term: parser.Oneof{parser.S(".."),
+						parser.S("."),
+						parser.RE(`[a-zA-Z0-9]+`)},
+						Sep:             parser.S("/"),
+						Assoc:           parser.NonAssociative,
+						CanStartWithSep: true})}}},
+	}
+	p := g.Compile(nil)
+
+	te := p.MustParse("pragma", parser.NewScanner(".import foowbnf"))
+	tree := ast.FromParserNode(g, te)
+	te2 := ast.ToParserNode(g, tree)
+
+	parser.AssertEqualNodes(t, te.(parser.Node), te2.(parser.Node))
+}

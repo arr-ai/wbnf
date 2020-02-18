@@ -1,7 +1,3 @@
-.import tokens.wbnf
-.import commons.wbnf
-.import stmt.wbnf
-
 // -------------- Endpoint     --------------- //
 
 endpoint -> (rest_endpoint | simple_endpoint) EOL;

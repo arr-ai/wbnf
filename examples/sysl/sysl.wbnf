@@ -1,7 +1,6 @@
 .import stmt.wbnf
 .import endpoints.wbnf
-.import tokens.wbnf
-.import commons.wbnf
+.import views.wbnf
 
 // Sysl grammar
 
@@ -28,16 +27,54 @@ wrap -> "!wrap" NAME attribs?  ":" COMMENT*
     \n+ level=INDENT
         (table | "!table"APP_NAME):INDENT_SEP EOL;
 
+collection_type -> ("set" | "sequence") "of" type_spec;
+
+
+// -------------- Common Rules --------------- //
+attribs     ->  "[" @:"," "]"
+             > pattern=("~" NAME:"+")
+             | attr=(NAME "=" QSTRING)
+        ;
+
+array_size -> "(" DIGITS ".." DIGITS? ")";
+
+reference -> package_name=(NAME:"::") ("." NAME)+;
+
+annotation -> "@" var_name=(NAME) "=" value=(QSTRING | array_of_strings | multi_line_docstring);
+
+annotations -> \n+ level=INDENT annotation:INDENT_SEP;
+
+array_of_strings -> "[" QSTRING:"," "]";
+
+multi_line_docstring -> ":" \n+ level=INDENT ("|" TEXT):INDENT_SEP;
+
+http_path_var_with_type -> "{" var=(NAME | DIGITS) "<:" type=(NativeDataTypes | NAME | reference) "}";
+
+http_path -> "/" ((http_path_static=(NAME | DIGITS) | http_path_var_with_type):"/")?;
 
 type_spec -> (NativeDataTypes | UserType=APP_NAME)
              SizeSpec=("(" \d+ (array=".."|sized=".")? \d* ")")?;
-collection_type -> ("set" | "sequence") "of" type_spec;
 
-// --------------    views    --------------- //
-view -> "!view" NAME "(" view_params? ")"
-        ("->" retType=(collection_type|type_spec))?
-        attribs? ":" ((\n+ level=INDENT expr_block:INDENT_SEP) | abstract="[~abstract]");
+// -------------- Tokens --------------- //
+NAME    -> [a-zA-Z_][-a-zA-Z0-9_]*;
+PATH    -> /{[a-zA-Z0-9._]*}:"/";
+DIGITS -> [1-9][0-9]*;
+TEXT -> [^(\r?\n)]+;
+TEXT_LINE -> /{\s* ( [^\s:(] [^(\r\n:]* [^\s\r\n(:] )};
+APP_NAME -> NAME:".";
+PREDICATE -> [^\r\n:]+;
+SHORTCUT -> "...";
+HTTP_VERBS -> "GET" | "POST" | "DELETE" | "PUT" | "PATCH";
+NativeDataTypes -> "int32" | "int64" | "int" |
+                "float" | "string" | "date" |
+                "bool" | "decimal" | "datetime";
+APPLICATION_NAME    -> pkg=(NAME:"::" ".")? APP_NAME;
 
-view_params -> (NAME "<:" (collection_type|type_spec)):",";
+COMMENT -> "#" [^\n]* "\n";
+EOL     -> COMMENT+ | [\_\t]*\n;
+QSTRING -> /{"[^"]*"};
 
-expr_block -> "";
+.wrapRE -> \n+ | \s+ | /{[\_]*()[\_]*};
+
+INDENT      -> %level="" \s+;
+INDENT_SEP  -> \n+ %level;

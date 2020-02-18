@@ -1,6 +1,3 @@
-.import tokens.wbnf
-.import commons.wbnf
-
 // --------------    stmt    --------------- //
 stmt -> (if_else
             | for_stmt

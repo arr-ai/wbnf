@@ -7,10 +7,10 @@ rest_endpoint -> http_path attribs? ":" \n+ level=INDENT (method_def | rest_endp
 
 method_def -> method=(HTTP_VERBS) params? query_param? attribs? ":" \n+ level=INDENT stmt:INDENT_SEP;
 
-params -> "(" ( field | reference=APPLICATION_NAME ):"," ")";
+params -> "(" ( param | reference=APPLICATION_NAME ):"," ")";
 
 query_param -> "?" (Name=(NAME) "=" (NativeDataTypes| NAME | "{" NAME "}") optional="?"?):"&";
 
-field -> NAME (array_size? "<:" (field_type | (\n+ level=INDENT @:INDENT_SEP)) QSTRING?)?;
+param -> NAME (array_size? "<:" (param_type | (\n+ level=INDENT @:INDENT_SEP)) QSTRING?)?;
 
-field_type -> collection_type | (type_spec optional="?"? attribs?) ;
+param_type -> (collection_type | type_spec) optional="?"? attribs? ;

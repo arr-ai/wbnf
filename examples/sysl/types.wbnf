@@ -1,0 +1,22 @@
+table -> mode=("!table"|"!type") NAME attribs?  ":" COMMENT*
+            (
+                SHORTCUT
+                | \n+ level=INDENT
+                    (
+                        COMMENT
+                        | field
+                        | annotation
+                        | inplace_table=table
+                        | SHORTCUT
+                    ):INDENT_SEP
+            );
+
+field -> NAME (array_size? "<:" (field_type | (\n+ level=INDENT @:INDENT_SEP)) QSTRING?)?;
+
+field_type -> (collection_type | type_spec) optional="?"? attribs? (":" annotations)? ;
+
+wrap -> "!wrap" NAME attribs?  ":" COMMENT*
+    \n+ level=INDENT
+        (table | "!table"APP_NAME):INDENT_SEP EOL;
+
+collection_type -> ("set" | "sequence") "of" type_spec;

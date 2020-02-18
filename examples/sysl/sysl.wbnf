@@ -1,6 +1,7 @@
 .import stmt.wbnf
 .import endpoints.wbnf
 .import views.wbnf
+.import types.wbnf
 
 // Sysl grammar
 
@@ -17,18 +18,6 @@ application ->  APPLICATION_NAME QSTRING?
         attribs? ":" COMMENT* \n+ level=INDENT app_decl:INDENT_SEP;
 
 app_decl   -> SHORTCUT | table | wrap | endpoint | view;
-
-// -------------- Types --------------- //
-
-table -> mode=("!table"|"!type") NAME attribs?  ":" COMMENT*
-    \n+ level=INDENT
-        (COMMENT | (name=NAME "<:") type=(collection_type|type_spec) optional="?"? attribs?):INDENT_SEP EOL;
-wrap -> "!wrap" NAME attribs?  ":" COMMENT*
-    \n+ level=INDENT
-        (table | "!table"APP_NAME):INDENT_SEP EOL;
-
-collection_type -> ("set" | "sequence") "of" type_spec;
-
 
 // -------------- Common Rules --------------- //
 attribs     ->  "[" @:"," "]"

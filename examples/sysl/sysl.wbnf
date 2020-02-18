@@ -38,8 +38,6 @@ attribs     ->  "[" @:"," "]"
 
 array_size -> "(" DIGITS ".." DIGITS? ")";
 
-reference -> package_name=(NAME:"::") ("." NAME)+;
-
 annotation -> "@" var_name=(NAME) "=" value=(QSTRING | array_of_strings | multi_line_docstring);
 
 annotations -> \n+ level=INDENT annotation:INDENT_SEP;
@@ -48,7 +46,7 @@ array_of_strings -> "[" QSTRING:"," "]";
 
 multi_line_docstring -> ":" \n+ level=INDENT ("|" TEXT):INDENT_SEP;
 
-http_path_var_with_type -> "{" var=(NAME | DIGITS) "<:" type=(NativeDataTypes | NAME | reference) "}";
+http_path_var_with_type -> "{" var=(NAME | DIGITS) "<:" type=(NativeDataTypes | NAME | reference=APPLICATION_NAME) "}";
 
 http_path -> "/" ((http_path_static=(NAME | DIGITS) | http_path_var_with_type):"/")?;
 

@@ -34,7 +34,7 @@ func assertNodeParsesAs(
 }
 
 func assertNodeParsesAsScenario(t *testing.T, s nodeParseScenario) bool { //nolint:unparam
-	p, err := Compile(s.grammar)
+	p, err := Compile(s.grammar, nil)
 	g := p.Grammar()
 	require.NoError(t, err)
 
@@ -76,7 +76,7 @@ func assertNodeFailsToParse(
 }
 
 func assertNodeFailsToParseScenario(t *testing.T, s nodeParseScenario) bool { //nolint:unparam
-	p, err := Compile(s.grammar)
+	p, err := Compile(s.grammar, nil)
 	require.NoError(t, err)
 
 	src := parser.NewScanner(strings.TrimRight(s.input, " "))

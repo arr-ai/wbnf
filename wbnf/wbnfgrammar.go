@@ -77,7 +77,8 @@ func Grammar() parser.Parsers {
 						parser.RE(`[a-zA-Z0-9.:]+`)},
 						Sep:             parser.S("/"),
 						Assoc:           parser.NonAssociative,
-						CanStartWithSep: true})}}},
+						CanStartWithSep: true}),
+				parser.Opt(parser.S(";"))}}},
 		".wrapRE": parser.RE(`\s*()\s*`)}.Compile(nil)
 }
 
@@ -1191,7 +1192,7 @@ RE      -> /{
 REF     -> "%" IDENT ("=" default=STR)?;
 // Special
 pragma  -> import {
-                import -> ".import" path=((".."|"."|[a-zA-Z0-9.:]+):,"/");
+                import -> ".import" path=((".."|"."|[a-zA-Z0-9.:]+):,"/") ";"?;
             };
 
 .wrapRE -> /{\s*()\s*};

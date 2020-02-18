@@ -10,7 +10,7 @@ import (
 // Build the grammar grammar from grammarGrammarSrc and check that it matches
 // grammarGrammar.
 var core = func() parser.Parsers {
-	g := MustCompile(grammarGrammarSrc)
+	g := MustCompile(grammarGrammarSrc, nil)
 	newGrammarGrammar := g.Grammar()
 
 	a := Grammar().Grammar()

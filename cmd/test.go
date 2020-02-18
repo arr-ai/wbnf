@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/sirupsen/logrus"
 
@@ -67,6 +68,25 @@ var testCommand = cli.Command{
 	},
 }
 
+type resolver struct {
+	base string
+}
+
+func (r resolver) Resolve(from, file string) string {
+	if from == "" {
+		return filepath.Clean(filepath.Join(r.base, file))
+	}
+	return filepath.Clean(filepath.Join(r.base, from, file))
+}
+
+func makeResolver() resolver {
+	cwd, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	return resolver{cwd}
+}
+
 func loadTestGrammar() parser.Parsers {
 	text, err := ioutil.ReadFile(inGrammarFile)
 	if err != nil {
@@ -75,11 +95,11 @@ func loadTestGrammar() parser.Parsers {
 	if startingRule == "" {
 		panic(fmt.Errorf("--start missing"))
 	}
-	return wbnf.MustCompile(string(text))
+	return wbnf.MustCompile(string(text), makeResolver())
 }
 
 func testWbnfFile(grammar string) error {
-	g := wbnf.MustCompile(grammar)
+	g := wbnf.MustCompile(grammar, makeResolver())
 	if printTree {
 		fmt.Println(ast.BuildTreeView("grammar", g.Node().(wbnf.GrammarNode).Node, true))
 	} else {

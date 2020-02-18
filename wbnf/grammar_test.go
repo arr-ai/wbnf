@@ -237,7 +237,7 @@ func TestExprGrammarGrammarGrammar(t *testing.T) {
 func TestBacktrackGrammar(t *testing.T) {
 	t.Parallel()
 
-	parsers := MustCompile(`a -> ("x" ":" "x"+ ";"?)+;`)
+	parsers := MustCompile(`a -> ("x" ":" "x"+ ";"?)+;`, nil)
 	_, err := parsers.Parse(parser.Rule("a"), parser.NewScanner(`x:x;x:x`))
 	assert.NoError(t, err)
 
@@ -249,7 +249,7 @@ func TestBacktrackGrammar(t *testing.T) {
 func TestCombo1(t *testing.T) {
 	t.Parallel()
 
-	p, err := Compile(`x -> tuple=("(" "1":",",? ")");`)
+	p, err := Compile(`x -> tuple=("(" "1":",",? ")");`, nil)
 	assert.NoError(t, err)
 	log.Print(p.Grammar())
 }
@@ -257,7 +257,7 @@ func TestCombo1(t *testing.T) {
 func TestCombo2(t *testing.T) {
 	t.Parallel()
 
-	p, err := Compile(`x -> rel=("{" names ("(" @:",", ")"):",",? "}"); names -> "";`)
+	p, err := Compile(`x -> rel=("{" names ("(" @:",", ")"):",",? "}"); names -> "";`, nil)
 	assert.NoError(t, err)
 	log.Print(p.Grammar())
 }
@@ -265,7 +265,7 @@ func TestCombo2(t *testing.T) {
 func TestEmptyNamedTerm(t *testing.T) {
 	t.Parallel()
 
-	p, err := Compile(`x -> rel=();`)
+	p, err := Compile(`x -> rel=();`, nil)
 	assert.NoError(t, err)
 	log.Print(p.Grammar())
 }

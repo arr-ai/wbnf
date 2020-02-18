@@ -3,7 +3,7 @@ package wbnf
 import (
 	"fmt"
 	"io/ioutil"
-	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -256,12 +256,21 @@ func mergeGrammarNodes(a, b ast.Branch) ast.Node {
 	return a
 }
 
-func Compile(grammar string) (parser.Parsers, error) {
-	node, err := ParseString(grammar)
-	if err != nil {
-		return parser.Parsers{}, err
-	}
+type ImportResolver interface {
+	// Resolve returns the absolute path of the file at the location 'path' relative to the 'from' path
+	Resolve(from, path string) string
+}
 
+type compiler struct {
+	imports  map[string]GrammarNode
+	resolver ImportResolver
+}
+
+func (c *compiler) makeGrammar(filename, text string) (GrammarNode, error) {
+	node, err := ParseString(text)
+	if err != nil {
+		return GrammarNode{}, err
+	}
 	WalkerOps{
 		EnterPragmaNode: func(pragma PragmaNode) Stopper {
 			// TODO: gen.go doesnt generate the correct callbacks for this node yet.
@@ -277,34 +286,60 @@ func Compile(grammar string) (parser.Parsers, error) {
 					case ast.One:
 						parts = append(parts, child.Scanner().String())
 					}
-
 				}
-				filename := path.Join(parts...)
-				text, nestErr := ioutil.ReadFile(filename)
-				if nestErr != nil {
-					err = nestErr
+				importPath := filepath.Join(parts...)
+				if c.resolver != nil {
+					importPath = c.resolver.Resolve(filename, importPath)
+				}
+				nested, nestedErr := c.loadGrammarFile(importPath)
+				if nestedErr != nil {
+					err = nestedErr
 					return &aborter{}
 				}
-				nested, nestErr := ParseString(string(text))
-				if nestErr != nil {
-					err = nestErr
-					return &aborter{}
+				if nested.Node != nil {
+					x := mergeGrammarNodes(node.Node.(ast.Branch), nested.Node.(ast.Branch))
+					node = GrammarNode{Node: x}
 				}
-				x := mergeGrammarNodes(node.Node.(ast.Branch), nested.Node.(ast.Branch))
-				node = GrammarNode{Node: x}
 			}
 			return nil
 		},
 	}.Walk(node)
+	return node, nil
+}
 
+func (c *compiler) loadGrammarFile(filename string) (GrammarNode, error) {
+	filename = filepath.Clean(filename)
+	if _, has := c.imports[filename]; !has {
+		text, err := ioutil.ReadFile(filename)
+		if err != nil {
+			return GrammarNode{}, err
+		}
+		g, err := c.makeGrammar(filename, string(text))
+		if err != nil {
+			return GrammarNode{}, err
+		}
+		c.imports[filename] = g
+	}
+	return c.imports[filename], nil
+}
+
+func Compile(grammar string, resolver ImportResolver) (parser.Parsers, error) {
+	c := compiler{
+		imports:  map[string]GrammarNode{},
+		resolver: resolver,
+	}
+	node, err := c.makeGrammar("", grammar)
+	if err != nil {
+		return parser.Parsers{}, err
+	}
 	if err := validate(node); err != nil {
 		return parser.Parsers{}, err
 	}
 	return NewFromAst(node).Compile(node), nil
 }
 
-func MustCompile(grammar string) parser.Parsers {
-	p, err := Compile(grammar)
+func MustCompile(grammar string, resolver ImportResolver) parser.Parsers {
+	p, err := Compile(grammar, resolver)
 	if err != nil {
 		panic(err)
 	}

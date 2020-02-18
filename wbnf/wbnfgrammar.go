@@ -16,7 +16,10 @@ func Grammar() parser.Parsers {
 			parser.S("->"),
 			parser.Some(parser.Rule(`term`)),
 			parser.S(";")},
-		"term": parser.Stack{parser.Delim{Term: parser.Rule(`@`),
+		"term": parser.Stack{parser.Delim{Term: parser.Seq{parser.Rule(`@`),
+			parser.Opt(parser.Seq{parser.S("{"),
+				parser.Rule(`grammar`),
+				parser.S("}")})},
 			Sep: parser.Eq("op",
 				parser.S(">")),
 			Assoc: parser.NonAssociative},
@@ -100,6 +103,7 @@ const (
 	IdentSTR         = "STR"
 	IdentAtom        = "atom"
 	IdentDefault     = "default"
+	IdentGrammar     = "grammar"
 	IdentImport      = "import"
 	IdentMax         = "max"
 	IdentMin         = "min"
@@ -931,6 +935,18 @@ func (c TermNode) OneTerm() TermNode {
 	return TermNode{ast.First(c.Node, "term")}
 }
 
+func (c TermNode) AllGrammar() []GrammarNode {
+	var out []GrammarNode
+	for _, child := range ast.All(c.Node, "grammar") {
+		out = append(out, GrammarNode{child})
+	}
+	return out
+}
+
+func (c TermNode) OneGrammar() GrammarNode {
+	return GrammarNode{ast.First(c.Node, "grammar")}
+}
+
 func (c TermNode) AllNamed() []NamedNode {
 	var out []NamedNode
 	for _, child := range ast.All(c.Node, "named") {
@@ -983,6 +999,16 @@ func WalkTermNode(node TermNode, ops WalkerOps) Stopper {
 
 	for _, child := range node.AllTerm() {
 		s := WalkTermNode(child, ops)
+		switch {
+		case s == nil:
+		case s.ExitNode():
+			return nil
+		case s.Abort():
+			return s
+		}
+	}
+	for _, child := range node.AllGrammar() {
+		s := WalkGrammarNode(child, ops)
 		switch {
 		case s == nil:
 		case s.ExitNode():
@@ -1075,7 +1101,7 @@ var grammarGrammarSrc = unfakeBackquote(`
 grammar -> stmt+;
 stmt    -> COMMENT | prod | pragma;
 prod    -> IDENT "->" term+ ";";
-term    -> @:op=">"
+term    -> (@ ("{" grammar "}")? ):op=">"
          > @:op="|"
          > @+
          > named quant*;

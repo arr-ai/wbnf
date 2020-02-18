@@ -149,6 +149,10 @@ type (
 		Name string
 		Term Term
 	}
+	ScopedGrammar struct {
+		Term    Term
+		Grammar Grammar
+	}
 )
 
 func NonAssoc(term, sep Term) Delim { return Delim{Term: term, Sep: sep, Assoc: NonAssociative} }
@@ -194,6 +198,9 @@ func (g Grammar) String() string {
 		}
 		fmt.Fprintf(&sb, "%s -> %v", key, g[Rule(key)])
 		count++
+	}
+	if count > 1 {
+		sb.WriteString(";")
 	}
 	return sb.String()
 }
@@ -243,4 +250,8 @@ func (t Quant) String() string {
 		sb.WriteString("}")
 	}
 	return sb.String()
+}
+
+func (r ScopedGrammar) String() string {
+	return fmt.Sprintf("%v { %v }", r.Term, r.Grammar)
 }

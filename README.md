@@ -28,7 +28,7 @@ The hope is that the packages will evolved such that parser and ast are merged, 
 grammar -> stmt+;
 stmt    -> COMMENT | prod | pragma;
 prod    -> IDENT "->" term+ ";";
-term    -> @:op=">"
+term    -> (@ ("{" grammar "}")? ):op=">"
          > @:op="|"
          > @+
          > named quant*;

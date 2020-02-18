@@ -198,8 +198,23 @@ func buildTerm(t TermNode) parser.Term {
 		case ">":
 			return append(parser.Stack{}, terms...)
 		}
+		var sg *parser.ScopedGrammar
+		if g := t.OneGrammar(); g.Node != nil {
+			nested := NewFromAst(g.Node)
+			sg = &parser.ScopedGrammar{
+				Grammar: nested,
+			}
+		}
 		if len(terms) == 1 {
+			if sg != nil {
+				sg.Term = terms[0]
+				return *sg
+			}
 			return terms[0]
+		}
+		if sg != nil {
+			sg.Term = append(parser.Seq{}, terms...)
+			return *sg
 		}
 		return append(parser.Seq{}, terms...)
 	}

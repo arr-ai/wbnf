@@ -55,3 +55,7 @@ func (t Named) Resolve(oldRule, newRule Rule) Term {
 	t.Term = t.Term.Resolve(oldRule, newRule)
 	return t
 }
+
+func (t ScopedGrammar) Resolve(oldRule, newRule Rule) Term {
+	panic(errors.Inconceivable)
+}

@@ -49,7 +49,7 @@ func (v *validator) validateAtom(tree AtomNode) Stopper {
 		ident := x.String()
 		if ident != "" && ident != "@" {
 			if _, has := v.knownRules[ident]; !has {
-				v.err = append(v.err, fmt.Errorf("identifier '%s' is not a defined rule", ident))
+				//		v.err = append(v.err, fmt.Errorf("identifier '%s' is not a defined rule", ident))
 			}
 		}
 	} else if x := tree.OneRe(); x.Node != nil {

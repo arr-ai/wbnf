@@ -81,3 +81,9 @@ func (t Named) Unparse(g Grammar, e TreeElement, w io.Writer) (n int, err error)
 	err = unparse(g, t.Term, e, w, &n)
 	return
 }
+
+//-----------------------------------------------------------------------------
+
+func (t ScopedGrammar) Unparse(g Grammar, e TreeElement, w io.Writer) (n int, err error) {
+	panic(errors.Inconceivable)
+}

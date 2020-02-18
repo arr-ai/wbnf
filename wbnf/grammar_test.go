@@ -266,3 +266,24 @@ func TestEmptyNamedTerm(t *testing.T) {
 	assert.NoError(t, err)
 	log.Print(p.Grammar())
 }
+
+func TestScopeGrammar(t *testing.T) {
+	t.Parallel()
+	g := parser.Grammar{
+		"a": parser.ScopedGrammar{
+			Term: parser.Seq{parser.S("a"), parser.Rule("b"), parser.Rule("c")},
+			Grammar: parser.Grammar{
+				"b": parser.S("c"),
+				"c": parser.S("C"),
+			},
+		},
+		"c": parser.S("foo"),
+	}
+	p := g.Compile(nil)
+
+	te := p.MustParse("a", parser.NewScanner("acC"))
+	tree := ast.FromParserNode(g, te)
+	te2 := ast.ToParserNode(g, tree)
+
+	parser.AssertEqualNodes(t, te.(parser.Node), te2.(parser.Node))
+}

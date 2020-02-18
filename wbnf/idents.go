@@ -10,6 +10,7 @@ import (
 // Return a map where the keys are the rule names of the AST
 // and the values are the set of possible identifiers found in that rule
 func IdentMap(b ast.Branch) map[string][]string {
+	var scopedGrammars []map[string][]string
 	result := map[string][]string{}
 	for _, stmt := range b.Many("stmt") {
 		if rule := stmt.One("prod"); rule != nil {
@@ -17,8 +18,21 @@ func IdentMap(b ast.Branch) map[string][]string {
 			x := frozen.NewSet()
 			for _, term := range rule.Many("term") {
 				x = x.Union(idents(term.(ast.Branch)))
+				if g := term.Many("grammar"); len(g) > 0 {
+					scopedGrammars = append(scopedGrammars, IdentMap(g[0].(ast.Branch)))
+				}
 			}
 			result[name] = toStringSlice(x)
+		}
+	}
+	// FIXME, this isnt really going to work long term
+	for _, sg := range scopedGrammars {
+		for rule, vals := range sg {
+			if current, has := result[rule]; has {
+				result[rule] = append(current, vals...)
+			} else {
+				result[rule] = vals
+			}
 		}
 	}
 	return result
@@ -57,7 +71,7 @@ func idents(b ast.Branch) frozen.Set {
 				founds = founds.Union(idents(child))
 			}
 		}
-		x, child := ast.Which(b, "named")
+		x, child := ast.Which(b, "named", "grammar")
 		switch x {
 		case "named":
 			atom := ast.First(child.(ast.One).Node, "atom")

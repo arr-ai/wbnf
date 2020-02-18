@@ -69,15 +69,15 @@ func Grammar() parser.Parsers {
 			parser.Opt(parser.Seq{parser.S("="),
 				parser.Eq("default",
 					parser.Rule(`STR`))})},
-		"pragma": parser.Eq("import",
-			parser.Seq{parser.S(".import"),
+		"pragma": parser.ScopedGrammar{Term: parser.Rule(`import`),
+			Grammar: parser.Grammar{"import": parser.Seq{parser.S(".import"),
 				parser.Eq("path",
 					parser.Delim{Term: parser.Oneof{parser.S(".."),
 						parser.S("."),
 						parser.RE(`[a-zA-Z0-9.:]+`)},
 						Sep:             parser.S("/"),
 						Assoc:           parser.NonAssociative,
-						CanStartWithSep: true})}),
+						CanStartWithSep: true})}}},
 		".wrapRE": parser.RE(`\s*()\s*`)}.Compile(nil)
 }
 
@@ -520,6 +520,43 @@ func WalkGrammarNode(node GrammarNode, ops WalkerOps) Stopper {
 	return nil
 }
 
+type ImportNode struct{ ast.Node }
+
+func (c ImportNode) Choice() int {
+	return ast.Choice(c.Node)
+}
+
+func (c ImportNode) AllPath() []TermNode {
+	var out []TermNode
+	for _, child := range ast.All(c.Node, "path") {
+		out = append(out, TermNode{child})
+	}
+	return out
+}
+
+func (c ImportNode) OnePath() TermNode {
+	return TermNode{ast.First(c.Node, "path")}
+}
+func WalkImportNode(node ImportNode, ops WalkerOps) Stopper {
+	if fn := ops.EnterImportNode; fn != nil {
+		s := fn(node)
+		switch {
+		case s == nil:
+		case s.ExitNode():
+			return nil
+		case s.Abort():
+			return s
+		}
+	}
+
+	if fn := ops.ExitImportNode; fn != nil {
+		if s := fn(node); s != nil && s.Abort() {
+			return s
+		}
+	}
+	return nil
+}
+
 type NamedNode struct{ ast.Node }
 
 func (c NamedNode) AllIdent() []IdentNode {
@@ -606,16 +643,16 @@ func (c PragmaNode) Choice() int {
 	return ast.Choice(c.Node)
 }
 
-func (c PragmaNode) AllImport() []TermNode {
-	var out []TermNode
+func (c PragmaNode) AllImport() []ImportNode {
+	var out []ImportNode
 	for _, child := range ast.All(c.Node, "import") {
-		out = append(out, TermNode{child})
+		out = append(out, ImportNode{child})
 	}
 	return out
 }
 
-func (c PragmaNode) OneImport() TermNode {
-	return TermNode{ast.First(c.Node, "import")}
+func (c PragmaNode) OneImport() ImportNode {
+	return ImportNode{ast.First(c.Node, "import")}
 }
 
 func (c PragmaNode) AllPath() []TermNode {
@@ -641,6 +678,16 @@ func WalkPragmaNode(node PragmaNode, ops WalkerOps) Stopper {
 		}
 	}
 
+	for _, child := range node.AllImport() {
+		s := WalkImportNode(child, ops)
+		switch {
+		case s == nil:
+		case s.ExitNode():
+			return nil
+		case s.Abort():
+			return s
+		}
+	}
 	if fn := ops.ExitPragmaNode; fn != nil {
 		if s := fn(node); s != nil && s.Abort() {
 			return s
@@ -1064,6 +1111,8 @@ type WalkerOps struct {
 	ExitAtomNode     func(AtomNode) Stopper
 	EnterGrammarNode func(GrammarNode) Stopper
 	ExitGrammarNode  func(GrammarNode) Stopper
+	EnterImportNode  func(ImportNode) Stopper
+	ExitImportNode   func(ImportNode) Stopper
 	EnterNamedNode   func(NamedNode) Stopper
 	ExitNamedNode    func(NamedNode) Stopper
 	EnterPragmaNode  func(PragmaNode) Stopper
@@ -1141,9 +1190,9 @@ RE      -> /{
            };
 REF     -> "%" IDENT ("=" default=STR)?;
 // Special
-pragma  -> (
-                import=(".import" path=((".."|"."|[a-zA-Z0-9.:]+):,"/"))
-           );
+pragma  -> import {
+                import -> ".import" path=((".."|"."|[a-zA-Z0-9.:]+):,"/");
+            };
 
 .wrapRE -> /{\s*()\s*};
 `)

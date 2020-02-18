@@ -96,6 +96,11 @@ type aborter struct{}
 func (n *aborter) ExitNode() bool { return true }
 func (n *aborter) Abort() bool    { return true }
 
+var (
+	NodeExiter = &nodeExiter{}
+	Aborter    = &aborter{}
+)
+
 const (
 	IdentCOMMENT     = "COMMENT"
 	IdentIDENT       = "IDENT"

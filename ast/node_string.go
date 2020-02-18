@@ -61,7 +61,12 @@ func (l Leaf) String() string {
 	var sb strings.Builder
 	scanner := parser.Scanner(l)
 	s := scanner.String()
-	fmt.Fprintf(&sb, "%d‣", scanner.Offset())
+	pos := scanner.Position()
+	fname := pos.File
+	if fname != "" {
+		fname = fname + ":"
+	}
+	fmt.Fprintf(&sb, "%s%d:%d‣", fname, pos.Line, pos.Col)
 	switch {
 	case specialCharRE.MatchString(s):
 		fmt.Fprintf(&sb, "%q", s)

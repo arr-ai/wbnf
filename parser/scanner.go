@@ -10,6 +10,14 @@ type Scanner struct {
 	src    string
 	slice  string
 	offset int
+
+	filename string
+}
+
+func NewScannerWithFilename(src string, filename string) *Scanner {
+	s := NewScanner(src)
+	s.filename = filename
+	return s
 }
 
 func NewScanner(src string) *Scanner {
@@ -51,6 +59,21 @@ func (r Scanner) Context() string {
 
 func (r Scanner) Offset() int {
 	return r.offset
+}
+
+type Position struct {
+	Line int
+	Col  int
+	File string
+}
+
+func (r Scanner) Position() Position {
+	prefix := r.src[:r.offset]
+	return Position{
+		File: r.filename,
+		Line: strings.Count(prefix, "\n") + 1,
+		Col:  r.offset - strings.LastIndex(prefix, "\n"),
+	}
 }
 
 func (r Scanner) Slice(a, b int) *Scanner {

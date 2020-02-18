@@ -1,4 +1,3 @@
-// --------------    views    --------------- //
 view -> "!view" NAME "(" view_params? ")"
         ("->" retType=(collection_type|type_spec))?
         attribs? ":" ((\n+ level=INDENT expr_block:INDENT_SEP) | abstract="[~abstract]");

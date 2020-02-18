@@ -1,5 +1,3 @@
-// -------------- Endpoint     --------------- //
-
 endpoint -> (rest_endpoint | simple_endpoint) EOL;
 
 simple_endpoint -> SHORTCUT | (endpoint_name=(PATH) QSTRING? params? attribs? ":"

@@ -1,0 +1,16 @@
+endpoint -> (rest_endpoint | simple_endpoint) EOL;
+
+simple_endpoint -> SHORTCUT | (endpoint_name=(PATH) QSTRING? params? attribs? ":"
+                        (SHORTCUT | \n+ level=INDENT stmt:INDENT_SEP));
+
+rest_endpoint -> http_path attribs? ":" \n+ level=INDENT (method_def | rest_endpoint):INDENT_SEP;
+
+method_def -> method=(HTTP_VERBS) params? query_param? attribs? ":" \n+ level=INDENT stmt:INDENT_SEP;
+
+params -> "(" ( field | reference=APPLICATION_NAME ):"," ")";
+
+query_param -> "?" (Name=(NAME) "=" (NativeDataTypes| NAME | "{" NAME "}") optional="?"?):"&";
+
+field -> NAME (array_size? "<:" (field_type | (\n+ level=INDENT @:INDENT_SEP)) QSTRING?)?;
+
+field_type -> collection_type | (type_spec optional="?"? attribs?) ;

@@ -1,0 +1,36 @@
+.import tokens.wbnf
+.import commons.wbnf
+
+// --------------    stmt    --------------- //
+stmt -> (if_else
+            | for_stmt
+            | ret_stmt
+            | call_stmt
+            | one_of_stmt
+            | http_method_comment=(COMMENT)
+            | group_stmt
+            | text_stmt
+            | annotation
+        ) attribs?;
+
+if_else -> if_stmt else_stmt*;
+
+if_stmt -> "if" PREDICATE ":" \n+ level=INDENT stmt:INDENT_SEP;
+
+else_stmt -> "else" PREDICATE? ":" \n+ level=INDENT stmt:INDENT_SEP;
+
+for_stmt -> for_type=("alt" | "until" | "for each" | "for" | "loop" | "while") PREDICATE ":" \n+ level=INDENT stmt:INDENT_SEP;
+
+one_of_stmt -> "one" "of" ":" \n+ level=INDENT one_of_cases:INDENT_SEP;
+
+one_of_cases -> one_of_case_label=(QSTRING ":"| NAME ":" | TEXT_LINE ":" | ":")  \n+ level=INDENT stmt:INDENT_SEP;
+
+call_stmt -> target=("." | NAME:"::") "<-" target_endpoint=(TEXT_LINE) call_args?;
+
+call_args -> "(" ((QSTRING | NAME)+ | (NAME "<:" (NAME | NativeDataTypes))):"," ")";
+
+ret_stmt -> "return" ret_val=(TEXT);
+
+group_stmt -> name=(NAME) ":" \n+ level=INDENT stmt:INDENT_SEP;
+
+text_stmt -> doc_string=("|" [^\r\n]*) | QSTRING | app_name=(APPLICATION_NAME) ("<-" NAME)?| SHORTCUT;

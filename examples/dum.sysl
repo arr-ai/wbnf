@@ -1,0 +1,59 @@
+import bff_fenergo
+import bff_qas
+
+Bff "ANZx Statement of position" [package="bff"]:
+    /bff:
+        /form/{FormId<:string}[FormId_rpcId="1", FenergoLegalEntityResultDetail_rpcId="1"]:
+            GET:
+                Fenergo <- GET /form/{FormId}
+                return ok <: Fenergo.LegalEntityResultDetail
+
+    /v1:
+      /bff:
+        /fenergo/task-by-type/tasktypes/statement-of-position/customers/{custId<:string}:
+            GET:
+                | No description.
+                Fenergo <- POST /form/{FormId}/refresh/{ContextId}
+                Fenergo <- GET /legalEntity/{LegalEntityId}
+                return ok <: sopDetails
+
+        /fenergo/workflow/customers/{custId<:string}:
+            GET:
+                | No description.
+                Fenergo <- POST /form/{FormId}/refresh/{ContextId}
+                Fenergo <- POST /form/case_11/refresh/TasksExternal-v1
+                return ok <: workflow
+
+        /fenergo/workflow/customers/{custId<:string}/tasktypes/{taskTypeId<:string}:
+            GET:
+                | The currentTaskTypeId will be the same as the taskTypeId from the
+                | url params
+                Fenergo <- GET /form/{FormId}
+                return ok <: str
+
+        /fenergo/tasks/{taskId<:string}/customers/{custId<:string}:
+            PUT (updateTaskRequest <: updateTask [mediatype="application/json", ~body]):
+                | No description.
+                return ok <: str
+
+        /fenergo/tasks/{taskId<:string}/customers/{custId<:string}:
+            POST (updateTaskRequest <: updateTask [mediatype="application/json", ~body]):
+                | No description.
+                return ok <: str
+
+        /fenergo/api-docs:
+            GET:
+                Fenergo <- GET /api-docs
+                return ok <: Fenergo.ApiDoc
+
+        /qas/search-addresses:
+            GET ?queryString=string&layout=string?&engine=string?&limit=string?&offset=string?:
+                | No description.
+                Qas <- GET /tnt/verification-service-api/verifications/addresses
+                return ok <: sequence of availableAddress
+
+        /qas/detailed-address/{qasId<:string}:
+            GET:
+                | No description.
+                Qas <- GET /tnt/verification-service-api/verifications/addresses/cannonical_address/{moniker}
+                return ok <: detailedAddress

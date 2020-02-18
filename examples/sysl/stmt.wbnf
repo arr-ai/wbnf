@@ -24,7 +24,7 @@ one_of_cases -> one_of_case_label=(QSTRING ":"| NAME ":" | TEXT_LINE ":" | ":") 
 
 call_stmt -> target=("." | NAME:"::") "<-" target_endpoint=(TEXT_LINE) call_args?;
 
-call_args -> "(" ((QSTRING | NAME)+ | (NAME "<:" (NAME | NativeDataTypes))):"," ")";
+call_args -> "(" (arg=((NAME "<:" type_spec) | (QSTRING | NAME)+)):"," ")";
 
 ret_stmt -> "return" ret_val=(TEXT);
 

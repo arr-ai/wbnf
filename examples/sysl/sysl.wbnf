@@ -52,7 +52,7 @@ http_path_var_with_type -> "{" var=(NAME | DIGITS) "<:" type=(NativeDataTypes | 
 
 http_path -> "/" ((http_path_static=(NAME | DIGITS) | http_path_var_with_type):"/")?;
 
-type_spec -> (NativeDataTypes | UserType=APP_NAME)
+type_spec -> (NativeDataTypes | reference=APPLICATION_NAME)
              SizeSpec=("(" \d+ (array=".."|sized=".")? \d* ")")?;
 
 // -------------- Tokens --------------- //
@@ -68,7 +68,7 @@ HTTP_VERBS -> "GET" | "POST" | "DELETE" | "PUT" | "PATCH";
 NativeDataTypes -> "int32" | "int64" | "int" |
                 "float" | "string" | "date" |
                 "bool" | "decimal" | "datetime";
-APPLICATION_NAME    -> pkg=(NAME:"::" ".")? APP_NAME;
+APPLICATION_NAME    -> pkg=(NAME:"::" ".")? APP_NAME:".";
 
 COMMENT -> "#" [^\n]* "\n";
 EOL     -> COMMENT+ | [\_\t]*\n;

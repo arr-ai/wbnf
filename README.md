@@ -69,7 +69,7 @@ RE      -> /{
 REF     -> "%" IDENT ("=" default=STR)?;
 // Special
 pragma  -> (
-                import=(".import" path=((".."|"."|[a-zA-Z0-9.:]+):,"/"))
+                import=(".import" path=((".."|"."|[a-zA-Z0-9.:]+):,"/") ";"?)
            );
 
 .wrapRE -> /{\s*()\s*};

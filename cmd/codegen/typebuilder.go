@@ -36,7 +36,7 @@ func MakeTypesForTerms(prefix string, term wbnf.TermNode) (map[string]grammarTyp
 	switch len(t.children) {
 	case 0:
 	case 1:
-		if v, ok := t.getChildren()[0].(unnamedToken); ok && v.count == 0 {
+		if v, ok := t.getChildren()[0].(unnamedToken); ok && v.count == wantOneGetter {
 			t.types[GoTypeName(prefix)] = basicRule(GoTypeName(prefix))
 			break
 		}
@@ -56,19 +56,32 @@ func (t typeBuilder) getChildren() []grammarType {
 	return out
 }
 
+func fixCount(old, new int) int {
+	if old&wantOneGetter != 0 {
+		new = wantAllGetter
+	}
+	if (old&wantAllGetter != 0) && (new&wantOneGetter != 0) {
+		new = old
+	}
+	if new == (wantOneGetter | wantAllGetter) {
+		new = wantAllGetter
+	}
+	return new
+}
+
 func (t *typeBuilder) makeMultiOrFixName(name string, expected grammarType) grammarType {
 	if val, has := t.children[name]; has {
 		if reflect.TypeOf(val) == reflect.TypeOf(expected) {
 			switch t := val.(type) {
 			case namedToken:
-				t.count = -1
+				t.count = fixCount(t.count, expected.(namedToken).count)
 				return t
 			case unnamedToken:
-				t.count = -1
+				t.count = fixCount(t.count, expected.(unnamedToken).count)
 				return t
 			case namedRule:
 				if t.returnType == expected.(namedRule).returnType {
-					t.count = -1
+					t.count = fixCount(t.count, expected.(namedRule).count)
 					return t
 				}
 			}
@@ -91,20 +104,36 @@ func (t *typeBuilder) makeMultiOrFixName(name string, expected grammarType) gram
 	return expected
 }
 
+func countFromQuant(quants []wbnf.QuantNode) int {
+	count := wantOneGetter
+	for _, q := range quants {
+		switch q.OneOp() {
+		case "*", "+":
+			count = wantAllGetter
+		case "?":
+			count |= wantOneGetter
+		}
+		if q.Choice() != 0 {
+			count = wantAllGetter
+		}
+	}
+	return count
+}
+
 func (t *typeBuilder) handleTerm(term wbnf.TermNode) wbnf.Stopper {
 	if term.OneOp() == "|" {
 		t.children[ast.ChoiceTag] = choice(t.prefix)
 	}
 
 	if named := term.OneNamed(); named.Node != nil {
-		quant := len(term.AllQuant())
+		quant := countFromQuant(term.AllQuant())
 		name := named.OneIdent().String()
 		target, targetType := nameFromAtom(named.OneAtom())
 
 		var child grammarType
 
 		if target == "@" {
-			target = t.prefix
+			target = t.prefix // FIXME
 		}
 		if name == "" {
 			name = target

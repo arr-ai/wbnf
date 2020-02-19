@@ -49,7 +49,6 @@ var (
 
 {{ range .MiddleSection }} {{.}} {{end}}
 
-func (w WalkerOps) Walk(tree {{.StartRuleTypeName}}) { Walk{{.StartRuleTypeName}}(tree, w) }
 func (c {{.StartRuleTypeName}}) GetAstNode() ast.Node { return c.Node }
 
 func New{{.StartRuleTypeName}}(from ast.Node) {{.StartRuleTypeName}} { return {{.StartRuleTypeName}}{ from } }

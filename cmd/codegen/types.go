@@ -49,8 +49,13 @@ type (
 	} // used for the common rules
 )
 
-func wantOneFn(count int) bool { return count <= 0 }
-func wantAllFn(count int) bool { return count != 0 }
+const (
+	wantOneGetter int = 1 << iota
+	wantAllGetter
+)
+
+func wantOneFn(count int) bool { return count&wantOneGetter != 0 }
+func wantAllFn(count int) bool { return count&wantAllGetter != 0 }
 
 func (t basicRule) TypeName() string        { return GoTypeName(string(t)) }
 func (t basicRule) Children() []grammarType { return nil }
@@ -230,7 +235,7 @@ type data struct {
 	prodIdents []grammarType
 }
 
-func (d *data) get() []fmt.Stringer {
+func (d *data) Get() []fmt.Stringer {
 	keys := make([]string, 0, len(d.types))
 	for rule := range d.types {
 		keys = append(keys, rule)
@@ -286,9 +291,9 @@ func (d *data) handleProd(prod wbnf.ProdNode) wbnf.Stopper {
 	return nil
 }
 
-func MakeTypes(prefix string, node wbnf.GrammarNode) []fmt.Stringer {
+func MakeTypes(prefix string, node wbnf.GrammarNode) *data {
 	d := &data{prefix: prefix, types: map[string]grammarType{}}
 	wbnf.WalkerOps{EnterProdNode: d.handleProd}.Walk(node)
 
-	return d.get()
+	return d
 }

@@ -34,6 +34,19 @@ func TestTypeBuilder_RuleWithOnlyUnnamedTokenVal(t *testing.T) {
 	assert.IsType(t, basicRule(""), types["ANode"])
 }
 
+func TestTypeBuilder_RuleWithQuant(t *testing.T) {
+	terms := initTest(t, "a -> a? ;", "a")
+
+	types, deps := MakeTypesForTerms("a", terms[0])
+	assert.NotEmpty(t, types)
+	assert.Empty(t, deps)
+	assert.IsType(t, rule{}, types["ANode"])
+	assert.Len(t, types["ANode"].Children(), 1)
+	assert.IsType(t, namedRule{}, types["ANode"].Children()[0])
+	child := types["ANode"].Children()[0].(namedRule)
+	assert.Equal(t, wantOneGetter, child.count)
+}
+
 func TestTypeBuilder_RuleWithOnlyNamedTokenVal(t *testing.T) {
 	terms := initTest(t, "a -> val='hello';", "a")
 

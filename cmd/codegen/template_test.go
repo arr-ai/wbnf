@@ -13,6 +13,7 @@ func TestWrite(t *testing.T) {
 	var buf bytes.Buffer
 
 	g, _ := wbnf.ParseString("hard->asd=('a' | fff=('b' | 'hello')*);")
+	types := MakeTypes("", g)
 	assert.NoError(t, Write(&buf, TemplateData{
 		CommandLine:       "foo bar baz",
 		PackageName:       "testpackage",
@@ -23,7 +24,7 @@ func TestWrite(t *testing.T) {
 			children: nil,
 			scope:    bracesScope,
 		}}},
-		MiddleSection: MakeTypes("", g),
+		MiddleSection: append(types.Get(), walker{startRule: "IdentStartRule", types: types.types}),
 	}))
 
 	assert.EqualValues(t, "hello", buf.String())

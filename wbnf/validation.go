@@ -42,6 +42,7 @@ func validate(tree GrammarNode) error {
 		EnterAtomNode:  v.validateAtom,
 		EnterQuantNode: v.validateQuant,
 		EnterNamedNode: v.validateNamed,
+		EnterTermNode:  v.validateTerm,
 	}
 	ops.Walk(tree)
 
@@ -54,11 +55,13 @@ func validate(tree GrammarNode) error {
 type validationErrorKind int
 
 const (
-	UnknownRule validationErrorKind = iota
+	NoError validationErrorKind = iota
+	UnknownRule
 	DuplicatedRule
 	InvalidRegex
 	NameClashesWithRule
 	MinMaxQuantError
+	MultipleTermsWithSameName // something like `term -> foo op="*" op="|";`, likely missing a separator
 )
 
 type validationError struct {
@@ -86,6 +89,24 @@ type validator struct {
 
 func (v *validator) Error() string {
 	return fmt.Sprint(v.err)
+}
+
+func (v *validator) validateTerm(tree TermNode) Stopper {
+	if tree.OneOp() == "" {
+		names := map[string]bool{}
+		for _, child := range tree.AllTerm() {
+			if name := child.OneNamed(); name.Node != nil {
+				if x := name.OneIdent().String(); x != "" {
+					if _, has := names[x]; has {
+						v.err = append(v.err, validationError{s: name.OneIdent().Scanner(),
+							msg: "identifier '%s' is being used multiple times in a single term", kind: MultipleTermsWithSameName})
+					}
+					names[x] = true
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (v *validator) validateNamed(tree NamedNode) Stopper {

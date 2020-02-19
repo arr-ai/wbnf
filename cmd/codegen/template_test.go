@@ -12,7 +12,7 @@ import (
 func TestWrite(t *testing.T) {
 	var buf bytes.Buffer
 
-	g, _ := wbnf.ParseString("a -> foo; foo -> '[a-z]'; bar -> x=a*; hard->(asd=('a' | fff=('b' | 'hello')*));")
+	g, _ := wbnf.ParseString("hard->asd=('a' | fff=('b' | 'hello')*);")
 	assert.NoError(t, Write(&buf, TemplateData{
 		CommandLine:       "foo bar baz",
 		PackageName:       "testpackage",
@@ -25,5 +25,6 @@ func TestWrite(t *testing.T) {
 		}}},
 		MiddleSection: MakeTypes("", g),
 	}))
+
 	assert.EqualValues(t, "hello", buf.String())
 }

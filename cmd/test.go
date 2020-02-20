@@ -79,12 +79,8 @@ func (r resolver) Resolve(from, file string) string {
 	return filepath.Clean(filepath.Join(r.base, from, file))
 }
 
-func makeResolver() resolver {
-	cwd, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-	return resolver{cwd}
+func makeResolver(firstFilename string) resolver {
+	return resolver{filepath.Dir(firstFilename)}
 }
 
 func loadTestGrammar() parser.Parsers {
@@ -95,11 +91,11 @@ func loadTestGrammar() parser.Parsers {
 	if startingRule == "" {
 		panic(fmt.Errorf("--start missing"))
 	}
-	return wbnf.MustCompile(string(text), makeResolver())
+	return wbnf.MustCompile(string(text), makeResolver(inGrammarFile))
 }
 
-func testWbnfFile(grammar string) error {
-	g := wbnf.MustCompile(grammar, makeResolver())
+func testWbnfFile(filename, grammar string) error {
+	g := wbnf.MustCompile(grammar, makeResolver(filename))
 	if printTree {
 		fmt.Println(ast.BuildTreeView("grammar", g.Node().(wbnf.GrammarNode).Node, true))
 	} else {
@@ -135,7 +131,7 @@ func test(c *cli.Context) error {
 		input = string(buf)
 	}
 	if inGrammarFile == "" {
-		return testWbnfFile(input)
+		return testWbnfFile(source, input)
 	}
 	g := loadTestGrammar()
 

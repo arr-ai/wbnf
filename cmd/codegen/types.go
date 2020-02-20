@@ -19,13 +19,11 @@ func GoTypeName(rule string) string {
 func DropCaps(rule string) string {
 	return strings.ToLower(rule)
 }
-func DropNodeSuffix(typename string) string {
-	return strings.TrimSuffix(typename, "Node")
-}
 
 type (
 	grammarType interface {
 		TypeName() string
+		Ident() string
 		String() string
 		Children() []grammarType
 	}
@@ -57,18 +55,21 @@ const (
 func wantOneFn(count int) bool { return count&wantOneGetter != 0 }
 func wantAllFn(count int) bool { return count&wantAllGetter != 0 }
 
-func (t basicRule) TypeName() string        { return GoTypeName(string(t)) }
+func (t basicRule) TypeName() string        { return string(t) }
+func (t basicRule) Ident() string           { return "String" }
 func (t basicRule) Children() []grammarType { return nil }
 func (t basicRule) String() string {
 	return fmt.Sprintf(`
+type %s struct { ast.Node }
 func (c %s) String() string {
 	if c.Node == nil { return "" }
 	return c.Node.Scanner().String()
 }
-`, t.TypeName())
+`, t.TypeName(), t.TypeName())
 }
 
 func (t choice) TypeName() string        { return "" }
+func (t choice) Ident() string           { return "@choice" }
 func (t choice) Children() []grammarType { return nil }
 func (t choice) String() string {
 	return fmt.Sprintf(`
@@ -79,6 +80,7 @@ func (c %s) Choice() int {
 }
 
 func (t namedToken) TypeName() string        { return "" /* not exported */ }
+func (t namedToken) Ident() string           { return t.name }
 func (t namedToken) Children() []grammarType { return nil }
 func (t namedToken) String() string {
 	replacer := strings.NewReplacer("{{parent}}", GoTypeName(t.parent),
@@ -111,6 +113,7 @@ func (c {{parent}}) All{{childtype}}() []string {
 }
 
 func (t unnamedToken) TypeName() string        { return "" /* not exported */ }
+func (t unnamedToken) Ident() string           { return "Token" }
 func (t unnamedToken) Children() []grammarType { return nil }
 func (t unnamedToken) String() string {
 	replacer := strings.NewReplacer("{{parent}}", GoTypeName(t.parent))
@@ -140,6 +143,7 @@ func (c {{parent}}) AllToken() []string {
 }
 
 func (t namedRule) TypeName() string        { return "" /* not exported */ }
+func (t namedRule) Ident() string           { return t.name }
 func (t namedRule) Children() []grammarType { return nil }
 func (t namedRule) String() string {
 	replacer := strings.NewReplacer("{{parent}}", GoTypeName(t.parent),
@@ -173,6 +177,7 @@ func (c {{parent}}) One{{child}}() {{returnType}} {
 }
 
 func (t rule) TypeName() string        { return t.name }
+func (t rule) Ident() string           { return t.name }
 func (t rule) Children() []grammarType { return t.childs }
 func (t rule) String() string {
 	out := fmt.Sprintf(`
@@ -180,11 +185,15 @@ type %s struct { ast.Node}
 `, t.TypeName())
 
 	if len(t.Children()) > 0 {
+		orderedChildren := t.Children()
+		sort.Slice(orderedChildren, func(i, j int) bool {
+			return strings.Compare(strings.ToUpper(orderedChildren[i].Ident()),
+				strings.ToUpper(orderedChildren[j].Ident())) < 0
+		})
 		funcs := make([]string, 0, len(t.Children()))
-		for _, child := range t.Children() {
+		for _, child := range orderedChildren {
 			funcs = append(funcs, child.String())
 		}
-		sort.Strings(funcs)
 
 		walker := strings.ReplaceAll(`func Walk{{.CtxName}}(node {{.CtxName}}, ops WalkerOps) Stopper {
 	if fn := ops.Enter{{.CtxName}}; fn != nil {
@@ -275,13 +284,13 @@ func (d *data) handleProd(prod wbnf.ProdNode) wbnf.Stopper {
 	d.prodName = d.prefix + strcase.ToCamel(DropCaps(name))
 
 	if len(prod.AllTerm()) == 1 {
-		newTypes, _ := MakeTypesForTerms(d.prodName, prod.AllTerm()[0])
+		newTypes := MakeTypesForTerms(d.prodName, name, prod.AllTerm()[0])
 		for k, v := range newTypes {
 			d.types[k] = v
 		}
 	} else {
 		for i, term := range prod.AllTerm() {
-			newTypes, _ := MakeTypesForTerms(d.prodName+strconv.Itoa(i), term)
+			newTypes := MakeTypesForTerms(d.prodName+strconv.Itoa(i), name, term)
 			for k, v := range newTypes {
 				d.types[k] = v
 			}

@@ -63,7 +63,7 @@ func gen(c *cli.Context) error {
 		StartRule:         startingRule,
 		StartRuleTypeName: codegen.GoTypeName(startingRule),
 		Grammar:           codegen.MakeGrammar(tree),
-		MiddleSection:     types.Get(),
+		MiddleSection:     append(types.Get(), codegen.GetVisitorWriter(types.Types(), startingRule)),
 	}
 	var buf bytes.Buffer
 	if err := codegen.Write(&buf, tmpldata); err != nil {

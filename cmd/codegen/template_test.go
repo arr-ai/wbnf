@@ -24,7 +24,7 @@ func TestWrite(t *testing.T) {
 			children: nil,
 			scope:    bracesScope,
 		}}},
-		MiddleSection: append(types.Get(), walker{startRule: "IdentStartRule", types: types.types}),
+		MiddleSection: append(types.Get(), VisitorWriter{startRule: "IdentStartRule", types: types.types}),
 	}))
 
 	assert.EqualValues(t, "hello", buf.String())

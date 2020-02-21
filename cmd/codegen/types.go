@@ -18,11 +18,16 @@ func DropCaps(rule string) string {
 }
 
 type (
+	callbackData struct {
+		getter, walker string
+		isMany         bool
+	}
 	grammarType interface {
 		TypeName() string
 		Ident() string
 		String() string
 		Children() []grammarType
+		CallbackData() *callbackData
 	}
 	basicRule string // Used for rules which only return an unnamed string (i.e foo -> /{[a-z]*}; )
 	choice    struct {
@@ -65,14 +70,15 @@ func (t basicRule) TypeName() string        { return string(t) }
 func (t basicRule) Ident() string           { return "String" }
 func (t basicRule) Children() []grammarType { return nil }
 func (t basicRule) String() string {
-	return fmt.Sprintf(`
+	return strings.ReplaceAll(`
 type %s struct { ast.Node }
 func (c %s) String() string {
 	if c.Node == nil { return "" }
 	return c.Node.Scanner().String()
 }
-`, t.TypeName(), t.TypeName())
+`, "%s", t.TypeName())
 }
+func (t basicRule) CallbackData() *callbackData { return nil }
 
 func (t choice) TypeName() string        { return "" }
 func (t choice) Ident() string           { return "@choice" }
@@ -94,6 +100,7 @@ func (t choice) String() string {
 		}*/
 	return fmt.Sprintf("func (c %s) Choice() int { return ast.Choice(c.Node) }\n", parentType)
 }
+func (t choice) CallbackData() *callbackData { return nil }
 
 func (t stackBackRef) TypeName() string        { return "" }
 func (t stackBackRef) Ident() string           { return t.name }
@@ -106,6 +113,7 @@ func (t stackBackRef) String() string {
 		count:      wantAllGetter,
 	}.String()
 }
+func (t stackBackRef) CallbackData() *callbackData { return nil }
 
 func (t backRef) TypeName() string        { return "" }
 func (t backRef) Ident() string           { return t.name }
@@ -115,6 +123,7 @@ func (t backRef) String() string {
 `,
 		GoTypeName(t.parent), strcase.ToCamel(t.name), t.name)
 }
+func (t backRef) CallbackData() *callbackData { return nil }
 
 func (t namedToken) TypeName() string        { return "" /* not exported */ }
 func (t namedToken) Ident() string           { return t.name }
@@ -148,6 +157,7 @@ func (c {{parent}}) All{{childtype}}() []string {
 	}
 	return out
 }
+func (t namedToken) CallbackData() *callbackData { return nil }
 
 func (t unnamedToken) TypeName() string        { return "" /* not exported */ }
 func (t unnamedToken) Ident() string           { return "Token" }
@@ -178,6 +188,7 @@ func (c {{parent}}) AllToken() []string {
 	}
 	return out
 }
+func (t unnamedToken) CallbackData() *callbackData { return nil }
 
 func (t namedRule) TypeName() string        { return "" /* not exported */ }
 func (t namedRule) Ident() string           { return t.name }
@@ -212,15 +223,15 @@ func (c {{parent}}) One{{child}}() {{returnType}} {
 	}
 	return out
 }
+func (t namedRule) CallbackData() *callbackData {
+	return &callbackData{getter: strcase.ToCamel(t.name), walker: t.returnType, isMany: wantAllFn(t.count)}
+}
 
 func (t rule) TypeName() string        { return t.name }
 func (t rule) Ident() string           { return t.name }
 func (t rule) Children() []grammarType { return t.childs }
 func (t rule) String() string {
-	out := fmt.Sprintf(`
-type %s struct { ast.Node}
-`, t.TypeName())
-
+	out := fmt.Sprintf("type %s struct { ast.Node}\n", t.TypeName())
 	if len(t.Children()) > 0 {
 		orderedChildren := t.Children()
 		sort.Slice(orderedChildren, func(i, j int) bool {
@@ -231,47 +242,11 @@ type %s struct { ast.Node}
 		for _, child := range orderedChildren {
 			funcs = append(funcs, child.String())
 		}
-
-		walker := strings.ReplaceAll(`func Walk{{.CtxName}}(node {{.CtxName}}, ops WalkerOps) Stopper {
-	if fn := ops.Enter{{.CtxName}}; fn != nil {
-		s := fn(node)
-		switch {
-			case s == nil:
-			case s.ExitNode():
-				return nil
-			case s.Abort():
-				return s
-		}
-}
-`, "{{.CtxName}}", t.TypeName())
-		for _, child := range t.Children() {
-			if name := child.TypeName(); name != "" {
-				walker += strings.ReplaceAll(`
-for _, child := range node.All{{}}() {
-	s := Walk{{}}(child, ops)
-		switch {
-			case s == nil:
-			case s.ExitNode():
-				return nil
-			case s.Abort():
-				return s
-		}
-}`, "{{}}",
-					name)
-			}
-		}
-		walker += strings.ReplaceAll(`
-if fn := ops.Exit{{.CtxName}}; fn != nil {
-	if s := fn(node); s != nil && s.Abort() { return s }
-}
-	return nil
-}
-`,
-			"{{.CtxName}}", t.TypeName())
-		return out + strings.Join(funcs, "\n") + walker
+		out += strings.Join(funcs, "\n")
 	}
 	return out
 }
+func (t rule) CallbackData() *callbackData { return nil }
 
 type data struct {
 	types map[string]grammarType
@@ -289,6 +264,10 @@ func (d *data) Get() []fmt.Stringer {
 		result = append(result, d.types[k])
 	}
 	return result
+}
+
+func (d *data) Types() map[string]grammarType {
+	return d.types
 }
 
 func MakeTypes(node wbnf.GrammarNode) *data {

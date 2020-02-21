@@ -56,7 +56,7 @@ func gen(c *cli.Context) error {
 	g := loadTestGrammar()
 	tree := g.Node().(wbnf.GrammarNode).Node
 
-	types := codegen.MakeTypes("", g.Node().(wbnf.GrammarNode))
+	types := codegen.MakeTypes(g.Node().(wbnf.GrammarNode))
 	tmpldata := codegen.TemplateData{
 		CommandLine:       strings.Join(os.Args[1:], " "),
 		PackageName:       pkgName,

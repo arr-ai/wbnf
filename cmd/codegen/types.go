@@ -3,10 +3,7 @@ package codegen
 import (
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
-
-	"github.com/arr-ai/wbnf/ast"
 
 	"github.com/iancoleman/strcase"
 
@@ -14,7 +11,7 @@ import (
 )
 
 func GoTypeName(rule string) string {
-	return strcase.ToCamel(rule + "Node")
+	return strcase.ToCamel(strings.TrimSuffix(rule, "Node") + "Node")
 }
 func DropCaps(rule string) string {
 	return strings.ToLower(rule)
@@ -27,8 +24,17 @@ type (
 		String() string
 		Children() []grammarType
 	}
-	basicRule  string // Used for rules which only return an unnamed string (i.e foo -> /{[a-z]*}; )
-	choice     string // val is parent name
+	basicRule string // Used for rules which only return an unnamed string (i.e foo -> /{[a-z]*}; )
+	choice    struct {
+		parent      string
+		returnTypes []string
+	}
+	stackBackRef struct {
+		name, parent string
+	}
+	backRef struct {
+		name, parent string
+	}
 	namedToken struct {
 		name, parent string
 		count        int
@@ -72,11 +78,42 @@ func (t choice) TypeName() string        { return "" }
 func (t choice) Ident() string           { return "@choice" }
 func (t choice) Children() []grammarType { return nil }
 func (t choice) String() string {
-	return fmt.Sprintf(`
-func (c %s) Choice() int {
-	return ast.Choice(c.Node)
+	parentType := GoTypeName(t.parent)
+	/*
+		var buf = bytes.Buffer{}
+		fmt.Fprintf(&buf, "type %sChoiceOptions interface { is%sOption() }\n", parentType, parentType)
+		for _, c := range t.returnTypes {
+			fmt.Fprintf(&buf, "func (%s) is%sOption(){}\n", c, parentType)
+		}
+
+		fmt.Fprintf(&buf, "func (c %s) Choice() %sChoiceOptions {\n"+
+			"switch ast.Choice(c.Node) {\n", parentType, parentType)
+
+		for i, c := range t.returnTypes {
+			fmt.Fprintf(&buf,"\tcase %d: "
+		}*/
+	return fmt.Sprintf("func (c %s) Choice() int { return ast.Choice(c.Node) }\n", parentType)
 }
-`, GoTypeName(string(t)))
+
+func (t stackBackRef) TypeName() string        { return "" }
+func (t stackBackRef) Ident() string           { return t.name }
+func (t stackBackRef) Children() []grammarType { return nil }
+func (t stackBackRef) String() string {
+	return namedRule{
+		name:       t.name,
+		parent:     t.parent,
+		returnType: GoTypeName(t.parent),
+		count:      wantAllGetter,
+	}.String()
+}
+
+func (t backRef) TypeName() string        { return "" }
+func (t backRef) Ident() string           { return t.name }
+func (t backRef) Children() []grammarType { return nil }
+func (t backRef) String() string {
+	return fmt.Sprintf(`func (c %s) %sRef() ast.Node { return ast.First(c.Node, %s) }
+`,
+		GoTypeName(t.parent), strcase.ToCamel(t.name), t.name)
 }
 
 func (t namedToken) TypeName() string        { return "" /* not exported */ }
@@ -237,11 +274,7 @@ if fn := ops.Exit{{.CtxName}}; fn != nil {
 }
 
 type data struct {
-	prefix string
-	types  map[string]grammarType
-
-	prodName   string
-	prodIdents []grammarType
+	types map[string]grammarType
 }
 
 func (d *data) Get() []fmt.Stringer {
@@ -258,51 +291,6 @@ func (d *data) Get() []fmt.Stringer {
 	return result
 }
 
-const (
-	tokenTarget int = iota
-	ruleTarget
-	termTarget
-)
-
-func nameFromAtom(atom wbnf.AtomNode) (string, int) {
-	x, _ := ast.Which(atom.Node.(ast.Branch), "RE", "STR", "IDENT", "REF", "term")
-	name := ""
-	targetType := tokenTarget
-	switch x {
-	case "REF", "IDENT":
-		name = atom.One("IDENT").Scanner().String()
-		targetType = ruleTarget
-	case "term":
-		name = x
-		targetType = termTarget
-	}
-	return name, targetType
-}
-
-func (d *data) handleProd(prod wbnf.ProdNode) wbnf.Stopper {
-	name := prod.OneIdent().String()
-	d.prodName = d.prefix + strcase.ToCamel(DropCaps(name))
-
-	if len(prod.AllTerm()) == 1 {
-		newTypes := MakeTypesForTerms(d.prodName, name, prod.AllTerm()[0])
-		for k, v := range newTypes {
-			d.types[k] = v
-		}
-	} else {
-		for i, term := range prod.AllTerm() {
-			newTypes := MakeTypesForTerms(d.prodName+strconv.Itoa(i), name, term)
-			for k, v := range newTypes {
-				d.types[k] = v
-			}
-		}
-	}
-
-	return nil
-}
-
-func MakeTypes(prefix string, node wbnf.GrammarNode) *data {
-	d := &data{prefix: prefix, types: map[string]grammarType{}}
-	wbnf.WalkerOps{EnterProdNode: d.handleProd}.Walk(node)
-
-	return d
+func MakeTypes(node wbnf.GrammarNode) *data {
+	return &data{types: MakeTypesFromGrammar(wbnf.NewFromAst(node))}
 }

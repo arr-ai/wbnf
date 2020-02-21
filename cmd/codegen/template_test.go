@@ -13,7 +13,7 @@ func TestWrite(t *testing.T) {
 	var buf bytes.Buffer
 
 	g, _ := wbnf.ParseString("hard->asd=('a' | fff=('b' | 'hello')*);")
-	types := MakeTypes("", g)
+	types := MakeTypes(g)
 	assert.NoError(t, Write(&buf, TemplateData{
 		CommandLine:       "foo bar baz",
 		PackageName:       "testpackage",

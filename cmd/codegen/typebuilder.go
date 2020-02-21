@@ -1,187 +1,266 @@
 package codegen
 
 import (
-	"fmt"
 	"reflect"
-	"strconv"
 
+	"github.com/arr-ai/frozen"
+	"github.com/arr-ai/wbnf/parser"
 	"github.com/iancoleman/strcase"
-
-	"github.com/arr-ai/wbnf/ast"
-	"github.com/arr-ai/wbnf/wbnf"
 )
 
-type typeBuilder struct {
-	types map[string]grammarType // new types created in this builder
-
-	prefix   string
-	ident    string
-	children map[string]grammarType
+func MakeTypesFromGrammar(g parser.Grammar) map[string]grammarType {
+	tm := &TypeMap{}
+	return tm.walkGrammar("", g, mergeGrammarRules("", g, frozen.NewMap()))
 }
 
-func MakeTypesForTerms(prefix string, ident string, term wbnf.TermNode) map[string]grammarType {
-	t := &typeBuilder{
-		types:    map[string]grammarType{},
-		children: map[string]grammarType{},
-		prefix:   prefix,
-		ident:    ident,
+type TypeMap map[string]grammarType
+
+func (t *TypeMap) pushType(name, parent string, child grammarType) grammarType {
+	if child == nil {
+		return nil
 	}
-	wbnf.WalkTermNode(term, wbnf.WalkerOps{EnterTermNode: t.handleTerm})
+
+	typename := GoTypeName(name)
 
 	var val grammarType
-	switch len(t.children) {
-	case 0:
-	case 1:
-		if v, ok := t.getChildren()[0].(unnamedToken); ok && v.count == wantOneGetter {
-			t.types[GoTypeName(prefix)] = basicRule(GoTypeName(prefix))
-			break
-		}
-		fallthrough
-	default:
-		val = rule{name: GoTypeName(prefix), childs: t.getChildren()}
-		t.types[val.TypeName()] = val
+	val = rule{name: typename, childs: []grammarType{child}}
+	if v, ok := child.(unnamedToken); ok && v.count == wantOneGetter {
+		val = basicRule(typename)
 	}
-	return t.types
-}
 
-func (t typeBuilder) getChildren() []grammarType {
-	out := make([]grammarType, 0, len(t.children))
-	for _, c := range t.children {
-		out = append(out, c)
-	}
-	return out
-}
-
-func fixCount(old, new int) int {
-	if old&wantOneGetter != 0 {
-		new = wantAllGetter
-	}
-	if (old&wantAllGetter != 0) && (new&wantOneGetter != 0) {
-		new = old
-	}
-	if new == (wantOneGetter | wantAllGetter) {
-		new = wantAllGetter
-	}
-	return new
-}
-
-func (t *typeBuilder) makeMultiOrFixName(name string, expected grammarType) grammarType {
-	if val, has := t.children[name]; has {
-		if reflect.TypeOf(val) == reflect.TypeOf(expected) {
-			switch t := val.(type) {
-			case namedToken:
-				t.count = fixCount(t.count, expected.(namedToken).count)
-				return t
-			case unnamedToken:
-				t.count = fixCount(t.count, expected.(unnamedToken).count)
-				return t
-			case namedRule:
-				if t.returnType == expected.(namedRule).returnType {
-					t.count = fixCount(t.count, expected.(namedRule).count)
-					return t
+	if oldval, has := (*t)[typename]; has {
+		if reflect.TypeOf(oldval) != reflect.TypeOf(val) {
+			switch oldval := oldval.(type) {
+			case rule:
+				if _, ok := val.(basicRule); !ok {
+					panic("cont replace a rule with this type")
 				}
-			}
-		}
-		for i := 1; ; i++ {
-			name := fmt.Sprintf("%s%d", name, i)
-			if _, has := t.children[name]; !has {
-				switch t := expected.(type) {
-				case namedToken:
-					t.name = name
-					expected = t
+			case basicRule:
+				switch v := val.(type) {
+				case unnamedToken:
 				case namedRule:
-					t.name = name
-					expected = t
+				case namedToken:
+				case rule:
+					if oldval.TypeName() == v.TypeName() {
+						(*t)[val.TypeName()] = val
+						return val
+					}
+				default:
+					panic("This should not have happened")
 				}
-				return expected
+			default:
+				panic("This should not have happened")
 			}
 		}
+		switch oldval := oldval.(type) {
+		case basicRule:
+			val = rule{name: GoTypeName(name), childs: []grammarType{
+				unnamedToken{parent: oldval.TypeName(), count: wantAllGetter}}}
+		case rule:
+			checkForDupes := func(children []grammarType, next grammarType) []grammarType {
+				result := make([]grammarType, 0, len(children)+1)
+				appendNext := true
+				for _, c := range children {
+					switch child := c.(type) {
+					case unnamedToken:
+						child.count = wantAllGetter
+						result = append(result, child)
+						appendNext = false
+					case namedToken:
+						if next.Ident() == child.Ident() {
+							child.count = wantAllGetter
+							appendNext = false
+						}
+						result = append(result, child)
+					case namedRule:
+						if next.Ident() == child.Ident() {
+							child.count = wantAllGetter
+							appendNext = false
+						}
+						result = append(result, child)
+					case stackBackRef:
+						if _, ok := next.(stackBackRef); ok {
+							return children
+						}
+						result = append(result, child)
+					default:
+						result = append(result, child)
+					}
+				}
+				if appendNext {
+					return append(result, next)
+				}
+				return result
+			}
+			val = rule{name: GoTypeName(name), childs: checkForDupes(oldval.childs, child)}
+		case namedRule:
+			newval := val.(namedRule)
+			newval.count = wantAllGetter
+			val = newval
+		case namedToken:
+			newval := val.(namedToken)
+			newval.count = wantAllGetter
+			val = newval
+		case choice:
+		default:
+			panic("oops")
+		}
 	}
-	return expected
+
+	(*t)[val.TypeName()] = val
+	return val
 }
 
-func countFromQuant(quants []wbnf.QuantNode) int {
-	count := wantOneGetter
-	for _, q := range quants {
-		switch q.OneOp() {
-		case "*", "+":
-			count = wantAllGetter
-		case "?":
-			count |= wantOneGetter
-		}
-		if q.Choice() != 0 {
-			count = wantAllGetter
-		}
+func (t *TypeMap) merge(other TypeMap) TypeMap {
+	for k, v := range other {
+		(*t)[k] = v
 	}
-	return count
+	return *t
 }
 
-func (t *typeBuilder) handleNamed(named wbnf.NamedNode, quant int) wbnf.Stopper {
-	name := named.OneIdent().String()
-	target, targetType := nameFromAtom(named.OneAtom())
+type stackInfo struct{ ident, parentName string }
 
-	var child grammarType
+func pushRuleNameForStack(ident, parentName string, knownRules frozen.Map) frozen.Map {
+	return knownRules.With(parser.At, stackInfo{
+		ident:      ident,
+		parentName: parentName,
+	})
+}
 
-	if name == "" {
-		name = target
+func mergeGrammarRules(prefix string, g parser.Grammar, knownRules frozen.Map) frozen.Map {
+	mb := frozen.NewMapBuilder(len(g))
+	for k := range g {
+		mb.Put(k.String(), prefix+strcase.ToCamel(k.String()))
+	}
+	return knownRules.Update(mb.Finish())
+}
+
+func (tm *TypeMap) walkGrammar(prefix string, g parser.Grammar, knownRules frozen.Map) TypeMap {
+	result := map[string]grammarType{}
+	for r, term := range g {
+		typeName := prefix + strcase.ToCamel(r.String())
+		tm.walkTerm(term, typeName, wantOneGetter, pushRuleNameForStack(r.String(), typeName, knownRules))
 	}
 
-	switch targetType {
-	case termTarget:
-		childTerms := named.OneAtom().AllTerm()
-		for i, child := range childTerms {
-			prefix := t.prefix + strcase.ToCamel(name)
-			typename := prefix
-			if i > 0 {
-				typename += strconv.Itoa(i)
+	return tm.merge(result)
+}
+
+func (tm *TypeMap) handleSeq(terms []parser.Term, parentName string, quant int, knownRules frozen.Map) {
+	for _, t := range terms {
+		tm.walkTerm(t, parentName, quant, knownRules)
+	}
+}
+
+func (tm *TypeMap) makeLeafType(term parser.Term, parentName string, quant int, knownRules frozen.Map) {
+	var val grammarType
+	switch t := term.(type) {
+	case parser.Rule:
+		if t == parser.At {
+			si := knownRules.MustGet(t).(stackInfo)
+			val = stackBackRef{
+				name:   si.ident,
+				parent: si.parentName,
 			}
-			newtypes := MakeTypesForTerms(prefix, name, child)
-			for k, v := range newtypes {
-				t.types[k] = v
-			}
-			child := t.makeMultiOrFixName(typename, namedRule{name: name, parent: t.prefix, count: quant, returnType: GoTypeName(typename)})
-			t.children[child.(namedRule).returnType] = child
-		}
-		return wbnf.NodeExiter
-	case tokenTarget:
-		if name == "" {
-			name = "Token"
-			child = unnamedToken{parent: t.prefix, count: quant}
 		} else {
-			child = namedToken{name: name, parent: t.prefix, count: quant}
+			val = namedRule{
+				name:       t.String(),
+				parent:     GoTypeName(parentName),
+				returnType: GoTypeName(knownRules.MustGet(t.String()).(string)),
+				count:      quant,
+			}
 		}
-
-	case ruleTarget:
-		if target == "@" {
-			child = namedRule{name: t.ident, parent: t.prefix, count: quant, returnType: GoTypeName(t.prefix)}
-		} else {
-			child = namedRule{name: name, parent: t.prefix, count: quant, returnType: GoTypeName(DropCaps(target))}
-		}
+	case parser.S, parser.RE:
+		val = unnamedToken{GoTypeName(parentName), quant}
+	default:
+		panic("Should not have got here")
 	}
-
-	if child != nil {
-		t.children[name] = t.makeMultiOrFixName(name, child)
-	}
-	return nil
+	tm.pushType(parentName, "", val)
 }
 
-func (t *typeBuilder) handleTerm(term wbnf.TermNode) wbnf.Stopper {
-	if term.OneOp() == "|" {
-		t.children[ast.ChoiceTag] = choice(t.prefix)
-	}
+func (tm *TypeMap) walkTerm(term parser.Term, parentName string, quant int, knownRules frozen.Map) {
+	switch t := term.(type) {
+	case parser.S, parser.RE, parser.Rule:
+		tm.makeLeafType(term, parentName, quant, knownRules)
+	case parser.REF:
+		tm.pushType(parentName, "", backRef{
+			name:   t.Ident,
+			parent: GoTypeName(parentName),
+		})
+	case parser.ScopedGrammar:
+		knownRules = mergeGrammarRules(parentName, t.Grammar, knownRules)
+		scoped := tm.walkGrammar(parentName, t.Grammar, knownRules)
+		scoped.walkTerm(t.Term, parentName, quant, knownRules)
+		*tm = tm.merge(scoped)
+		tm.walkTerm(t.Term, parentName, quant, knownRules)
+	case parser.Seq:
+		tm.handleSeq(t, parentName, quant, knownRules)
+	case parser.Oneof:
+		tm.pushType(parentName, "", choice{parent: parentName})
+		for _, t := range t {
+			tm.walkTerm(t, parentName, quant, knownRules)
+		}
+	case parser.Stack:
+		tm.handleSeq(t, parentName, quant, knownRules)
+	case parser.Delim:
+		tm.walkTerm(t.Term, parentName, wantAllGetter, knownRules)
+		switch delim := t.Sep.(type) {
+		case parser.Named:
+			childName := parentName + strcase.ToCamel(DropCaps(delim.Name))
+			if _, ok := delim.Term.(parser.S); ok {
+				tm.pushType(childName, parentName, unnamedToken{childName, quant})
+				tm.pushType(parentName, "", namedToken{
+					name:   delim.Name,
+					parent: parentName,
+					count:  quant,
+				})
+			} else {
+				tm.walkTerm(t.Sep, childName, wantAllGetter, knownRules)
+			}
 
-	// And catch any terms from the quants
-	for _, q := range term.AllQuant() {
-		wbnf.WalkQuantNode(q, wbnf.WalkerOps{EnterNamedNode: func(node wbnf.NamedNode) wbnf.Stopper {
-			t.handleNamed(node, wantOneGetter)
-			return nil
-		}})
+		case parser.Rule:
+			childName := parentName + strcase.ToCamel(DropCaps(delim.String()))
+			tm.walkTerm(t.Sep, childName, wantAllGetter, knownRules)
+		default:
+			childName := parentName + "Delim"
+			tm.walkTerm(t.Sep, childName, wantAllGetter, knownRules)
+		}
+	case parser.Named:
+		childName := parentName + strcase.ToCamel(DropCaps(t.Name))
+		switch term := t.Term.(type) {
+		case parser.Rule:
+			tm.pushType(parentName, "", namedRule{
+				name:       t.Name,
+				parent:     parentName,
+				returnType: GoTypeName(DropCaps(term.String())),
+				count:      quant,
+			})
+		case parser.RE, parser.S:
+			tm.pushType(parentName, "", namedToken{
+				name:   t.Name,
+				parent: parentName,
+				count:  quant,
+			})
+		default:
+			tm.walkTerm(t.Term, childName, quant, knownRules)
+			tm.pushType(parentName, "", namedRule{
+				name:       t.Name,
+				parent:     parentName,
+				returnType: GoTypeName(childName),
+				count:      quant,
+			})
+		}
+	case parser.Quant:
+		if quant == wantAllGetter {
+			tm.walkTerm(t.Term, parentName, wantAllGetter, knownRules)
+		} else {
+			if t.Min == 0 && t.Max == 1 {
+				quant = wantOneGetter
+			} else {
+				quant = wantAllGetter
+			}
+			tm.walkTerm(t.Term, parentName, quant, knownRules)
+		}
+	default:
+		panic("unknown type")
 	}
-
-	if named := term.OneNamed(); named.Node != nil {
-		quant := countFromQuant(term.AllQuant())
-		return t.handleNamed(named, quant)
-	}
-
-	return nil
 }

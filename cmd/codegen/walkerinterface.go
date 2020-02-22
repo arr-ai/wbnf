@@ -49,7 +49,7 @@ func (w *VisitorWriter) getTypeWalker(t grammarType) string {
 					if ismany {
 						walker += fmt.Sprintf("for _, child := range node.All%s() {\n", funcs.getter)
 					} else {
-						walker += fmt.Sprintf("if child := node.One%s(); child.Node != nil {\n", funcs.getter)
+						walker += fmt.Sprintf("if child := node.One%s(); child != nil { child := *child\n", funcs.getter)
 					}
 					walker += fmt.Sprintf(`if fn := w.Enter%s; fn != nil {  if s := fn(child); s != nil {
 			if s.ExitNode() { return nil } else if s.Abort() { return s} } } }`+"\n", funcs.walker)
@@ -59,7 +59,7 @@ func (w *VisitorWriter) getTypeWalker(t grammarType) string {
 			if funcs.isMany {
 				walker += fmt.Sprintf("for _, child := range node.All%s() {\n", funcs.getter)
 			} else {
-				walker += fmt.Sprintf("if child := node.One%s(); child.Node != nil {\n", funcs.getter)
+				walker += fmt.Sprintf("if child := node.One%s(); child != nil { child := *child\n", funcs.getter)
 			}
 			walker += fmt.Sprintf(`if s := w.Walk%s(child); s != nil { 
 			if s.ExitNode() { return nil } else if s.Abort() { return s} } }`+"\n", funcs.walker)

@@ -79,6 +79,12 @@ func (c %s) String() string {
 `, "%s", t.TypeName())
 }
 func (t basicRule) CallbackData() *callbackData { return nil }
+func (t basicRule) Upgrade() unnamedToken {
+	return unnamedToken{
+		parent: string(t),
+		count:  wantOneGetter,
+	}
+}
 
 func (t choice) TypeName() string        { return "" }
 func (t choice) Ident() string           { return "@choice" }
@@ -202,11 +208,11 @@ func (t namedRule) String() string {
 	out := ""
 	if wantOneFn(t.count) {
 		out += replacer.Replace(`
-func (c {{parent}}) One{{child}}() {{returnType}} {
+func (c {{parent}}) One{{child}}() *{{returnType}} {
 	if child := ast.First(c.Node, "{{name}}"); child != nil {
-		return {{returnType}}{child}
+		return &{{returnType}}{child}
 	}
-	return ""
+	return nil
 }
 `)
 	}

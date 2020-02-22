@@ -33,7 +33,7 @@ func testChildren(t *testing.T, children []grammarType, tests childrenTestData) 
 		assert.NotNil(t, child, errMessage)
 		if name == "@choice" {
 			assert.IsType(t, choice{}, child, errMessage)
-			return
+			continue
 		}
 		assert.IsType(t, val.t, child, errMessage)
 		switch x := child.(type) {
@@ -42,6 +42,7 @@ func testChildren(t *testing.T, children []grammarType, tests childrenTestData) 
 			assert.Equal(t, val.returnType, x.returnType, errMessage)
 		case namedToken:
 			assert.Equal(t, val.quant, x.count, errMessage)
+			assert.Equal(t, "", val.returnType, "Test mis-configured"+errMessage)
 
 		}
 	}
@@ -78,9 +79,10 @@ func TestTypeBuilder2_ScopedGrammarRulesComplex(t *testing.T) {
 	assert.IsType(t, rule{}, types["PragmaNode"])
 	assert.IsType(t, rule{}, types["PragmaImportNode"])
 	assert.IsType(t, rule{}, types["PragmaImportPathNode"])
+	assert.IsType(t, nil, types["PragmaImportPathDelimNode"])
 
 	testChildren(t, types["PragmaNode"].Children(), childrenTestData{
-		"import": {t: namedRule{}, quant: wantAllGetter, // Really should be one, but good enough for now
+		"import": {t: namedRule{}, quant: wantOneGetter,
 			returnType: "PragmaImportNode"},
 	})
 	testChildren(t, types["PragmaImportNode"].Children(), childrenTestData{
@@ -92,16 +94,20 @@ func TestTypeBuilder2_ScopedGrammarRulesComplex(t *testing.T) {
 
 func TestTypeBuilder2_Delims(t *testing.T) {
 	types := initTypeBuilderTest(t, "a -> 'hello':op=',';"+
-		"b -> a:',';"+
-		"c->'a':a;")
+		"b -> a:,/{[asd]};"+
+		"c->'a':a;"+
+		"x -> b:foo=/{[abcd]*};")
 
 	assert.NotEmpty(t, types)
 	assert.IsType(t, rule{}, types["ANode"])
-	assert.IsType(t, basicRule(""), types["AOpNode"])
 	assert.IsType(t, rule{}, types["BNode"])
-	assert.IsType(t, rule{}, types["BDelimNode"])
+	assert.IsType(t, nil, types["BDelimNode"])
 	assert.IsType(t, rule{}, types["CNode"])
 	assert.IsType(t, rule{}, types["CANode"])
+	testChildren(t, types["ANode"].Children(), childrenTestData{
+		"op":    {t: namedToken{}, quant: wantOneGetter},
+		"Token": {t: unnamedToken{}, quant: wantAllGetter},
+	})
 }
 
 func TestTypeBuilder2_RuleWithQuant(t *testing.T) {
@@ -145,7 +151,7 @@ func TestTypeBuilder2_RuleWithStack(t *testing.T) {
 
 	testChildren(t, types["ANode"].Children(), childrenTestData{
 		"a":     {t: stackBackRef{}},
-		"Token": {t: unnamedToken{}, quant: wantAllGetter, returnType: "ANode"},
+		"Token": {t: unnamedToken{}, quant: wantAllGetter},
 	})
 }
 
@@ -158,7 +164,7 @@ func TestTypeBuilder2_RuleWithStackComplicated(t *testing.T) {
 
 	assert.NotEmpty(t, types)
 	assert.IsType(t, rule{}, types["TermNode"])
-	assert.IsType(t, rule{}, types["TermOpNode"])
+	assert.IsType(t, nil, types["TermOpNode"])
 
 	testChildren(t, types["TermNode"].Children(), childrenTestData{
 		"term":  {t: stackBackRef{}},
@@ -227,5 +233,25 @@ func TestTypeBuilder_RuleWithRefs(t *testing.T) {
 	})
 	testChildren(t, types["BNode"].Children(), childrenTestData{
 		"a": {t: backRef{}, quant: wantAllGetter, returnType: "ANode"},
+	})
+}
+
+func TestTypeBuilder_RuleWithOptsAndNames(t *testing.T) {
+	types := initTypeBuilderTest(t, `quant   -> op=[?*+]
+         | "{" min=INT? "," max=INT? "}"
+         | op=/{<:|:>?} opt_leading=","? "named" opt_trailing=","?;
+INT     -> \d+;`)
+	assert.NotEmpty(t, types)
+	assert.IsType(t, rule{}, types["QuantNode"])
+	assert.IsType(t, basicRule(""), types["INTNode"])
+
+	testChildren(t, types["QuantNode"].Children(), childrenTestData{
+		"@choice":      {},
+		"op":           {t: namedToken{}, quant: wantAllGetter}, // TODO: make this wantOneGetter
+		"min":          {t: namedRule{}, returnType: GoTypeName("INT"), quant: wantOneGetter},
+		"max":          {t: namedRule{}, returnType: GoTypeName("INT"), quant: wantOneGetter},
+		"opt_leading":  {t: namedToken{}, quant: wantOneGetter},
+		"opt_trailing": {t: namedToken{}, quant: wantOneGetter},
+		"Token":        {t: unnamedToken{}, quant: wantAllGetter},
 	})
 }

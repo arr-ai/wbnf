@@ -11,7 +11,7 @@ type VisitorWriter struct {
 	startRule string
 }
 
-const suffix = "\n}\nfunc (w WalkerOps) Walk(tree {{startRuleType}}) { Walk{{startRuleType}}(tree, w) }\n"
+const suffix = "\n}\nfunc (w WalkerOps) Walk(tree {{startRuleType}}) { w.Walk{{startRuleType}}(tree) }\n"
 const funcs = `	Enter{{typeName}} func ({{typeName}}) Stopper
 	Exit{{typeName}} func ({{typeName}}) Stopper`
 
@@ -21,7 +21,8 @@ func (w VisitorWriter) String() string {
 		parts = append(parts, strings.ReplaceAll(funcs, "{{typeName}}", t.TypeName()))
 	}
 	sort.Strings(parts)
-	out := "\ntype WalkerOps struct {\n" + strings.Join(parts, "\n") + strings.ReplaceAll(suffix, "{{startRuleType}}", w.startRule)
+	startRule := GoTypeName(w.startRule)
+	out := "\ntype WalkerOps struct {\n" + strings.Join(parts, "\n") + strings.ReplaceAll(suffix, "{{startRuleType}}", startRule)
 
 	parts = []string{}
 	for _, t := range w.types {

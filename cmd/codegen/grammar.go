@@ -6,7 +6,6 @@ import (
 
 	"github.com/arr-ai/wbnf/ast"
 	"github.com/arr-ai/wbnf/parser"
-	"github.com/arr-ai/wbnf/wbnf"
 )
 
 const (
@@ -50,28 +49,28 @@ func safeString(src string) string {
 
 func makeAtom(node ast.Node) *goNode {
 	atom := node.(ast.Branch)
-	x, _ := ast.Which(atom, wbnf.IdentRE, wbnf.IdentSTR, wbnf.IdentIDENT, wbnf.IdentREF, wbnf.IdentTerm)
+	x, _ := ast.Which(atom, "RE", "STR", "IDENT", "REF", "term")
 	name := ""
 	switch x {
-	case wbnf.IdentTerm, "":
-	case wbnf.IdentREF:
-		name = safeString(atom.One(x).One(wbnf.IdentIDENT).Scanner().String())
+	case "term", "":
+	case "REF":
+		name = safeString(atom.One(x).One("IDENT").Scanner().String())
 	default:
 		name = safeString(atom.One(x).Scanner().String())
 	}
 	switch x {
-	case wbnf.IdentIDENT:
+	case "IDENT":
 		return &goNode{name: fmt.Sprintf("parser.Rule(`%s`)", name)}
-	case wbnf.IdentSTR:
+	case "STR":
 		return &goNode{name: fmt.Sprintf("parser.S(%s)", name)}
-	case wbnf.IdentRE:
+	case "RE":
 		if strings.HasPrefix(name, "/{") {
 			name = name[2 : len(name)-1]
 		}
 		return &goNode{name: fmt.Sprintf("parser.RE(`%s`)", name)}
-	case wbnf.IdentREF:
+	case "REF":
 		return &goNode{name: fmt.Sprintf("parser.REF(`%s`)", name)}
-	case wbnf.IdentTerm:
+	case "term":
 		return makeTerm(atom.One(x))
 	}
 	return &goNode{name: "todo"}
@@ -80,10 +79,10 @@ func makeNamed(node ast.Node) *goNode {
 	named := node.(ast.Branch)
 	atom := makeAtom(named.One("atom"))
 
-	if named.One(wbnf.IdentIDENT) != nil {
+	if named.One("IDENT") != nil {
 		val := &goNode{name: "parser.Eq",
 			scope:    bracesScope,
-			children: []goNode{{name: "\"" + named.One(wbnf.IdentIDENT).Scanner().String() + "\""}, *atom},
+			children: []goNode{{name: "\"" + named.One("IDENT").Scanner().String() + "\""}, *atom},
 		}
 		return val
 	}

@@ -103,7 +103,7 @@ func TestTypeBuilder2_Delims(t *testing.T) {
 	assert.IsType(t, rule{}, types["BNode"])
 	assert.IsType(t, nil, types["BDelimNode"])
 	assert.IsType(t, rule{}, types["CNode"])
-	assert.IsType(t, rule{}, types["CANode"])
+	assert.IsType(t, rule{}, types["CaNode"])
 	testChildren(t, types["ANode"].Children(), childrenTestData{
 		"op":    {t: namedToken{}, quant: wantOneGetter},
 		"Token": {t: unnamedToken{}, quant: wantAllGetter},
@@ -137,7 +137,7 @@ func TestTypeBuilder_RuleWithNamedTerm(t *testing.T) {
 	assert.IsType(t, rule{}, types["ANode"])
 
 	testChildren(t, types["ANode"].Children(), childrenTestData{
-		"val": {t: namedRule{}, quant: wantOneGetter, returnType: "AValNode"},
+		"val": {t: namedRule{}, quant: wantOneGetter, returnType: "AvalNode"},
 	})
 	testChildren(t, types["AValNode"].Children(), childrenTestData{
 		"Token": {t: unnamedToken{}, quant: wantAllGetter},
@@ -254,4 +254,20 @@ INT     -> \d+;`)
 		"opt_trailing": {t: namedToken{}, quant: wantOneGetter},
 		"Token":        {t: unnamedToken{}, quant: wantAllGetter},
 	})
+}
+
+func TestDropCaps(t *testing.T) {
+	tests := []string{
+		"A", "A",
+		"a", "a",
+		"Bar", "Bar",
+		"INT", "Int",
+	}
+	for i := 0; i < len(tests); i += 2 {
+		t.Run(tests[i], func(t *testing.T) {
+			in := tests[i]
+			expected := tests[i+1]
+			assert.EqualValues(t, expected, DropCaps(in))
+		})
+	}
 }

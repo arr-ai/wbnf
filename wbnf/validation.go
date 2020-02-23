@@ -92,7 +92,7 @@ func (v *validator) Error() string {
 }
 
 func (v *validator) validateTerm(tree TermNode) Stopper {
-	if tree.OneOp() == "" {
+	if len(tree.AllOp()) == 0 || tree.AllOp()[0] == "" {
 		names := map[string]bool{}
 		for _, child := range tree.AllTerm() {
 			if name := child.OneNamed(); name.Node != nil {

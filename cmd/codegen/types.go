@@ -11,10 +11,22 @@ import (
 )
 
 func GoTypeName(rule string) string {
-	return strcase.ToCamel(strings.TrimSuffix(rule, "Node") + "Node")
+	return strcase.ToCamel(strings.TrimSuffix(DropCaps(rule), "Node") + "Node")
 }
 func DropCaps(rule string) string {
-	return strings.ToLower(rule)
+	isCaps := func(r uint8) bool { return r >= 'A' && r <= 'Z' }
+	out := make([]string, 0, len(rule))
+	for i := 0; i < len(rule); i++ {
+		out = append(out, string(rule[i]))
+		if isCaps(rule[i]) {
+			for i+1 < len(rule) && isCaps(rule[i+1]) {
+				i++
+				out = append(out, strings.ToLower(string(rule[i])))
+			}
+		}
+	}
+
+	return strings.Join(out, "")
 }
 
 type (
@@ -136,7 +148,7 @@ func (t namedToken) Ident() string           { return t.name }
 func (t namedToken) Children() []grammarType { return nil }
 func (t namedToken) String() string {
 	replacer := strings.NewReplacer("{{parent}}", GoTypeName(t.parent),
-		"{{childtype}}", strcase.ToCamel(t.name),
+		"{{childtype}}", strcase.ToCamel(DropCaps(t.name)),
 		"{{name}}", t.name,
 	)
 	out := ""
@@ -201,7 +213,7 @@ func (t namedRule) Ident() string           { return t.name }
 func (t namedRule) Children() []grammarType { return nil }
 func (t namedRule) String() string {
 	replacer := strings.NewReplacer("{{parent}}", GoTypeName(t.parent),
-		"{{child}}", strcase.ToCamel(t.name),
+		"{{child}}", strcase.ToCamel(DropCaps(t.name)),
 		"{{returnType}}", t.returnType,
 		"{{name}}", t.name,
 	)
@@ -230,7 +242,7 @@ func (c {{parent}}) One{{child}}() *{{returnType}} {
 	return out
 }
 func (t namedRule) CallbackData() *callbackData {
-	return &callbackData{getter: strcase.ToCamel(t.name), walker: t.returnType, isMany: wantAllFn(t.count)}
+	return &callbackData{getter: strcase.ToCamel(DropCaps(t.name)), walker: t.returnType, isMany: wantAllFn(t.count)}
 }
 
 func (t rule) TypeName() string        { return t.name }

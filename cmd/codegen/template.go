@@ -55,7 +55,7 @@ func New{{.StartRuleTypeName}}(from ast.Node) {{.StartRuleTypeName}} { return {{
 
 func Parse(input *parser.Scanner) ({{.StartRuleTypeName}}, error) {
 	p := Grammar()
-	tree, err := p.Parse({{.StartRule}}, input)
+	tree, err := p.Parse("{{.StartRule}}", input)
 	if err != nil {
 		return {{.StartRuleTypeName}}{nil}, err
 	}

@@ -28,7 +28,7 @@ The hope is that the packages will evolved such that parser and ast are merged, 
 grammar -> stmt+;
 stmt    -> COMMENT | prod | pragma;
 prod    -> IDENT "->" term+ ";";
-term    -> @:op=">"
+term    -> (@ ("{" grammar "}")? ):op=">"
          > @:op="|"
          > @+
          > named quant*;
@@ -68,9 +68,9 @@ RE      -> /{
            };
 REF     -> "%" IDENT ("=" default=STR)?;
 // Special
-pragma  -> (
-                import=(".import" path=((".."|"."|[a-zA-Z0-9.:]+):,"/") ";"?)
-           );
+pragma  -> import {
+                import -> ".import" path=((".."|"."|[a-zA-Z0-9.:]+):,"/") ";"?;
+            };
 
 .wrapRE -> /{\s*()\s*};
 ```
@@ -301,6 +301,12 @@ named opt_trailing=","?`.
     amount of `ab`)
   - `x -> a:,b` - Allows `ab...aba` or `bab..aba` (where `...` represents any
     amount of `ab`)
+
+#### Parser Configuration Commands (pragmas)
+
+Some special commands are defined in the grammar to control the way the parser executes.
+
+`.import relative_filename` Allows the wbnf file to merge the grammar of the imported filename into the current grammar (equivalent to `#include` in c)
 
 #### Magic rules
 

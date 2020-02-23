@@ -101,33 +101,36 @@ func stack(name string, extras ...parser.Extra) *stackBuilder {
 
 func TestParseNamedTerm(t *testing.T) {
 	r := parser.NewScanner(`opt=""`)
-	x := stack(`term`, parser.NonAssociative).a(`term@1`, parser.NonAssociative).a(`term@2`).a(`term@3`).z(
-		stack(`named`).z(
-			stack(`?`).a(`_`).z(*r.Slice(0, 3), *r.Slice(3, 4)),
-			stack(`atom`, parser.Choice(1)).z(*r.Slice(4, 6)),
-		),
-		stack(`?`).z(),
-	)
+	x := stack(`term`, parser.NonAssociative).z(
+		stack(`_`).z(stack(`term@1`, parser.NonAssociative).a(`term@2`).a(`term@3`).z(
+			stack(`named`).z(
+				stack(`?`).a(`_`).z(*r.Slice(0, 3), *r.Slice(3, 4)),
+				stack(`atom`, parser.Choice(1)).z(*r.Slice(4, 6)),
+			), stack(`?`).z(),
+		), stack(`?`).z(),
+		))
 	assertParseToNode(t, x, "term", r)
 }
 
 func TestParseNamedTermInDelim(t *testing.T) {
 	r := parser.NewScanner(`"1":op=","`)
-	x := stack(`term`, parser.NonAssociative).a(`term@1`, parser.NonAssociative).a(`term@2`).a(`term@3`).z(
-		stack(`named`).z(
-			stack(`?`).z(),
-			stack(`atom`, parser.Choice(1)).z(*r.Slice(0, 3)),
-		),
-		stack(`?`).a(`quant`, parser.Choice(2)).a(`_`).z(
-			*r.Slice(3, 4),
-			stack(`?`).z(),
+	x := stack(`term`, parser.NonAssociative).z(
+		stack(`_`).z(stack(`term@1`, parser.NonAssociative).a(`term@2`).a(`term@3`).z(
 			stack(`named`).z(
-				stack(`?`).a(`_`).z(*r.Slice(4, 6), *r.Slice(6, 7)),
-				stack(`atom`, parser.Choice(1)).z(*r.Slice(7, 10)),
+				stack(`?`).z(),
+				stack(`atom`, parser.Choice(1)).z(*r.Slice(0, 3)),
 			),
-			stack(`?`).z(),
-		),
-	)
+			stack(`?`).a(`quant`, parser.Choice(2)).a(`_`).z(
+				*r.Slice(3, 4),
+				stack(`?`).z(),
+				stack(`named`).z(
+					stack(`?`).a(`_`).z(*r.Slice(4, 6), *r.Slice(6, 7)),
+					stack(`atom`, parser.Choice(1)).z(*r.Slice(7, 10)),
+				),
+				stack(`?`).z(),
+			),
+		), stack(`?`).z(),
+		))
 	assertParseToNode(t, x, "term", r)
 }
 
@@ -195,7 +198,7 @@ func TestGrammarSnippet(t *testing.T) {
 	v, err := parsers.Parse("term", r)
 	require.NoError(t, err)
 	assert.Equal(t,
-		`term║:[term@1║:[term@2[term@3[named[?[], atom║0[prod]], ?[quant║0[+]]]]]]`,
+		`term║:[_[term@1║:[term@2[term@3[named[?[], atom║0[prod]], ?[quant║0[+]]]]], ?[]]]`,
 		fmt.Sprintf("%v", v),
 	)
 	assertUnparse(t, "prod+", parsers, v)
@@ -265,4 +268,48 @@ func TestEmptyNamedTerm(t *testing.T) {
 	p, err := Compile(`x -> rel=();`, nil)
 	assert.NoError(t, err)
 	log.Print(p.Grammar())
+}
+
+func TestScopeGrammar(t *testing.T) {
+	t.Parallel()
+	g := parser.Grammar{
+		"a": parser.ScopedGrammar{
+			Term: parser.Seq{parser.S("a"), parser.Rule("b"), parser.Rule("c")},
+			Grammar: parser.Grammar{
+				"b": parser.S("c"),
+				"c": parser.S("C"),
+			},
+		},
+		"c": parser.S("foo"),
+	}
+	p := g.Compile(nil)
+
+	te := p.MustParse("a", parser.NewScanner("acC"))
+	tree := ast.FromParserNode(g, te)
+	te2 := ast.ToParserNode(g, tree)
+
+	parser.AssertEqualNodes(t, te.(parser.Node), te2.(parser.Node))
+}
+
+func TestScopeGrammarwithWrapping(t *testing.T) {
+	t.Parallel()
+	g := parser.Grammar{
+		".wrapRE": parser.RE(`\s*()\s*`),
+		"pragma": parser.ScopedGrammar{Term: parser.Oneof{parser.Rule(`import`)},
+			Grammar: parser.Grammar{"import": parser.Seq{parser.S(".import"),
+				parser.Eq("path",
+					parser.Delim{Term: parser.Oneof{parser.S(".."),
+						parser.S("."),
+						parser.RE(`[a-zA-Z0-9]+`)},
+						Sep:             parser.S("/"),
+						Assoc:           parser.NonAssociative,
+						CanStartWithSep: true})}}},
+	}
+	p := g.Compile(nil)
+
+	te := p.MustParse("pragma", parser.NewScanner(".import foowbnf"))
+	tree := ast.FromParserNode(g, te)
+	te2 := ast.ToParserNode(g, tree)
+
+	parser.AssertEqualNodes(t, te.(parser.Node), te2.(parser.Node))
 }

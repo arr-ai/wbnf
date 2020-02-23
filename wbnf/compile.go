@@ -198,8 +198,23 @@ func buildTerm(t TermNode) parser.Term {
 		case ">":
 			return append(parser.Stack{}, terms...)
 		}
+		var sg *parser.ScopedGrammar
+		if g := t.OneGrammar(); g.Node != nil {
+			nested := NewFromAst(g.Node)
+			sg = &parser.ScopedGrammar{
+				Grammar: nested,
+			}
+		}
 		if len(terms) == 1 {
+			if sg != nil {
+				sg.Term = terms[0]
+				return *sg
+			}
 			return terms[0]
+		}
+		if sg != nil {
+			sg.Term = append(parser.Seq{}, terms...)
+			return *sg
 		}
 		return append(parser.Seq{}, terms...)
 	}
@@ -257,34 +272,32 @@ func (c *compiler) makeGrammar(filename, text string) (GrammarNode, error) {
 		return GrammarNode{}, err
 	}
 	WalkerOps{
-		EnterPragmaNode: func(pragma PragmaNode) Stopper {
-			// TODO: gen.go doesnt generate the correct callbacks for this node yet.
-			if imp := ast.First(pragma.Node, "import"); imp != nil {
-				var parts []string
-				for _, p := range ast.All(imp, "path") {
-					_, child := ast.Which(p.(ast.Branch), "")
-					switch child := child.(type) {
-					case ast.Many:
-						for _, c := range child {
-							parts = append(parts, c.Scanner().String())
-						}
-					case ast.One:
-						parts = append(parts, child.Scanner().String())
+		EnterImportNode: func(impNode ImportNode) Stopper {
+			var parts []string
+			for _, p := range impNode.AllPath() {
+				// Fixme: codegen isnt quite right yet for nested grammars
+				_, child := ast.Which(p.Node.(ast.Branch), "")
+				switch child := child.(type) {
+				case ast.Many:
+					for _, c := range child {
+						parts = append(parts, c.Scanner().String())
 					}
+				case ast.One:
+					parts = append(parts, child.Scanner().String())
 				}
-				importPath := filepath.Join(parts...)
-				if c.resolver != nil {
-					importPath = c.resolver.Resolve(filename, importPath)
-				}
-				nested, nestedErr := c.loadGrammarFile(importPath)
-				if nestedErr != nil {
-					err = nestedErr
-					return &aborter{}
-				}
-				if nested.Node != nil {
-					x := mergeGrammarNodes(node.Node.(ast.Branch), nested.Node.(ast.Branch))
-					node = GrammarNode{Node: x}
-				}
+			}
+			importPath := filepath.Join(parts...)
+			if c.resolver != nil {
+				importPath = c.resolver.Resolve(filename, importPath)
+			}
+			nested, nestedErr := c.loadGrammarFile(importPath)
+			if nestedErr != nil {
+				err = nestedErr
+				return &aborter{}
+			}
+			if nested.Node != nil {
+				x := mergeGrammarNodes(node.Node.(ast.Branch), nested.Node.(ast.Branch))
+				node = GrammarNode{Node: x}
 			}
 			return nil
 		},

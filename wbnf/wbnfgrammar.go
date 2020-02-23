@@ -16,7 +16,10 @@ func Grammar() parser.Parsers {
 			parser.S("->"),
 			parser.Some(parser.Rule(`term`)),
 			parser.S(";")},
-		"term": parser.Stack{parser.Delim{Term: parser.Rule(`@`),
+		"term": parser.Stack{parser.Delim{Term: parser.Seq{parser.Rule(`@`),
+			parser.Opt(parser.Seq{parser.S("{"),
+				parser.Rule(`grammar`),
+				parser.S("}")})},
 			Sep: parser.Eq("op",
 				parser.S(">")),
 			Assoc: parser.NonAssociative},
@@ -66,8 +69,8 @@ func Grammar() parser.Parsers {
 			parser.Opt(parser.Seq{parser.S("="),
 				parser.Eq("default",
 					parser.Rule(`STR`))})},
-		"pragma": parser.Eq("import",
-			parser.Seq{parser.S(".import"),
+		"pragma": parser.ScopedGrammar{Term: parser.Rule(`import`),
+			Grammar: parser.Grammar{"import": parser.Seq{parser.S(".import"),
 				parser.Eq("path",
 					parser.Delim{Term: parser.Oneof{parser.S(".."),
 						parser.S("."),
@@ -75,7 +78,7 @@ func Grammar() parser.Parsers {
 						Sep:             parser.S("/"),
 						Assoc:           parser.NonAssociative,
 						CanStartWithSep: true}),
-				parser.Opt(parser.S(";"))}),
+				parser.Opt(parser.S(";"))}}},
 		".wrapRE": parser.RE(`\s*()\s*`)}.Compile(nil)
 }
 
@@ -101,6 +104,7 @@ const (
 	IdentSTR         = "STR"
 	IdentAtom        = "atom"
 	IdentDefault     = "default"
+	IdentGrammar     = "grammar"
 	IdentImport      = "import"
 	IdentMax         = "max"
 	IdentMin         = "min"
@@ -517,6 +521,43 @@ func WalkGrammarNode(node GrammarNode, ops WalkerOps) Stopper {
 	return nil
 }
 
+type ImportNode struct{ ast.Node }
+
+func (c ImportNode) Choice() int {
+	return ast.Choice(c.Node)
+}
+
+func (c ImportNode) AllPath() []TermNode {
+	var out []TermNode
+	for _, child := range ast.All(c.Node, "path") {
+		out = append(out, TermNode{child})
+	}
+	return out
+}
+
+func (c ImportNode) OnePath() TermNode {
+	return TermNode{ast.First(c.Node, "path")}
+}
+func WalkImportNode(node ImportNode, ops WalkerOps) Stopper {
+	if fn := ops.EnterImportNode; fn != nil {
+		s := fn(node)
+		switch {
+		case s == nil:
+		case s.ExitNode():
+			return nil
+		case s.Abort():
+			return s
+		}
+	}
+
+	if fn := ops.ExitImportNode; fn != nil {
+		if s := fn(node); s != nil && s.Abort() {
+			return s
+		}
+	}
+	return nil
+}
+
 type NamedNode struct{ ast.Node }
 
 func (c NamedNode) AllIdent() []IdentNode {
@@ -603,16 +644,16 @@ func (c PragmaNode) Choice() int {
 	return ast.Choice(c.Node)
 }
 
-func (c PragmaNode) AllImport() []TermNode {
-	var out []TermNode
+func (c PragmaNode) AllImport() []ImportNode {
+	var out []ImportNode
 	for _, child := range ast.All(c.Node, "import") {
-		out = append(out, TermNode{child})
+		out = append(out, ImportNode{child})
 	}
 	return out
 }
 
-func (c PragmaNode) OneImport() TermNode {
-	return TermNode{ast.First(c.Node, "import")}
+func (c PragmaNode) OneImport() ImportNode {
+	return ImportNode{ast.First(c.Node, "import")}
 }
 
 func (c PragmaNode) AllPath() []TermNode {
@@ -638,6 +679,16 @@ func WalkPragmaNode(node PragmaNode, ops WalkerOps) Stopper {
 		}
 	}
 
+	for _, child := range node.AllImport() {
+		s := WalkImportNode(child, ops)
+		switch {
+		case s == nil:
+		case s.ExitNode():
+			return nil
+		case s.Abort():
+			return s
+		}
+	}
 	if fn := ops.ExitPragmaNode; fn != nil {
 		if s := fn(node); s != nil && s.Abort() {
 			return s
@@ -932,6 +983,18 @@ func (c TermNode) OneTerm() TermNode {
 	return TermNode{ast.First(c.Node, "term")}
 }
 
+func (c TermNode) AllGrammar() []GrammarNode {
+	var out []GrammarNode
+	for _, child := range ast.All(c.Node, "grammar") {
+		out = append(out, GrammarNode{child})
+	}
+	return out
+}
+
+func (c TermNode) OneGrammar() GrammarNode {
+	return GrammarNode{ast.First(c.Node, "grammar")}
+}
+
 func (c TermNode) AllNamed() []NamedNode {
 	var out []NamedNode
 	for _, child := range ast.All(c.Node, "named") {
@@ -992,6 +1055,16 @@ func WalkTermNode(node TermNode, ops WalkerOps) Stopper {
 			return s
 		}
 	}
+	for _, child := range node.AllGrammar() {
+		s := WalkGrammarNode(child, ops)
+		switch {
+		case s == nil:
+		case s.ExitNode():
+			return nil
+		case s.Abort():
+			return s
+		}
+	}
 	for _, child := range node.AllNamed() {
 		s := WalkNamedNode(child, ops)
 		switch {
@@ -1039,6 +1112,8 @@ type WalkerOps struct {
 	ExitAtomNode     func(AtomNode) Stopper
 	EnterGrammarNode func(GrammarNode) Stopper
 	ExitGrammarNode  func(GrammarNode) Stopper
+	EnterImportNode  func(ImportNode) Stopper
+	ExitImportNode   func(ImportNode) Stopper
 	EnterNamedNode   func(NamedNode) Stopper
 	ExitNamedNode    func(NamedNode) Stopper
 	EnterPragmaNode  func(PragmaNode) Stopper
@@ -1076,7 +1151,7 @@ var grammarGrammarSrc = unfakeBackquote(`
 grammar -> stmt+;
 stmt    -> COMMENT | prod | pragma;
 prod    -> IDENT "->" term+ ";";
-term    -> @:op=">"
+term    -> (@ ("{" grammar "}")? ):op=">"
          > @:op="|"
          > @+
          > named quant*;
@@ -1116,9 +1191,9 @@ RE      -> /{
            };
 REF     -> "%" IDENT ("=" default=STR)?;
 // Special
-pragma  -> (
-                import=(".import" path=((".."|"."|[a-zA-Z0-9.:]+):,"/") ";"?)
-           );
+pragma  -> import {
+                import -> ".import" path=((".."|"."|[a-zA-Z0-9.:]+):,"/") ";"?;
+            };
 
 .wrapRE -> /{\s*()\s*};
 `)

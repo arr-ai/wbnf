@@ -131,6 +131,8 @@ func (ctrs counters) termCountChildren(term parser.Term, parent counter) {
 		ctrs.count(t.Name, parent)
 	case parser.REF:
 		ctrs.count(t.Ident, parent.mul(oneOrMore))
+	case parser.ScopedGrammar:
+		ctrs.termCountChildren(t.Term, parent.mul(oneOrMore))
 	default:
 		panic(fmt.Errorf("unexpected term type: %v %[1]T", t))
 	}

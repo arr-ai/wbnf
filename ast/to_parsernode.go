@@ -115,6 +115,12 @@ func (n Branch) toParserNode(g parser.Grammar, term parser.Term, ctrs counters) 
 			}
 		}
 		return nil
+	case parser.ScopedGrammar:
+		gcopy := g
+		for rule, terms := range t.Grammar {
+			gcopy[rule] = terms
+		}
+		return n.toParserNode(gcopy, t.Term, ctrs)
 	case parser.Seq:
 		result := parser.Node{Tag: seqTag}
 		for _, child := range t {

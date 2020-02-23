@@ -119,6 +119,12 @@ func (n Branch) fromParserNode(g parser.Grammar, term parser.Term, ctrs counters
 		// }
 		node = node.collapse(level)
 		n.add(unleveled, node, ctrs[string(t)])
+	case parser.ScopedGrammar:
+		gcopy := g
+		for rule, terms := range t.Grammar {
+			gcopy[rule] = terms
+		}
+		n.fromParserNode(gcopy, t.Term, ctrs, e)
 	case parser.Seq:
 		node := e.(parser.Node)
 		tag = node.Tag

@@ -653,3 +653,58 @@ func (t *REF) Parse(scope frozen.Map, input *Scanner, output *TreeElement) (out 
 func (t REF) Parser(rule Rule, c cache) Parser {
 	return &t
 }
+
+//-----------------------------------------------------------------------------
+
+func (t ScopedGrammar) Parser(name Rule, c cache) Parser {
+	for _, term := range t.Grammar {
+		if _, ok := term.(Stack); ok {
+			t.Grammar = t.Grammar.clone()
+			t.Grammar.resolveStacks()
+			break
+		}
+	}
+	if wrap, has := c.grammar[WrapRE]; has {
+		if _, has := t.Grammar[WrapRE]; !has {
+			t.Grammar[WrapRE] = wrap
+		}
+	}
+
+	cc := cache{
+		parsers:    map[Rule]Parser{},
+		grammar:    t.Grammar,
+		rulePtrses: map[Rule][]*Parser{},
+	}
+	for rule, term := range t.Grammar {
+		for {
+			switch r := term.(type) {
+			case Rule:
+				term = t.Grammar[r]
+				continue
+			}
+			break
+		}
+		cc.parsers[rule] = term.Parser(rule, cc)
+	}
+
+	// At this point we have the nested grammar cache populated with the grammar rules
+	// We now need to hook up the correct terms from the original grammar
+
+	result := t.Term.Parser(name, cc)
+	cc.registerRule(&result)
+	for rule, rulePtrs := range cc.rulePtrses {
+		if _, has := t.Grammar[rule]; has {
+			// local rule, simply hook up the pointers
+			p := cc.parsers[rule]
+			for _, rulePtr := range rulePtrs {
+				*rulePtr = p
+			}
+		} else {
+			// must be from the previous scope, add it to the previous scopes cache
+			for _, rulePtr := range rulePtrs {
+				c.registerRule(rulePtr)
+			}
+		}
+	}
+	return result
+}

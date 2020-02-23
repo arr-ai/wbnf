@@ -106,6 +106,8 @@ func DiffTerms(a, b parser.Term) TermDiff {
 		return diffQuants(a, b.(parser.Quant))
 	case parser.Named:
 		return diffNameds(a, b.(parser.Named))
+	case parser.ScopedGrammar:
+		return diffScopedGrammars(a, b.(parser.ScopedGrammar))
 	default:
 		panic(fmt.Errorf("unknown term type: %v %[1]T", a))
 	}
@@ -276,5 +278,23 @@ func diffNameds(a, b parser.Named) NamedDiff {
 	return NamedDiff{
 		Name: diffInterfaces(a.Name, b.Name),
 		Term: DiffTerms(a.Term, b.Term),
+	}
+}
+
+//-----------------------------------------------------------------------------
+
+type ScopedGrammarDiff struct {
+	Term    TermDiff
+	Grammar GrammarDiff
+}
+
+func (d ScopedGrammarDiff) Equal() bool {
+	return d.Term.Equal() && d.Grammar.Equal()
+}
+
+func diffScopedGrammars(a, b parser.ScopedGrammar) ScopedGrammarDiff {
+	return ScopedGrammarDiff{
+		Term:    DiffTerms(a.Term, b.Term),
+		Grammar: DiffGrammars(a.Grammar, b.Grammar),
 	}
 }

@@ -2,7 +2,7 @@
 grammar -> stmt+;
 stmt    -> COMMENT | prod | pragma;
 prod    -> IDENT "->" term+ ";";
-term    -> @:op=">"
+term    -> (@ ("{" grammar "}")? ):op=">"
          > @:op="|"
          > @+
          > named quant*;
@@ -42,8 +42,8 @@ RE      -> /{
            };
 REF     -> "%" IDENT ("=" default=STR)?;
 // Special
-pragma  -> (
-                import=(".import" path=((".."|"."|[a-zA-Z0-9.:]+):,"/") ";"?)
-           );
+pragma  -> import {
+                import -> ".import" path=((".."|"."|[a-zA-Z0-9.:]+):,"/") ";"?;
+            };
 
 .wrapRE -> /{\s*()\s*};

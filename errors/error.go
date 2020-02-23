@@ -15,6 +15,6 @@ type Error string
 
 var _ error = Error("")
 
-func (p Error) Error() string {
-	return string(p)
+func (e Error) Error() string {
+	return string(e)
 }

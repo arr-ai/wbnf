@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"io"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -53,10 +54,23 @@ func (p Parsers) parse(rule Rule, input *Scanner, scope Scope) (TreeElement, err
 
 func prepareExternals(externals Externals) Scope {
 	var b frozen.MapBuilder
+	var e *escape
 	for name, external := range externals {
-		b.Put(externalRef(name), external)
+		if strings.HasPrefix(name, "*") {
+			if e != nil {
+				panic(fmt.Errorf("too many escapes"))
+			}
+			openClose := strings.Split(name[1:], "()")
+			e = &escape{
+				openDelim:  regexp.MustCompile(`(?m)\A` + openClose[0]),
+				closeDelim: regexp.MustCompile(`(?m)\A` + openClose[1]),
+				external:   external,
+			}
+		} else {
+			b.Put(externalRef(name), external)
+		}
 	}
-	return Scope{m: b.Finish()}
+	return Scope{m: b.Finish(), escape: e}
 }
 
 // Parse parses some source per a given rule.

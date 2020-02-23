@@ -86,21 +86,5 @@ func (n Node) Format(state fmt.State, c rune) {
 
 type Parser interface {
 	Parse(scope Scope, input *Scanner, output *TreeElement) error
-}
-
-type Func func(scope Scope, input *Scanner, output *TreeElement) error
-
-func (f Func) Parse(scope Scope, input *Scanner, output *TreeElement) error {
-	return f(scope, input, output)
-}
-
-func Transform(parser Parser, transform func(Node) Node) Parser {
-	return Func(func(scope Scope, input *Scanner, output *TreeElement) error {
-		var v TreeElement
-		if err := parser.Parse(scope, input, &v); err != nil {
-			return err
-		}
-		*output = transform(v.(Node))
-		return nil
-	})
+	Term() Term
 }

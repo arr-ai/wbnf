@@ -6,6 +6,20 @@ import (
 	"github.com/arr-ai/wbnf/gotree"
 )
 
+type UnconsumedInputError struct {
+	residue Scanner
+}
+
+// UnconsumedInput is returned by a successful parse that didn't fully
+// consume the input.
+func UnconsumedInput(residue Scanner) UnconsumedInputError {
+	return UnconsumedInputError{residue: residue}
+}
+
+func (e UnconsumedInputError) Error() string {
+	return fmt.Sprintf("unconsumed input: %v", e.residue)
+}
+
 type errorNode struct {
 	TreeElement
 }

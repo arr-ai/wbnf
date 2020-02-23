@@ -63,8 +63,15 @@ type scopeVal struct {
 	val TreeElement
 }
 
+type escape struct {
+	openDelim  *regexp.Regexp
+	closeDelim *regexp.Regexp
+	external   External
+}
+
 type Scope struct {
-	m frozen.Map
+	m      frozen.Map
+	escape *escape
 }
 
 func (s Scope) String() string {
@@ -76,7 +83,8 @@ func (s Scope) Keys() frozen.Set {
 }
 
 func (s Scope) With(ident string, v interface{}) Scope {
-	return Scope{m: s.m.With(ident, v)}
+	s.m = s.m.With(ident, v)
+	return s
 }
 
 func (s Scope) Has(ident string) bool {
@@ -91,10 +99,10 @@ func (s Scope) GetExternal(ident externalRef) (External, bool) {
 }
 
 func (s Scope) WithVal(ident string, p Parser, val TreeElement) Scope {
-	if ident == "" {
-		return s
+	if ident != "" {
+		s.m = s.m.With(ident, &scopeVal{p: p, val: val})
 	}
-	return Scope{m: s.m.With(ident, &scopeVal{p: p, val: val})}
+	return s
 }
 
 func (s Scope) GetVal(ident string) (Parser, TreeElement, bool) {
@@ -185,9 +193,33 @@ func (g Grammar) Compile(node *Node) Parsers {
 
 //-----------------------------------------------------------------------------
 
+func parseEscape(p Parser, scope Scope, input *Scanner, output *TreeElement) (bool, error) {
+	if scope.escape != nil {
+		var match Scanner
+		if _, ok := input.EatRegexp(scope.escape.openDelim, &match, nil); ok {
+			ast, _, err := scope.escape.external(scope.With("(term)", p.Term()), input, false)
+			if err != nil {
+				return false, err
+			}
+			*output = ast
+			if _, ok := input.EatRegexp(scope.escape.openDelim, &match, nil); !ok {
+				return false, fmt.Errorf("missing escape terminator")
+			}
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+//-----------------------------------------------------------------------------
+
 type ruleParser struct {
 	rule Rule
 	t    Rule
+}
+
+func (p ruleParser) Term() Term {
+	return p.t
 }
 
 func (p ruleParser) Parse(scope Scope, input *Scanner, output *TreeElement) error {
@@ -227,7 +259,15 @@ type sParser struct {
 	re   *regexp.Regexp
 }
 
+func (p *sParser) Term() Term {
+	return p.t
+}
+
 func (p *sParser) Parse(scope Scope, input *Scanner, output *TreeElement) error {
+	if escaped, err := parseEscape(p, scope, input, output); escaped || err != nil {
+		return err
+	}
+
 	if ok := eatRegexp(input, p.re, output); !ok {
 		return newParseError(p.rule, "",
 			fmt.Errorf("expect: %s", NewScanner(p.t.String()).Context()),
@@ -254,7 +294,15 @@ type reParser struct {
 	re   *regexp.Regexp
 }
 
-func (p *reParser) Parse(_ Scope, input *Scanner, output *TreeElement) error {
+func (p *reParser) Term() Term {
+	return p.t
+}
+
+func (p *reParser) Parse(scope Scope, input *Scanner, output *TreeElement) error {
+	if escaped, err := parseEscape(p, scope, input, output); escaped || err != nil {
+		return err
+	}
+
 	if ok := eatRegexp(input, p.re, output); !ok {
 		return newParseError(p.rule, "",
 			fmt.Errorf("expect: %s", NewScanner(p.re.String()).Context()),
@@ -282,6 +330,10 @@ type seqParser struct {
 	t       Seq
 	parsers []Parser
 	put     putter
+}
+
+func (p *seqParser) Term() Term {
+	return p.t
 }
 
 func identFromTerm(term Term) string {
@@ -354,6 +406,11 @@ func (p *seqParser) attemptRuleCompletion(scope Scope, first, input *Scanner, fa
 
 func (p *seqParser) Parse(scope Scope, input *Scanner, output *TreeElement) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
+
+	if escaped, err := parseEscape(p, scope, input, output); escaped || err != nil {
+		return err
+	}
+
 	result := make([]TreeElement, 0, len(p.parsers))
 	furthest := *input
 	// first := NewScanner(input.String())
@@ -395,6 +452,10 @@ type delimParser struct {
 	put  putter
 }
 
+func (p *delimParser) Term() Term {
+	return p.t
+}
+
 func parseAppend(p Parser, scope Scope,
 	input *Scanner, slice *[]TreeElement, errOut *error) bool {
 	var v TreeElement
@@ -412,6 +473,11 @@ func (Empty) IsTreeElement() {}
 
 func (p *delimParser) Parse(scope Scope, input *Scanner, output *TreeElement) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
+
+	if escaped, err := parseEscape(p, scope, input, output); escaped || err != nil {
+		return err
+	}
+
 	var result []TreeElement
 
 	defer func(err *error) {
@@ -535,8 +601,17 @@ type quantParser struct {
 	put  putter
 }
 
+func (p *quantParser) Term() Term {
+	return p.t
+}
+
 func (p *quantParser) Parse(scope Scope, input *Scanner, output *TreeElement) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
+
+	if escaped, err := parseEscape(p, scope, input, output); escaped || err != nil {
+		return err
+	}
+
 	result := make([]TreeElement, 0, p.t.Min)
 	var v TreeElement
 	start := *input
@@ -576,8 +651,17 @@ type oneofParser struct {
 	put     putter
 }
 
+func (p *oneofParser) Term() Term {
+	return p.t
+}
+
 func (p *oneofParser) Parse(scope Scope, input *Scanner, output *TreeElement) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
+
+	if escaped, err := parseEscape(p, scope, input, output); escaped || err != nil {
+		return err
+	}
+
 	furthest := *input
 
 	var errors []error
@@ -635,6 +719,10 @@ func termFromRefVal(from TreeElement) Term {
 		term = S(n.String())
 	}
 	return term
+}
+
+func (t *REF) Term() Term {
+	return t
 }
 
 func (t *REF) Parse(scope Scope, input *Scanner, output *TreeElement) error {

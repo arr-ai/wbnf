@@ -121,9 +121,8 @@ func buildAtom(atom AtomNode) parser.Term {
 			Ident:   refNode.OneIdent().String(),
 			Default: nil,
 		}
-		defTerm := refNode.OneDefault().String()
-		if defTerm != "" {
-			ref.Default = parser.S(parseString(defTerm))
+		if defTerm := refNode.OneDefault(); defTerm != nil {
+			ref.Default = parser.S(parseString(defTerm.String()))
 		}
 		return ref
 	case "term":

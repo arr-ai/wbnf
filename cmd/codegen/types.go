@@ -131,7 +131,14 @@ func (t stackBackRef) String() string {
 		count:      wantAllGetter,
 	}.String()
 }
-func (t stackBackRef) CallbackData() *callbackData { return nil }
+func (t stackBackRef) CallbackData() *callbackData {
+	return namedRule{
+		name:       t.name,
+		parent:     t.parent,
+		returnType: GoTypeName(t.parent),
+		count:      wantAllGetter,
+	}.CallbackData()
+}
 
 func (t backRef) TypeName() string        { return "" }
 func (t backRef) Ident() string           { return t.name }

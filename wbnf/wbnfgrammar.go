@@ -523,6 +523,16 @@ func (w WalkerOps) WalkAtomNode(node AtomNode) Stopper {
 			}
 		}
 	}
+	if child := node.OneRef(); child != nil {
+		child := *child
+		if s := w.WalkRefNode(child); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
+			}
+		}
+	}
 	if child := node.OneStr(); child != nil {
 		child := *child
 		if fn := w.EnterStrNode; fn != nil {
@@ -532,6 +542,16 @@ func (w WalkerOps) WalkAtomNode(node AtomNode) Stopper {
 				} else if s.Abort() {
 					return s
 				}
+			}
+		}
+	}
+	if child := node.OneTerm(); child != nil {
+		child := *child
+		if s := w.WalkTermNode(child); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
 			}
 		}
 	}
@@ -554,6 +574,15 @@ func (w WalkerOps) WalkGrammarNode(node GrammarNode) Stopper {
 			}
 		}
 	}
+	for _, child := range node.AllStmt() {
+		if s := w.WalkStmtNode(child); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
+			}
+		}
+	}
 
 	if fn := w.ExitGrammarNode; fn != nil {
 		if s := fn(node); s != nil && s.Abort() {
@@ -566,6 +595,16 @@ func (w WalkerOps) WalkGrammarNode(node GrammarNode) Stopper {
 func (w WalkerOps) WalkNamedNode(node NamedNode) Stopper {
 	if fn := w.EnterNamedNode; fn != nil {
 		if s := fn(node); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
+			}
+		}
+	}
+	if child := node.OneAtom(); child != nil {
+		child := *child
+		if s := w.WalkAtomNode(child); s != nil {
 			if s.ExitNode() {
 				return nil
 			} else if s.Abort() {
@@ -597,6 +636,16 @@ func (w WalkerOps) WalkNamedNode(node NamedNode) Stopper {
 func (w WalkerOps) WalkPragmaImportNode(node PragmaImportNode) Stopper {
 	if fn := w.EnterPragmaImportNode; fn != nil {
 		if s := fn(node); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
+			}
+		}
+	}
+	if child := node.OnePath(); child != nil {
+		child := *child
+		if s := w.WalkPragmaImportPathNode(child); s != nil {
 			if s.ExitNode() {
 				return nil
 			} else if s.Abort() {
@@ -642,6 +691,16 @@ func (w WalkerOps) WalkPragmaNode(node PragmaNode) Stopper {
 			}
 		}
 	}
+	if child := node.OneImport(); child != nil {
+		child := *child
+		if s := w.WalkPragmaImportNode(child); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
+			}
+		}
+	}
 
 	if fn := w.ExitPragmaNode; fn != nil {
 		if s := fn(node); s != nil && s.Abort() {
@@ -670,6 +729,15 @@ func (w WalkerOps) WalkProdNode(node ProdNode) Stopper {
 				} else if s.Abort() {
 					return s
 				}
+			}
+		}
+	}
+	for _, child := range node.AllTerm() {
+		if s := w.WalkTermNode(child); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
 			}
 		}
 	}
@@ -713,6 +781,16 @@ func (w WalkerOps) WalkQuantNode(node QuantNode) Stopper {
 				} else if s.Abort() {
 					return s
 				}
+			}
+		}
+	}
+	if child := node.OneNamed(); child != nil {
+		child := *child
+		if s := w.WalkNamedNode(child); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
 			}
 		}
 	}
@@ -790,6 +868,26 @@ func (w WalkerOps) WalkStmtNode(node StmtNode) Stopper {
 			}
 		}
 	}
+	if child := node.OnePragma(); child != nil {
+		child := *child
+		if s := w.WalkPragmaNode(child); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
+			}
+		}
+	}
+	if child := node.OneProd(); child != nil {
+		child := *child
+		if s := w.WalkProdNode(child); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
+			}
+		}
+	}
 
 	if fn := w.ExitStmtNode; fn != nil {
 		if s := fn(node); s != nil && s.Abort() {
@@ -802,6 +900,43 @@ func (w WalkerOps) WalkStmtNode(node StmtNode) Stopper {
 func (w WalkerOps) WalkTermNode(node TermNode) Stopper {
 	if fn := w.EnterTermNode; fn != nil {
 		if s := fn(node); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
+			}
+		}
+	}
+	for _, child := range node.AllGrammar() {
+		if s := w.WalkGrammarNode(child); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
+			}
+		}
+	}
+	if child := node.OneNamed(); child != nil {
+		child := *child
+		if s := w.WalkNamedNode(child); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
+			}
+		}
+	}
+	for _, child := range node.AllQuant() {
+		if s := w.WalkQuantNode(child); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
+			}
+		}
+	}
+	for _, child := range node.AllTerm() {
+		if s := w.WalkTermNode(child); s != nil {
 			if s.ExitNode() {
 				return nil
 			} else if s.Abort() {

@@ -67,7 +67,7 @@ func TestTypeBuilder2_ScopedGrammarRules(t *testing.T) {
 
 	assert.NotEmpty(t, types)
 	assert.IsType(t, rule{}, types["ANode"])
-	assert.IsType(t, basicRule(""), types["AFooNode"])
+	assert.IsType(t, basicRule(""), types["AfooNode"])
 }
 
 func TestTypeBuilder2_ScopedGrammarRulesComplex(t *testing.T) {
@@ -139,7 +139,7 @@ func TestTypeBuilder_RuleWithNamedTerm(t *testing.T) {
 	testChildren(t, types["ANode"].Children(), childrenTestData{
 		"val": {t: namedRule{}, quant: wantOneGetter, returnType: "AvalNode"},
 	})
-	testChildren(t, types["AValNode"].Children(), childrenTestData{
+	testChildren(t, types["AvalNode"].Children(), childrenTestData{
 		"Token": {t: unnamedToken{}, quant: wantAllGetter},
 	})
 }
@@ -243,7 +243,7 @@ func TestTypeBuilder_RuleWithOptsAndNames(t *testing.T) {
 INT     -> \d+;`)
 	assert.NotEmpty(t, types)
 	assert.IsType(t, rule{}, types["QuantNode"])
-	assert.IsType(t, basicRule(""), types["INTNode"])
+	assert.IsType(t, basicRule(""), types["IntNode"])
 
 	testChildren(t, types["QuantNode"].Children(), childrenTestData{
 		"@choice":      {},

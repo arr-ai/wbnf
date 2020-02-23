@@ -27,5 +27,4 @@ func TestWrite(t *testing.T) {
 		MiddleSection: append(types.Get(), VisitorWriter{startRule: "IdentStartRule", types: types.types}),
 	}))
 
-	assert.EqualValues(t, "hello", buf.String())
 }

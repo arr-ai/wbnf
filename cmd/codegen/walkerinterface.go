@@ -42,28 +42,20 @@ func (w *VisitorWriter) getTypeWalker(t grammarType) string {
 
 	for _, child := range t.Children() {
 		funcs := child.CallbackData()
-
-		if c, ok := child.(namedRule); ok {
-			if r, ok := w.types[c.returnType]; ok {
+		switch child := child.(type) {
+		case namedRule:
+			if r, ok := w.types[child.returnType]; ok {
 				if _, ok := r.(basicRule); ok {
-					ismany := wantAllFn(c.count)
-					if ismany {
-						walker += fmt.Sprintf("for _, child := range node.All%s() {\n", funcs.getter)
-					} else {
-						walker += fmt.Sprintf("if child := node.One%s(); child != nil { child := *child\n", funcs.getter)
-					}
-					walker += fmt.Sprintf(`if fn := w.Enter%s; fn != nil {  if s := fn(child); s != nil {
-			if s.ExitNode() { return nil } else if s.Abort() { return s} } } }`+"\n", funcs.walker)
+					walker += getWalkerFuncs(funcs, false)
+					continue
 				}
 			}
-		} else if funcs != nil {
-			if funcs.isMany {
-				walker += fmt.Sprintf("for _, child := range node.All%s() {\n", funcs.getter)
-			} else {
-				walker += fmt.Sprintf("if child := node.One%s(); child != nil { child := *child\n", funcs.getter)
-			}
-			walker += fmt.Sprintf(`if s := w.Walk%s(child); s != nil { 
-			if s.ExitNode() { return nil } else if s.Abort() { return s} } }`+"\n", funcs.walker)
+		case stackBackRef:
+			walker += getWalkerFuncs(funcs, true)
+			continue
+		}
+		if funcs != nil {
+			walker += getWalkerFuncs(funcs, true)
 		}
 	}
 
@@ -76,4 +68,24 @@ func (w *VisitorWriter) getTypeWalker(t grammarType) string {
 
 func GetVisitorWriter(types map[string]grammarType, startRule string) VisitorWriter {
 	return VisitorWriter{types, startRule}
+}
+
+func getWalkerFuncs(funcs *callbackData, isWalker bool) string {
+	var walker string
+	if funcs.isMany {
+		walker += fmt.Sprintf("for _, child := range node.All%s() {\n", funcs.getter)
+	} else {
+		walker += fmt.Sprintf("if child := node.One%s(); child != nil { child := *child\n", funcs.getter)
+	}
+	if isWalker {
+		walker += fmt.Sprintf(`if s := w.Walk%s(child); s != nil { 
+			if s.ExitNode() { return nil } else if s.Abort() { return s} } }`+"\n", funcs.walker)
+	} else {
+		walker += fmt.Sprintf(`if fn := w.Enter%s; fn != nil { 
+			if s := fn(child); s != nil { 
+				if s.ExitNode() { return nil } else if s.Abort() { return s} } 
+			}
+		}`+"\n", funcs.walker)
+	}
+	return walker
 }

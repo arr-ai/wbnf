@@ -38,10 +38,10 @@ func testChildren(t *testing.T, children []grammarType, tests childrenTestData) 
 		assert.IsType(t, val.t, child, errMessage)
 		switch x := child.(type) {
 		case namedRule:
-			assert.Equal(t, val.quant, x.count, errMessage)
+			assert.Equal(t, val.quant, x.count.int, errMessage)
 			assert.Equal(t, val.returnType, x.returnType, errMessage)
 		case namedToken:
-			assert.Equal(t, val.quant, x.count, errMessage)
+			assert.Equal(t, val.quant, x.count.int, errMessage)
 			assert.Equal(t, "", val.returnType, "Test mis-configured"+errMessage)
 
 		}
@@ -168,7 +168,7 @@ func TestTypeBuilder2_RuleWithStackComplicated(t *testing.T) {
 
 	testChildren(t, types["TermNode"].Children(), childrenTestData{
 		"term":  {t: stackBackRef{}},
-		"op":    {t: namedToken{}, quant: wantAllGetter},
+		"op":    {t: namedToken{}, quant: wantOneGetter},
 		"named": {t: namedRule{}, quant: wantOneGetter, returnType: "NamedNode"},
 		"quant": {t: namedRule{}, quant: wantAllGetter, returnType: "QuantNode"},
 	})
@@ -222,6 +222,18 @@ func TestTypeBuilder_RuleWithUnnamedChoiceTerm(t *testing.T) {
 	})
 }
 
+func TestTypeBuilder_RuleWithUnnamedTokensShouldMerge(t *testing.T) {
+	types := initTypeBuilderTest(t, `a  ->  "(" term ")" | "(" ")"; term -> /{[a-z]*};`)
+	assert.NotEmpty(t, types)
+	assert.IsType(t, rule{}, types["ANode"])
+
+	testChildren(t, types["ANode"].Children(), childrenTestData{
+		"@choice": {},
+		"Token":   {t: unnamedToken{}, quant: wantAllGetter | wantOneGetter},
+		"term":    {t: namedRule{}, quant: wantOneGetter, returnType: GoTypeName("term")},
+	})
+}
+
 func TestTypeBuilder_RuleWithRefs(t *testing.T) {
 	types := initTypeBuilderTest(t, "a -> foo='a' %foo; b -> %a;")
 	assert.NotEmpty(t, types)
@@ -229,7 +241,7 @@ func TestTypeBuilder_RuleWithRefs(t *testing.T) {
 	assert.IsType(t, rule{}, types["BNode"])
 
 	testChildren(t, types["ANode"].Children(), childrenTestData{
-		"foo": {t: namedToken{}, quant: wantAllGetter},
+		"foo": {t: namedToken{}, quant: wantAllGetter | wantOneGetter},
 	})
 	testChildren(t, types["BNode"].Children(), childrenTestData{
 		"a": {t: backRef{}, quant: wantAllGetter, returnType: "ANode"},
@@ -247,7 +259,7 @@ INT     -> \d+;`)
 
 	testChildren(t, types["QuantNode"].Children(), childrenTestData{
 		"@choice":      {},
-		"op":           {t: namedToken{}, quant: wantAllGetter}, // TODO: make this wantOneGetter
+		"op":           {t: namedToken{}, quant: wantOneGetter},
 		"min":          {t: namedRule{}, returnType: GoTypeName("INT"), quant: wantOneGetter},
 		"max":          {t: namedRule{}, returnType: GoTypeName("INT"), quant: wantOneGetter},
 		"opt_leading":  {t: namedToken{}, quant: wantOneGetter},

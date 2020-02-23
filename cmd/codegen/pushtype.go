@@ -35,7 +35,7 @@ func (tm *TypeMap) createOrAddParent(parent string, child grammarType) grammarTy
 		val = rule{name: parentTypeName, childs: checkForDupes(children, child)}
 	} else {
 		// Need a new parent
-		if v, ok := child.(unnamedToken); ok && v.count == wantOneGetter {
+		if v, ok := child.(unnamedToken); ok && v.count.wantOne() {
 			val = basicRule(parentTypeName)
 		} else {
 			val = rule{name: parentTypeName, childs: []grammarType{child}}
@@ -43,6 +43,20 @@ func (tm *TypeMap) createOrAddParent(parent string, child grammarType) grammarTy
 	}
 	(*tm)[parentTypeName] = val
 	return val
+}
+
+func getNewCount(old countManager, new grammarType) countManager {
+	switch t := new.(type) {
+	case unnamedToken:
+		return old.merge(t.count)
+	case namedToken:
+		return old.merge(t.count)
+	case namedRule:
+		return old.merge(t.count)
+	case stackBackRef, backRef:
+		return old.forceMany()
+	}
+	return old
 }
 
 func checkForDupes(children []grammarType, next grammarType) []grammarType {
@@ -58,15 +72,15 @@ func checkForDupes(children []grammarType, next grammarType) []grammarType {
 		}
 		switch child := c.(type) {
 		case unnamedToken:
-			child.count = wantAllGetter
+			child.count = getNewCount(child.count, next)
 			c = child
 			appendNext = false
 		case namedToken:
-			child.count = wantAllGetter
+			child.count = getNewCount(child.count, next)
 			c = child
 			appendNext = false
 		case namedRule:
-			child.count = wantAllGetter
+			child.count = getNewCount(child.count, next)
 			c = child
 			appendNext = false
 		case stackBackRef:

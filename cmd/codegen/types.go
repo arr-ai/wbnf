@@ -54,15 +54,15 @@ type (
 	}
 	namedToken struct {
 		name, parent string
-		count        int
+		count        countManager
 	}
 	unnamedToken struct {
 		parent string
-		count  int
+		count  countManager
 	}
 	namedRule struct {
 		name, parent, returnType string
-		count                    int
+		count                    countManager
 	}
 	rule struct {
 		name   string
@@ -75,8 +75,51 @@ const (
 	wantAllGetter
 )
 
-func wantOneFn(count int) bool { return count&wantOneGetter != 0 }
-func wantAllFn(count int) bool { return count&wantAllGetter != 0 }
+// This little struct is used to figure out if any particular ident requires the AllName() func or just the OneName()
+// all the following rules clearly can only ever have a single value for x, so only the One*() is needed
+// 		a -> x=IDENT;      				obvious
+//		a -> x="hello" | x="goodbye";	only one x on either side of the |
+//		a -> FOO:x=",";					even though there will be many delims, they must all be the same value
+// Other combinations will require the AllName() because it is ambigous which term the user is asking for.
+//      a -> x="a"+ | x="b"				one option wants only one, the other wants at least one.
+//  etc.
+// To track this, each countManager keeps a set of identifiers for each branch of a term the ident is used in,
+// If each term is unique, and they all want just One, then the result should only require a One.
+type countManager struct {
+	int
+	nodes []int
+}
+
+func (c countManager) forceMany() countManager {
+	c.int |= wantAllGetter
+	return c
+}
+func (c countManager) pushSingleNode(id int) countManager {
+	if !c.wantAll() {
+		for _, x := range c.nodes {
+			if x == id {
+				return c.forceMany()
+			}
+		}
+		c.nodes = append(c.nodes, id)
+	}
+	return c
+}
+
+func (c countManager) merge(other countManager) countManager {
+	if other.wantAll() {
+		return c.forceMany()
+	}
+	for _, id := range other.nodes {
+		c = c.pushSingleNode(id)
+	}
+	return c
+}
+func (c countManager) wantAll() bool { return c.int&wantAllGetter != 0 }
+func (c countManager) wantOne() bool { return c.int&wantOneGetter != 0 }
+
+func setWantOneGetter() countManager { return countManager{int: wantOneGetter} }
+func setWantAllGetter() countManager { return countManager{int: wantAllGetter} }
 
 func (t basicRule) TypeName() string        { return string(t) }
 func (t basicRule) Ident() string           { return "String" }
@@ -84,8 +127,8 @@ func (t basicRule) Children() []grammarType { return nil }
 func (t basicRule) String() string {
 	return strings.ReplaceAll(`
 type %s struct { ast.Node }
-func (c %s) String() string {
-	if c.Node == nil { return "" }
+func (c *%s) String() string {
+	if c == nil || c.Node == nil { return "" }
 	return c.Node.Scanner().String()
 }
 `, "%s", t.TypeName())
@@ -94,7 +137,7 @@ func (t basicRule) CallbackData() *callbackData { return nil }
 func (t basicRule) Upgrade() unnamedToken {
 	return unnamedToken{
 		parent: string(t),
-		count:  wantOneGetter,
+		count:  countManager{int: wantOneGetter},
 	}
 }
 
@@ -123,21 +166,19 @@ func (t choice) CallbackData() *callbackData { return nil }
 func (t stackBackRef) TypeName() string        { return "" }
 func (t stackBackRef) Ident() string           { return t.name }
 func (t stackBackRef) Children() []grammarType { return nil }
-func (t stackBackRef) String() string {
+func (t stackBackRef) toNamedRule() grammarType {
 	return namedRule{
 		name:       t.name,
 		parent:     t.parent,
 		returnType: GoTypeName(t.parent),
-		count:      wantAllGetter,
-	}.String()
+		count:      countManager{int: wantAllGetter},
+	}
+}
+func (t stackBackRef) String() string {
+	return t.toNamedRule().String()
 }
 func (t stackBackRef) CallbackData() *callbackData {
-	return namedRule{
-		name:       t.name,
-		parent:     t.parent,
-		returnType: GoTypeName(t.parent),
-		count:      wantAllGetter,
-	}.CallbackData()
+	return t.toNamedRule().CallbackData()
 }
 
 func (t backRef) TypeName() string        { return "" }
@@ -159,7 +200,7 @@ func (t namedToken) String() string {
 		"{{name}}", t.name,
 	)
 	out := ""
-	if wantOneFn(t.count) {
+	if t.count.wantOne() {
 		out += replacer.Replace(`
 func (c {{parent}}) One{{childtype}}() string {
 	if child := ast.First(c.Node, "{{name}}"); child != nil {
@@ -169,7 +210,7 @@ func (c {{parent}}) One{{childtype}}() string {
 }
 `)
 	}
-	if wantAllFn(t.count) {
+	if t.count.wantAll() {
 		out += replacer.Replace(`
 func (c {{parent}}) All{{childtype}}() []string {
 	var out []string
@@ -190,7 +231,7 @@ func (t unnamedToken) Children() []grammarType { return nil }
 func (t unnamedToken) String() string {
 	replacer := strings.NewReplacer("{{parent}}", GoTypeName(t.parent))
 	out := ""
-	if wantOneFn(t.count) {
+	if t.count.wantOne() {
 		out += replacer.Replace(`
 func (c {{parent}}) OneToken() string {
 	if child := ast.First(c.Node, ""); child != nil {
@@ -200,7 +241,7 @@ func (c {{parent}}) OneToken() string {
 }
 `)
 	}
-	if wantAllFn(t.count) {
+	if t.count.wantAll() {
 		out += replacer.Replace(`
 func (c {{parent}}) AllToken() []string {
 	var out []string
@@ -225,7 +266,7 @@ func (t namedRule) String() string {
 		"{{name}}", t.name,
 	)
 	out := ""
-	if wantOneFn(t.count) {
+	if t.count.wantOne() {
 		out += replacer.Replace(`
 func (c {{parent}}) One{{child}}() *{{returnType}} {
 	if child := ast.First(c.Node, "{{name}}"); child != nil {
@@ -235,7 +276,7 @@ func (c {{parent}}) One{{child}}() *{{returnType}} {
 }
 `)
 	}
-	if wantAllFn(t.count) {
+	if t.count.wantAll() {
 		out += replacer.Replace(`func (c {{parent}}) All{{child}}() []{{returnType}} {
 	var out []{{returnType}}
 	for _, child := range ast.All(c.Node, "{{name}}") {
@@ -249,7 +290,7 @@ func (c {{parent}}) One{{child}}() *{{returnType}} {
 	return out
 }
 func (t namedRule) CallbackData() *callbackData {
-	return &callbackData{getter: strcase.ToCamel(DropCaps(t.name)), walker: t.returnType, isMany: wantAllFn(t.count)}
+	return &callbackData{getter: strcase.ToCamel(DropCaps(t.name)), walker: t.returnType, isMany: t.count.wantAll()}
 }
 
 func (t rule) TypeName() string        { return t.name }

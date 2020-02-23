@@ -96,16 +96,16 @@ func (v *validator) validateTerm(tree TermNode) Stopper {
 		//fixme: This doesnt work for scoped grammars yet, abort!
 		return NodeExiter
 	}
-	if len(tree.AllOp()) == 0 || tree.AllOp()[0] == "" {
+	if tree.OneOp() == "" {
 		names := map[string]bool{}
 		for _, child := range tree.AllTerm() {
 			if name := child.OneNamed(); name != nil {
-				if x := name.OneIdent(); x != nil {
-					if _, has := names[x.String()]; has {
+				if x := name.OneIdent().String(); x != "" {
+					if _, has := names[x]; has {
 						v.err = append(v.err, validationError{s: name.OneIdent().Scanner(),
 							msg: "identifier '%s' is being used multiple times in a single term", kind: MultipleTermsWithSameName})
 					}
-					names[x.String()] = true
+					names[x] = true
 				}
 			}
 		}

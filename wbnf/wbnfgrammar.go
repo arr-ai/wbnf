@@ -140,6 +140,13 @@ func (c AtomNode) OneTerm() *TermNode {
 	return nil
 }
 
+func (c AtomNode) OneToken() string {
+	if child := ast.First(c.Node, ""); child != nil {
+		return child.Scanner().String()
+	}
+	return ""
+}
+
 func (c AtomNode) AllToken() []string {
 	var out []string
 	for _, child := range ast.All(c.Node, "") {
@@ -150,8 +157,8 @@ func (c AtomNode) AllToken() []string {
 
 type CommentNode struct{ ast.Node }
 
-func (c CommentNode) String() string {
-	if c.Node == nil {
+func (c *CommentNode) String() string {
+	if c == nil || c.Node == nil {
 		return ""
 	}
 	return c.Node.Scanner().String()
@@ -169,8 +176,8 @@ func (c GrammarNode) AllStmt() []StmtNode {
 
 type IdentNode struct{ ast.Node }
 
-func (c IdentNode) String() string {
-	if c.Node == nil {
+func (c *IdentNode) String() string {
+	if c == nil || c.Node == nil {
 		return ""
 	}
 	return c.Node.Scanner().String()
@@ -178,8 +185,8 @@ func (c IdentNode) String() string {
 
 type IntNode struct{ ast.Node }
 
-func (c IntNode) String() string {
-	if c.Node == nil {
+func (c *IntNode) String() string {
+	if c == nil || c.Node == nil {
 		return ""
 	}
 	return c.Node.Scanner().String()
@@ -217,12 +224,11 @@ func (c PragmaImportNode) OnePath() *PragmaImportPathNode {
 	return nil
 }
 
-func (c PragmaImportNode) AllToken() []string {
-	var out []string
-	for _, child := range ast.All(c.Node, "") {
-		out = append(out, child.Scanner().String())
+func (c PragmaImportNode) OneToken() string {
+	if child := ast.First(c.Node, ""); child != nil {
+		return child.Scanner().String()
 	}
-	return out
+	return ""
 }
 
 type PragmaImportPathNode struct{ ast.Node }
@@ -263,6 +269,13 @@ func (c ProdNode) AllTerm() []TermNode {
 	return out
 }
 
+func (c ProdNode) OneToken() string {
+	if child := ast.First(c.Node, ""); child != nil {
+		return child.Scanner().String()
+	}
+	return ""
+}
+
 func (c ProdNode) AllToken() []string {
 	var out []string
 	for _, child := range ast.All(c.Node, "") {
@@ -296,12 +309,11 @@ func (c QuantNode) OneNamed() *NamedNode {
 	return nil
 }
 
-func (c QuantNode) AllOp() []string {
-	var out []string
-	for _, child := range ast.All(c.Node, "op") {
-		out = append(out, ast.First(child, "").Scanner().String())
+func (c QuantNode) OneOp() string {
+	if child := ast.First(c.Node, "op"); child != nil {
+		return ast.First(child, "").Scanner().String()
 	}
-	return out
+	return ""
 }
 
 func (c QuantNode) OneOptLeading() string {
@@ -318,6 +330,13 @@ func (c QuantNode) OneOptTrailing() string {
 	return ""
 }
 
+func (c QuantNode) OneToken() string {
+	if child := ast.First(c.Node, ""); child != nil {
+		return child.Scanner().String()
+	}
+	return ""
+}
+
 func (c QuantNode) AllToken() []string {
 	var out []string
 	for _, child := range ast.All(c.Node, "") {
@@ -328,8 +347,8 @@ func (c QuantNode) AllToken() []string {
 
 type ReNode struct{ ast.Node }
 
-func (c ReNode) String() string {
-	if c.Node == nil {
+func (c *ReNode) String() string {
+	if c == nil || c.Node == nil {
 		return ""
 	}
 	return c.Node.Scanner().String()
@@ -351,12 +370,11 @@ func (c RefNode) OneIdent() *IdentNode {
 	return nil
 }
 
-func (c RefNode) AllToken() []string {
-	var out []string
-	for _, child := range ast.All(c.Node, "") {
-		out = append(out, child.Scanner().String())
+func (c RefNode) OneToken() string {
+	if child := ast.First(c.Node, ""); child != nil {
+		return child.Scanner().String()
 	}
-	return out
+	return ""
 }
 
 type StmtNode struct{ ast.Node }
@@ -386,8 +404,8 @@ func (c StmtNode) OneProd() *ProdNode {
 
 type StrNode struct{ ast.Node }
 
-func (c StrNode) String() string {
-	if c.Node == nil {
+func (c *StrNode) String() string {
+	if c == nil || c.Node == nil {
 		return ""
 	}
 	return c.Node.Scanner().String()
@@ -410,12 +428,11 @@ func (c TermNode) OneNamed() *NamedNode {
 	return nil
 }
 
-func (c TermNode) AllOp() []string {
-	var out []string
-	for _, child := range ast.All(c.Node, "op") {
-		out = append(out, ast.First(child, "").Scanner().String())
+func (c TermNode) OneOp() string {
+	if child := ast.First(c.Node, "op"); child != nil {
+		return ast.First(child, "").Scanner().String()
 	}
-	return out
+	return ""
 }
 
 func (c TermNode) AllQuant() []QuantNode {
@@ -444,8 +461,8 @@ func (c TermNode) AllToken() []string {
 
 type WrapReNode struct{ ast.Node }
 
-func (c WrapReNode) String() string {
-	if c.Node == nil {
+func (c *WrapReNode) String() string {
+	if c == nil || c.Node == nil {
 		return ""
 	}
 	return c.Node.Scanner().String()

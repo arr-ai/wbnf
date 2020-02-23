@@ -121,8 +121,8 @@ func buildAtom(atom AtomNode) parser.Term {
 			Ident:   refNode.OneIdent().String(),
 			Default: nil,
 		}
-		if defTerm := refNode.OneDefault(); defTerm != nil {
-			ref.Default = parser.S(parseString(defTerm.String()))
+		if defTerm := refNode.OneDefault().String(); defTerm != "" {
+			ref.Default = parser.S(parseString(defTerm))
 		}
 		return ref
 	case "term":
@@ -135,7 +135,7 @@ func buildAtom(atom AtomNode) parser.Term {
 func buildQuant(q QuantNode, term parser.Term) parser.Term {
 	switch q.Choice() {
 	case 0:
-		switch q.AllOp()[0] {
+		switch q.OneOp() {
 		case "*":
 			return parser.Any(term)
 		case "?":
@@ -162,7 +162,7 @@ func buildQuant(q QuantNode, term parser.Term) parser.Term {
 		}
 		return parser.Quant{Term: term, Min: min, Max: max}
 	case 2:
-		assoc := parser.NewAssociativity(q.AllOp()[0])
+		assoc := parser.NewAssociativity(q.OneOp())
 		sep := buildNamed(*q.OneNamed())
 		delim := parser.Delim{Term: term, Sep: sep, Assoc: assoc}
 		if q.OneOptLeading() != "" {
@@ -178,8 +178,8 @@ func buildQuant(q QuantNode, term parser.Term) parser.Term {
 
 func buildNamed(n NamedNode) parser.Term {
 	atom := buildAtom(*n.OneAtom())
-	if ident := n.OneIdent(); ident != nil {
-		return parser.Eq(ident.String(), atom)
+	if ident := n.OneIdent().String(); ident != "" {
+		return parser.Eq(ident, atom)
 	}
 	return atom
 }
@@ -190,11 +190,7 @@ func buildTerm(t TermNode) parser.Term {
 		for _, t := range t.AllTerm() {
 			terms = append(terms, buildTerm(t))
 		}
-		op := ""
-		if ops := t.AllOp(); len(ops) > 0 {
-			op = ops[0]
-		}
-		switch op {
+		switch t.OneOp() {
 		case "|":
 			return append(parser.Oneof{}, terms...)
 		case ">":

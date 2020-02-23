@@ -43,13 +43,15 @@ func (tm *TypeMap) walkGrammar(prefix string, g parser.Grammar, knownRules froze
 	result := map[string]grammarType{}
 	for r, term := range g {
 		typeName := prefix + strcase.ToCamel(r.String())
-		tm.walkTerm(term, typeName, setWantOneGetter(), pushRuleNameForStack(r.String(), typeName, knownRules), rand.Int())
+		tm.walkTerm(term, typeName, setWantOneGetter(),
+			pushRuleNameForStack(r.String(), typeName, knownRules), rand.Int()) //nolint:gosec
 	}
 
 	return tm.merge(result)
 }
 
-func (tm *TypeMap) handleSeq(terms []parser.Term, parentName string, quant countManager, knownRules frozen.Map, termId int) {
+func (tm *TypeMap) handleSeq(terms []parser.Term, parentName string, quant countManager,
+	knownRules frozen.Map, termId int) {
 	for _, t := range terms {
 		tm.walkTerm(t, parentName, quant, knownRules, termId)
 	}
@@ -81,7 +83,8 @@ func (tm *TypeMap) makeLeafType(term parser.Term, parentName string, quant count
 	tm.pushType("", parentName, val)
 }
 
-func (tm *TypeMap) walkTerm(term parser.Term, parentName string, quant countManager, knownRules frozen.Map, termId int) {
+func (tm *TypeMap) walkTerm(term parser.Term, parentName string, quant countManager,
+	knownRules frozen.Map, termId int) {
 	switch t := term.(type) {
 	case parser.S, parser.RE, parser.Rule:
 		tm.makeLeafType(term, parentName, quant.pushSingleNode(termId), knownRules)
@@ -100,7 +103,7 @@ func (tm *TypeMap) walkTerm(term parser.Term, parentName string, quant countMana
 	case parser.Oneof:
 		tm.pushType("", parentName, choice{parent: parentName})
 		for _, t := range t {
-			tm.walkTerm(t, parentName, quant, knownRules, rand.Int())
+			tm.walkTerm(t, parentName, quant, knownRules, rand.Int()) //nolint:gosec
 		}
 	case parser.Stack:
 		tm.handleSeq(t, parentName, quant, knownRules, termId)

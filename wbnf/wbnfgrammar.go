@@ -101,40 +101,43 @@ var (
 	Aborter    = &aborter{}
 )
 
+type IsWalkableType interface{ isWalkableType() }
+
 type AtomNode struct{ ast.Node }
 
-func (c AtomNode) Choice() int { return ast.Choice(c.Node) }
+func (AtomNode) isWalkableType() {}
+func (c AtomNode) Choice() int   { return ast.Choice(c.Node) }
 
 func (c AtomNode) OneIdent() *IdentNode {
-	if child := ast.First(c.Node, "IDENT"); child != nil {
+	if child := ast.First(c.Node, IdentIDENT); child != nil {
 		return &IdentNode{child}
 	}
 	return nil
 }
 
 func (c AtomNode) OneRe() *ReNode {
-	if child := ast.First(c.Node, "RE"); child != nil {
+	if child := ast.First(c.Node, IdentRE); child != nil {
 		return &ReNode{child}
 	}
 	return nil
 }
 
 func (c AtomNode) OneRef() *RefNode {
-	if child := ast.First(c.Node, "REF"); child != nil {
+	if child := ast.First(c.Node, IdentREF); child != nil {
 		return &RefNode{child}
 	}
 	return nil
 }
 
 func (c AtomNode) OneStr() *StrNode {
-	if child := ast.First(c.Node, "STR"); child != nil {
+	if child := ast.First(c.Node, IdentSTR); child != nil {
 		return &StrNode{child}
 	}
 	return nil
 }
 
 func (c AtomNode) OneTerm() *TermNode {
-	if child := ast.First(c.Node, "term"); child != nil {
+	if child := ast.First(c.Node, IdentTerm); child != nil {
 		return &TermNode{child}
 	}
 	return nil
@@ -157,6 +160,7 @@ func (c AtomNode) AllToken() []string {
 
 type CommentNode struct{ ast.Node }
 
+func (CommentNode) isWalkableType() {}
 func (c *CommentNode) String() string {
 	if c == nil || c.Node == nil {
 		return ""
@@ -166,9 +170,10 @@ func (c *CommentNode) String() string {
 
 type GrammarNode struct{ ast.Node }
 
+func (GrammarNode) isWalkableType() {}
 func (c GrammarNode) AllStmt() []StmtNode {
 	var out []StmtNode
-	for _, child := range ast.All(c.Node, "stmt") {
+	for _, child := range ast.All(c.Node, IdentStmt) {
 		out = append(out, StmtNode{child})
 	}
 	return out
@@ -176,6 +181,7 @@ func (c GrammarNode) AllStmt() []StmtNode {
 
 type IdentNode struct{ ast.Node }
 
+func (IdentNode) isWalkableType() {}
 func (c *IdentNode) String() string {
 	if c == nil || c.Node == nil {
 		return ""
@@ -185,6 +191,7 @@ func (c *IdentNode) String() string {
 
 type IntNode struct{ ast.Node }
 
+func (IntNode) isWalkableType() {}
 func (c *IntNode) String() string {
 	if c == nil || c.Node == nil {
 		return ""
@@ -194,22 +201,24 @@ func (c *IntNode) String() string {
 
 type NamedNode struct{ ast.Node }
 
+func (NamedNode) isWalkableType() {}
+
 func (c NamedNode) OneAtom() *AtomNode {
-	if child := ast.First(c.Node, "atom"); child != nil {
+	if child := ast.First(c.Node, IdentAtom); child != nil {
 		return &AtomNode{child}
 	}
 	return nil
 }
 
 func (c NamedNode) OneIdent() *IdentNode {
-	if child := ast.First(c.Node, "IDENT"); child != nil {
+	if child := ast.First(c.Node, IdentIDENT); child != nil {
 		return &IdentNode{child}
 	}
 	return nil
 }
 
 func (c NamedNode) OneOp() string {
-	if child := ast.First(c.Node, "op"); child != nil {
+	if child := ast.First(c.Node, IdentOp); child != nil {
 		return ast.First(child, "").Scanner().String()
 	}
 	return ""
@@ -217,8 +226,10 @@ func (c NamedNode) OneOp() string {
 
 type PragmaImportNode struct{ ast.Node }
 
+func (PragmaImportNode) isWalkableType() {}
+
 func (c PragmaImportNode) OnePath() *PragmaImportPathNode {
-	if child := ast.First(c.Node, "path"); child != nil {
+	if child := ast.First(c.Node, IdentPath); child != nil {
 		return &PragmaImportPathNode{child}
 	}
 	return nil
@@ -233,7 +244,8 @@ func (c PragmaImportNode) OneToken() string {
 
 type PragmaImportPathNode struct{ ast.Node }
 
-func (c PragmaImportPathNode) Choice() int { return ast.Choice(c.Node) }
+func (PragmaImportPathNode) isWalkableType() {}
+func (c PragmaImportPathNode) Choice() int   { return ast.Choice(c.Node) }
 
 func (c PragmaImportPathNode) AllToken() []string {
 	var out []string
@@ -245,8 +257,10 @@ func (c PragmaImportPathNode) AllToken() []string {
 
 type PragmaNode struct{ ast.Node }
 
+func (PragmaNode) isWalkableType() {}
+
 func (c PragmaNode) OneImport() *PragmaImportNode {
-	if child := ast.First(c.Node, "import"); child != nil {
+	if child := ast.First(c.Node, IdentImport); child != nil {
 		return &PragmaImportNode{child}
 	}
 	return nil
@@ -254,8 +268,10 @@ func (c PragmaNode) OneImport() *PragmaImportNode {
 
 type ProdNode struct{ ast.Node }
 
+func (ProdNode) isWalkableType() {}
+
 func (c ProdNode) OneIdent() *IdentNode {
-	if child := ast.First(c.Node, "IDENT"); child != nil {
+	if child := ast.First(c.Node, IdentIDENT); child != nil {
 		return &IdentNode{child}
 	}
 	return nil
@@ -263,7 +279,7 @@ func (c ProdNode) OneIdent() *IdentNode {
 
 func (c ProdNode) AllTerm() []TermNode {
 	var out []TermNode
-	for _, child := range ast.All(c.Node, "term") {
+	for _, child := range ast.All(c.Node, IdentTerm) {
 		out = append(out, TermNode{child})
 	}
 	return out
@@ -286,45 +302,46 @@ func (c ProdNode) AllToken() []string {
 
 type QuantNode struct{ ast.Node }
 
-func (c QuantNode) Choice() int { return ast.Choice(c.Node) }
+func (QuantNode) isWalkableType() {}
+func (c QuantNode) Choice() int   { return ast.Choice(c.Node) }
 
 func (c QuantNode) OneMax() *IntNode {
-	if child := ast.First(c.Node, "max"); child != nil {
+	if child := ast.First(c.Node, IdentMax); child != nil {
 		return &IntNode{child}
 	}
 	return nil
 }
 
 func (c QuantNode) OneMin() *IntNode {
-	if child := ast.First(c.Node, "min"); child != nil {
+	if child := ast.First(c.Node, IdentMin); child != nil {
 		return &IntNode{child}
 	}
 	return nil
 }
 
 func (c QuantNode) OneNamed() *NamedNode {
-	if child := ast.First(c.Node, "named"); child != nil {
+	if child := ast.First(c.Node, IdentNamed); child != nil {
 		return &NamedNode{child}
 	}
 	return nil
 }
 
 func (c QuantNode) OneOp() string {
-	if child := ast.First(c.Node, "op"); child != nil {
+	if child := ast.First(c.Node, IdentOp); child != nil {
 		return ast.First(child, "").Scanner().String()
 	}
 	return ""
 }
 
 func (c QuantNode) OneOptLeading() string {
-	if child := ast.First(c.Node, "opt_leading"); child != nil {
+	if child := ast.First(c.Node, IdentOptLeading); child != nil {
 		return ast.First(child, "").Scanner().String()
 	}
 	return ""
 }
 
 func (c QuantNode) OneOptTrailing() string {
-	if child := ast.First(c.Node, "opt_trailing"); child != nil {
+	if child := ast.First(c.Node, IdentOptTrailing); child != nil {
 		return ast.First(child, "").Scanner().String()
 	}
 	return ""
@@ -347,6 +364,7 @@ func (c QuantNode) AllToken() []string {
 
 type ReNode struct{ ast.Node }
 
+func (ReNode) isWalkableType() {}
 func (c *ReNode) String() string {
 	if c == nil || c.Node == nil {
 		return ""
@@ -356,15 +374,17 @@ func (c *ReNode) String() string {
 
 type RefNode struct{ ast.Node }
 
+func (RefNode) isWalkableType() {}
+
 func (c RefNode) OneDefault() *StrNode {
-	if child := ast.First(c.Node, "default"); child != nil {
+	if child := ast.First(c.Node, IdentDefault); child != nil {
 		return &StrNode{child}
 	}
 	return nil
 }
 
 func (c RefNode) OneIdent() *IdentNode {
-	if child := ast.First(c.Node, "IDENT"); child != nil {
+	if child := ast.First(c.Node, IdentIDENT); child != nil {
 		return &IdentNode{child}
 	}
 	return nil
@@ -379,24 +399,25 @@ func (c RefNode) OneToken() string {
 
 type StmtNode struct{ ast.Node }
 
-func (c StmtNode) Choice() int { return ast.Choice(c.Node) }
+func (StmtNode) isWalkableType() {}
+func (c StmtNode) Choice() int   { return ast.Choice(c.Node) }
 
 func (c StmtNode) OneComment() *CommentNode {
-	if child := ast.First(c.Node, "COMMENT"); child != nil {
+	if child := ast.First(c.Node, IdentCOMMENT); child != nil {
 		return &CommentNode{child}
 	}
 	return nil
 }
 
 func (c StmtNode) OnePragma() *PragmaNode {
-	if child := ast.First(c.Node, "pragma"); child != nil {
+	if child := ast.First(c.Node, IdentPragma); child != nil {
 		return &PragmaNode{child}
 	}
 	return nil
 }
 
 func (c StmtNode) OneProd() *ProdNode {
-	if child := ast.First(c.Node, "prod"); child != nil {
+	if child := ast.First(c.Node, IdentProd); child != nil {
 		return &ProdNode{child}
 	}
 	return nil
@@ -404,6 +425,7 @@ func (c StmtNode) OneProd() *ProdNode {
 
 type StrNode struct{ ast.Node }
 
+func (StrNode) isWalkableType() {}
 func (c *StrNode) String() string {
 	if c == nil || c.Node == nil {
 		return ""
@@ -413,23 +435,24 @@ func (c *StrNode) String() string {
 
 type TermNode struct{ ast.Node }
 
+func (TermNode) isWalkableType() {}
 func (c TermNode) AllGrammar() []GrammarNode {
 	var out []GrammarNode
-	for _, child := range ast.All(c.Node, "grammar") {
+	for _, child := range ast.All(c.Node, IdentGrammar) {
 		out = append(out, GrammarNode{child})
 	}
 	return out
 }
 
 func (c TermNode) OneNamed() *NamedNode {
-	if child := ast.First(c.Node, "named"); child != nil {
+	if child := ast.First(c.Node, IdentNamed); child != nil {
 		return &NamedNode{child}
 	}
 	return nil
 }
 
 func (c TermNode) OneOp() string {
-	if child := ast.First(c.Node, "op"); child != nil {
+	if child := ast.First(c.Node, IdentOp); child != nil {
 		return ast.First(child, "").Scanner().String()
 	}
 	return ""
@@ -437,7 +460,7 @@ func (c TermNode) OneOp() string {
 
 func (c TermNode) AllQuant() []QuantNode {
 	var out []QuantNode
-	for _, child := range ast.All(c.Node, "quant") {
+	for _, child := range ast.All(c.Node, IdentQuant) {
 		out = append(out, QuantNode{child})
 	}
 	return out
@@ -445,7 +468,7 @@ func (c TermNode) AllQuant() []QuantNode {
 
 func (c TermNode) AllTerm() []TermNode {
 	var out []TermNode
-	for _, child := range ast.All(c.Node, "term") {
+	for _, child := range ast.All(c.Node, IdentTerm) {
 		out = append(out, TermNode{child})
 	}
 	return out
@@ -461,12 +484,39 @@ func (c TermNode) AllToken() []string {
 
 type WrapReNode struct{ ast.Node }
 
+func (WrapReNode) isWalkableType() {}
 func (c *WrapReNode) String() string {
 	if c == nil || c.Node == nil {
 		return ""
 	}
 	return c.Node.Scanner().String()
 }
+
+const (
+	IdentAtom        = "atom"
+	IdentCOMMENT     = "COMMENT"
+	IdentDefault     = "default"
+	IdentGrammar     = "grammar"
+	IdentIDENT       = "IDENT"
+	IdentINT         = "INT"
+	IdentImport      = "import"
+	IdentMax         = "max"
+	IdentMin         = "min"
+	IdentNamed       = "named"
+	IdentOp          = "op"
+	IdentOptLeading  = "opt_leading"
+	IdentOptTrailing = "opt_trailing"
+	IdentPath        = "path"
+	IdentPragma      = "pragma"
+	IdentProd        = "prod"
+	IdentQuant       = "quant"
+	IdentRE          = "RE"
+	IdentREF         = "REF"
+	IdentSTR         = "STR"
+	IdentStmt        = "stmt"
+	IdentTerm        = "term"
+	IdentWrapRE      = ".wrapRE"
+)
 
 type WalkerOps struct {
 	EnterAtomNode             func(AtomNode) Stopper
@@ -505,7 +555,74 @@ type WalkerOps struct {
 	ExitWrapReNode            func(WrapReNode) Stopper
 }
 
-func (w WalkerOps) Walk(tree GrammarNode) { w.WalkGrammarNode(tree) }
+func (w WalkerOps) Walk(tree IsWalkableType) Stopper {
+	switch node := tree.(type) {
+	case AtomNode:
+		return w.WalkAtomNode(node)
+
+	case CommentNode:
+		if fn := w.EnterCommentNode; fn != nil {
+			return fn(node)
+		}
+
+	case GrammarNode:
+		return w.WalkGrammarNode(node)
+
+	case IdentNode:
+		if fn := w.EnterIdentNode; fn != nil {
+			return fn(node)
+		}
+
+	case IntNode:
+		if fn := w.EnterIntNode; fn != nil {
+			return fn(node)
+		}
+
+	case NamedNode:
+		return w.WalkNamedNode(node)
+
+	case PragmaImportNode:
+		return w.WalkPragmaImportNode(node)
+
+	case PragmaImportPathNode:
+		return w.WalkPragmaImportPathNode(node)
+
+	case PragmaNode:
+		return w.WalkPragmaNode(node)
+
+	case ProdNode:
+		return w.WalkProdNode(node)
+
+	case QuantNode:
+		return w.WalkQuantNode(node)
+
+	case ReNode:
+		if fn := w.EnterReNode; fn != nil {
+			return fn(node)
+		}
+
+	case RefNode:
+		return w.WalkRefNode(node)
+
+	case StmtNode:
+		return w.WalkStmtNode(node)
+
+	case StrNode:
+		if fn := w.EnterStrNode; fn != nil {
+			return fn(node)
+		}
+
+	case TermNode:
+		return w.WalkTermNode(node)
+
+	case WrapReNode:
+		if fn := w.EnterWrapReNode; fn != nil {
+			return fn(node)
+		}
+
+	}
+	return nil
+}
 func (w WalkerOps) WalkAtomNode(node AtomNode) Stopper {
 	if fn := w.EnterAtomNode; fn != nil {
 		if s := fn(node); s != nil {
@@ -976,7 +1093,7 @@ func NewGrammarNode(from ast.Node) GrammarNode { return GrammarNode{from} }
 
 func Parse(input *parser.Scanner) (GrammarNode, error) {
 	p := Grammar()
-	tree, err := p.Parse("grammar", input)
+	tree, err := p.Parse(IdentGrammar, input)
 	if err != nil {
 		return GrammarNode{nil}, err
 	}

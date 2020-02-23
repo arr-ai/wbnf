@@ -47,6 +47,8 @@ var (
 	Aborter    = &aborter{}
 )
 
+type IsWalkableType interface { isWalkableType() }
+
 {{ range .MiddleSection }} {{.}} {{end}}
 
 func (c {{.StartRuleTypeName}}) GetAstNode() ast.Node { return c.Node }
@@ -55,7 +57,7 @@ func New{{.StartRuleTypeName}}(from ast.Node) {{.StartRuleTypeName}} { return {{
 
 func Parse(input *parser.Scanner) ({{.StartRuleTypeName}}, error) {
 	p := Grammar()
-	tree, err := p.Parse("{{.StartRule}}", input)
+	tree, err := p.Parse({{.StartRule}}, input)
 	if err != nil {
 		return {{.StartRuleTypeName}}{nil}, err
 	}

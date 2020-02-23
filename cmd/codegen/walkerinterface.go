@@ -11,19 +11,30 @@ type VisitorWriter struct {
 	startRule string
 }
 
-const suffix = "\n}\nfunc (w WalkerOps) Walk(tree {{startRuleType}}) { w.Walk{{startRuleType}}(tree) }\n"
 const funcs = `	Enter{{typeName}} func ({{typeName}}) Stopper
 	Exit{{typeName}} func ({{typeName}}) Stopper`
 
 func (w VisitorWriter) String() string {
-	var parts []string
+	parts := make([]string, 0, len(w.types))
 	for _, t := range w.types {
 		parts = append(parts, strings.ReplaceAll(funcs, "{{typeName}}", t.TypeName()))
 	}
 	sort.Strings(parts)
-	startRule := GoTypeName(w.startRule)
-	out := "\ntype WalkerOps struct {\n" + strings.Join(parts, "\n") + strings.ReplaceAll(suffix, "{{startRuleType}}", startRule)
+	out := "\ntype WalkerOps struct {\n" + strings.Join(parts, "\n") + "\n}\n"
 
+	parts = []string{}
+	for _, t := range w.types {
+		if len(t.Children()) > 0 {
+			parts = append(parts, fmt.Sprintf("\tcase %s: return w.Walk%s(node)\n", t.TypeName(), t.TypeName()))
+		} else {
+			parts = append(parts, fmt.Sprintf("\tcase %s: if fn := w.Enter%s; fn != nil { return fn(node) }\n",
+				t.TypeName(), t.TypeName()))
+		}
+	}
+	sort.Strings(parts)
+	out += "\n" + `func (w WalkerOps) Walk(tree IsWalkableType) Stopper {
+	switch node := tree.(type) {
+` + strings.Join(parts, "\n") + "\n}\nreturn nil\n}\n"
 	parts = []string{}
 	for _, t := range w.types {
 		if len(t.Children()) > 0 {

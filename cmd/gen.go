@@ -54,16 +54,19 @@ var genCommand = cli.Command{
 
 func gen(c *cli.Context) error {
 	g := loadTestGrammar()
-	tree := g.Node().(wbnf.GrammarNode).Node
+	tree := g.Node().(wbnf.GrammarNode)
 
-	types := codegen.MakeTypes(g.Node().(wbnf.GrammarNode))
+	types := codegen.MakeTypes(tree)
 	tmpldata := codegen.TemplateData{
 		CommandLine:       strings.Join(os.Args[1:], " "),
 		PackageName:       pkgName,
-		StartRule:         startingRule,
+		StartRule:         codegen.IdentName(startingRule),
 		StartRuleTypeName: codegen.GoTypeName(startingRule),
 		Grammar:           codegen.MakeGrammar(tree),
-		MiddleSection:     append(types.Get(), codegen.GetVisitorWriter(types.Types(), startingRule)),
+		MiddleSection: append(
+			types.Get(),
+			codegen.IdentsWriter{GrammarNode: tree},
+			codegen.GetVisitorWriter(types.Types(), startingRule)),
 	}
 	var buf bytes.Buffer
 	if err := codegen.Write(&buf, tmpldata); err != nil {
@@ -79,7 +82,7 @@ func gen(c *cli.Context) error {
 	case "", "-":
 		os.Stdout.Write(out)
 	default:
-		ioutil.WriteFile(outFile, out, 0644)
+		ioutil.WriteFile(outFile, out, 0644) //nolint:errcheck
 	}
 
 	return nil

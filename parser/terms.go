@@ -252,6 +252,6 @@ func (t Quant) String() string {
 	return sb.String()
 }
 
-func (r ScopedGrammar) String() string {
-	return fmt.Sprintf("%v { %v }", r.Term, r.Grammar)
+func (t ScopedGrammar) String() string {
+	return fmt.Sprintf("%v { %v }", t.Term, t.Grammar)
 }

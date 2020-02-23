@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/arr-ai/wbnf/wbnf"
+
 	"github.com/arr-ai/wbnf/ast"
 	"github.com/arr-ai/wbnf/parser"
 )
@@ -49,28 +51,28 @@ func safeString(src string) string {
 
 func makeAtom(node ast.Node) *goNode {
 	atom := node.(ast.Branch)
-	x, _ := ast.Which(atom, "RE", "STR", "IDENT", "REF", "term")
+	x, _ := ast.Which(atom, wbnf.IdentRE, wbnf.IdentSTR, wbnf.IdentIDENT, wbnf.IdentREF, wbnf.IdentTerm)
 	name := ""
 	switch x {
-	case "term", "":
-	case "REF":
+	case wbnf.IdentTerm, "":
+	case wbnf.IdentREF:
 		name = safeString(atom.One(x).One("IDENT").Scanner().String())
 	default:
 		name = safeString(atom.One(x).Scanner().String())
 	}
 	switch x {
-	case "IDENT":
+	case wbnf.IdentIDENT:
 		return &goNode{name: fmt.Sprintf("parser.Rule(`%s`)", name)}
-	case "STR":
+	case wbnf.IdentSTR:
 		return &goNode{name: fmt.Sprintf("parser.S(%s)", name)}
-	case "RE":
+	case wbnf.IdentRE:
 		if strings.HasPrefix(name, "/{") {
 			name = name[2 : len(name)-1]
 		}
 		return &goNode{name: fmt.Sprintf("parser.RE(`%s`)", name)}
-	case "REF":
+	case wbnf.IdentREF:
 		return &goNode{name: fmt.Sprintf("parser.REF(`%s`)", name)}
-	case "term":
+	case wbnf.IdentTerm:
 		return makeTerm(atom.One(x))
 	}
 	return &goNode{name: "todo"}
@@ -79,7 +81,7 @@ func makeNamed(node ast.Node) *goNode {
 	named := node.(ast.Branch)
 	atom := makeAtom(named.One("atom"))
 
-	if named.One("IDENT") != nil {
+	if named.One(wbnf.IdentIDENT) != nil {
 		val := &goNode{name: "parser.Eq",
 			scope:    bracesScope,
 			children: []goNode{{name: "\"" + named.One("IDENT").Scanner().String() + "\""}, *atom},
@@ -109,7 +111,8 @@ func makeQuant(node ast.Node, term goNode) *goNode {
 			max = x.Scanner().String()
 		}
 		term.name = "Term: " + term.name
-		return &goNode{name: "parser.Quant", scope: squigglyScope, children: []goNode{term, {name: "Min:" + min}, {name: "Max:" + max}}}
+		return &goNode{name: "parser.Quant", scope: squigglyScope,
+			children: []goNode{term, {name: "Min:" + min}, {name: "Max:" + max}}}
 	case 2:
 		delim := &goNode{name: "parser.Delim", scope: squigglyScope}
 		var assoc string
@@ -138,9 +141,9 @@ func makeQuant(node ast.Node, term goNode) *goNode {
 
 func makeTerm(node ast.Node) *goNode {
 	term := node.(ast.Branch)
-	x, _ := ast.Which(term, "term", "atom", "named")
+	x, _ := ast.Which(term, wbnf.IdentTerm, "atom", "named")
 	switch x {
-	case "term":
+	case wbnf.IdentTerm:
 		var next *goNode
 		if ops := term.Many("op"); len(ops) > 0 {
 			switch ops[0].Scanner().String() {
@@ -152,7 +155,7 @@ func makeTerm(node ast.Node) *goNode {
 		} else {
 			next = &goNode{name: "parser.Seq", scope: squigglyScope}
 		}
-		for _, t := range term.Many("term") {
+		for _, t := range term.Many(wbnf.IdentTerm) {
 			next.Add(*makeTerm(t))
 		}
 		if len(next.children) == 1 {
@@ -183,7 +186,7 @@ func makeTerm(node ast.Node) *goNode {
 }
 
 func makeProd(tree ast.Node) *goNode {
-	terms := tree.Many("term")
+	terms := tree.Many(wbnf.IdentTerm)
 
 	p := &goNode{
 		name: fmt.Sprintf(`"%s"`,

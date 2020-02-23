@@ -43,8 +43,7 @@ type (
 	}
 	basicRule string // Used for rules which only return an unnamed string (i.e foo -> /{[a-z]*}; )
 	choice    struct {
-		parent      string
-		returnTypes []string
+		parent string
 	}
 	stackBackRef struct {
 		name, parent string
@@ -127,6 +126,7 @@ func (t basicRule) Children() []grammarType { return nil }
 func (t basicRule) String() string {
 	return strings.ReplaceAll(`
 type %s struct { ast.Node }
+func (%s) isWalkableType() {}
 func (c *%s) String() string {
 	if c == nil || c.Node == nil { return "" }
 	return c.Node.Scanner().String()
@@ -197,13 +197,13 @@ func (t namedToken) Children() []grammarType { return nil }
 func (t namedToken) String() string {
 	replacer := strings.NewReplacer("{{parent}}", GoTypeName(t.parent),
 		"{{childtype}}", strcase.ToCamel(DropCaps(t.name)),
-		"{{name}}", t.name,
+		"{{name}}", IdentName(t.name),
 	)
 	out := ""
 	if t.count.wantOne() {
 		out += replacer.Replace(`
 func (c {{parent}}) One{{childtype}}() string {
-	if child := ast.First(c.Node, "{{name}}"); child != nil {
+	if child := ast.First(c.Node, {{name}}); child != nil {
 		return ast.First(child, "").Scanner().String()
 	}
 	return ""
@@ -214,7 +214,7 @@ func (c {{parent}}) One{{childtype}}() string {
 		out += replacer.Replace(`
 func (c {{parent}}) All{{childtype}}() []string {
 	var out []string
-	for _, child := range ast.All(c.Node, "{{name}}") {
+	for _, child := range ast.All(c.Node, {{name}}) {
 		out = append(out, ast.First(child, "").Scanner().String())
 	}
 	return out
@@ -263,13 +263,13 @@ func (t namedRule) String() string {
 	replacer := strings.NewReplacer("{{parent}}", GoTypeName(t.parent),
 		"{{child}}", strcase.ToCamel(DropCaps(t.name)),
 		"{{returnType}}", t.returnType,
-		"{{name}}", t.name,
+		"{{name}}", IdentName(t.name),
 	)
 	out := ""
 	if t.count.wantOne() {
 		out += replacer.Replace(`
 func (c {{parent}}) One{{child}}() *{{returnType}} {
-	if child := ast.First(c.Node, "{{name}}"); child != nil {
+	if child := ast.First(c.Node, {{name}}); child != nil {
 		return &{{returnType}}{child}
 	}
 	return nil
@@ -279,7 +279,7 @@ func (c {{parent}}) One{{child}}() *{{returnType}} {
 	if t.count.wantAll() {
 		out += replacer.Replace(`func (c {{parent}}) All{{child}}() []{{returnType}} {
 	var out []{{returnType}}
-	for _, child := range ast.All(c.Node, "{{name}}") {
+	for _, child := range ast.All(c.Node, {{name}}) {
 		out = append(out, {{returnType}}{child})
 	}
 	return out
@@ -297,7 +297,7 @@ func (t rule) TypeName() string        { return t.name }
 func (t rule) Ident() string           { return t.name }
 func (t rule) Children() []grammarType { return t.childs }
 func (t rule) String() string {
-	out := fmt.Sprintf("type %s struct { ast.Node}\n", t.TypeName())
+	out := fmt.Sprintf("type %s struct { ast.Node}\n func (%s) isWalkableType() {}\n", t.TypeName(), t.TypeName())
 	if len(t.Children()) > 0 {
 		orderedChildren := t.Children()
 		sort.Slice(orderedChildren, func(i, j int) bool {
@@ -314,11 +314,11 @@ func (t rule) String() string {
 }
 func (t rule) CallbackData() *callbackData { return nil }
 
-type data struct {
+type TypesData struct {
 	types map[string]grammarType
 }
 
-func (d *data) Get() []fmt.Stringer {
+func (d *TypesData) Get() []fmt.Stringer {
 	keys := make([]string, 0, len(d.types))
 	for rule := range d.types {
 		keys = append(keys, rule)
@@ -332,10 +332,10 @@ func (d *data) Get() []fmt.Stringer {
 	return result
 }
 
-func (d *data) Types() map[string]grammarType {
+func (d *TypesData) Types() map[string]grammarType {
 	return d.types
 }
 
-func MakeTypes(node wbnf.GrammarNode) *data {
-	return &data{types: MakeTypesFromGrammar(wbnf.NewFromAst(node))}
+func MakeTypes(node wbnf.GrammarNode) *TypesData {
+	return &TypesData{types: MakeTypesFromGrammar(wbnf.NewFromAst(node))}
 }

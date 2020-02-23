@@ -43,7 +43,6 @@ func testChildren(t *testing.T, children []grammarType, tests childrenTestData) 
 		case namedToken:
 			assert.Equal(t, val.quant, x.count.int, errMessage)
 			assert.Equal(t, "", val.returnType, "Test mis-configured"+errMessage)
-
 		}
 	}
 }
@@ -89,7 +88,6 @@ func TestTypeBuilder2_ScopedGrammarRulesComplex(t *testing.T) {
 		"path":  {t: namedRule{}, quant: wantOneGetter, returnType: "PragmaImportPathNode"},
 		"Token": {t: unnamedToken{}, quant: wantAllGetter},
 	})
-
 }
 
 func TestTypeBuilder2_Delims(t *testing.T) {
@@ -276,6 +274,7 @@ func TestDropCaps(t *testing.T) {
 		"INT", "Int",
 	}
 	for i := 0; i < len(tests); i += 2 {
+		i := i
 		t.Run(tests[i], func(t *testing.T) {
 			in := tests[i]
 			expected := tests[i+1]

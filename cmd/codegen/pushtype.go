@@ -1,25 +1,25 @@
 package codegen
 
 func (tm *TypeMap) findType(name string) grammarType {
-	val, _ := (*tm)[name]
-	return val
+	return (*tm)[name]
 }
 
-func (tm *TypeMap) pushType(name, parent string, child grammarType) grammarType {
+func (tm *TypeMap) pushType(name, parent string, child grammarType) {
 	if name == "" {
-		return tm.createOrAddParent(parent, child)
+		tm.createOrAddParent(parent, child)
+		return
 	}
 
 	switch child.(type) {
 	case namedToken, namedRule, backRef, stackBackRef:
 		// Dont' create a type it if doesnt exist
-		return tm.createOrAddParent(parent, child)
+		tm.createOrAddParent(parent, child)
 	default:
 		panic("It doesnt make sense to add this type with a name param!")
 	}
 }
 
-func (tm *TypeMap) createOrAddParent(parent string, child grammarType) grammarType {
+func (tm *TypeMap) createOrAddParent(parent string, child grammarType) {
 	parentTypeName := GoTypeName(parent)
 	var val grammarType
 	if p := tm.findType(parentTypeName); p != nil {
@@ -42,7 +42,6 @@ func (tm *TypeMap) createOrAddParent(parent string, child grammarType) grammarTy
 		}
 	}
 	(*tm)[parentTypeName] = val
-	return val
 }
 
 func getNewCount(old countManager, new grammarType) countManager {

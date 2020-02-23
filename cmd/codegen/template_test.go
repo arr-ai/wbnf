@@ -12,7 +12,8 @@ import (
 func TestWrite(t *testing.T) {
 	var buf bytes.Buffer
 
-	g, _ := wbnf.ParseString("hard->asd=('a' | fff=('b' | 'hello')*);")
+	g, err := wbnf.ParseString("hard->asd=('a' | fff=('b' | 'hello')*);")
+	assert.NoError(t, err)
 	types := MakeTypes(g)
 	assert.NoError(t, Write(&buf, TemplateData{
 		CommandLine:       "foo bar baz",
@@ -26,5 +27,4 @@ func TestWrite(t *testing.T) {
 		}}},
 		MiddleSection: append(types.Get(), VisitorWriter{startRule: "IdentStartRule", types: types.types}),
 	}))
-
 }

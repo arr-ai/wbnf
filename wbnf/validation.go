@@ -92,6 +92,10 @@ func (v *validator) Error() string {
 }
 
 func (v *validator) validateTerm(tree TermNode) Stopper {
+	if len(tree.AllGrammar()) != 0 {
+		//fixme: This doesnt work for scoped grammars yet, abort!
+		return NodeExiter
+	}
 	if len(tree.AllOp()) == 0 || tree.AllOp()[0] == "" {
 		names := map[string]bool{}
 		for _, child := range tree.AllTerm() {
@@ -122,10 +126,9 @@ func (v *validator) validateNamed(tree NamedNode) Stopper {
 func (v *validator) validateAtom(tree AtomNode) Stopper {
 	if ident := tree.OneIdent(); ident != nil {
 		if ident.String() != "@" {
-			if _, has := v.knownRules[ident.String()]; !has { /* fixme, this doesnt work with scoped rules
+			if _, has := v.knownRules[ident.String()]; !has {
 				v.err = append(v.err, validationError{s: tree.OneIdent().Scanner(),
 					msg: "identifier '%s' is not a defined rule", kind: UnknownRule})
-				*/
 			}
 		}
 	} else if x := tree.OneRe(); x != nil {

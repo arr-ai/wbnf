@@ -92,16 +92,20 @@ func (v *validator) Error() string {
 }
 
 func (v *validator) validateTerm(tree TermNode) Stopper {
-	if tree.OneOp() == "" {
+	if len(tree.AllGrammar()) != 0 {
+		//fixme: This doesnt work for scoped grammars yet, abort!
+		return NodeExiter
+	}
+	if len(tree.AllOp()) == 0 || tree.AllOp()[0] == "" {
 		names := map[string]bool{}
 		for _, child := range tree.AllTerm() {
-			if name := child.OneNamed(); name.Node != nil {
-				if x := name.OneIdent().String(); x != "" {
-					if _, has := names[x]; has {
+			if name := child.OneNamed(); name != nil {
+				if x := name.OneIdent(); x != nil {
+					if _, has := names[x.String()]; has {
 						v.err = append(v.err, validationError{s: name.OneIdent().Scanner(),
 							msg: "identifier '%s' is being used multiple times in a single term", kind: MultipleTermsWithSameName})
 					}
-					names[x] = true
+					names[x.String()] = true
 				}
 			}
 		}
@@ -110,8 +114,8 @@ func (v *validator) validateTerm(tree TermNode) Stopper {
 }
 
 func (v *validator) validateNamed(tree NamedNode) Stopper {
-	if x := tree.OneIdent().String(); x != "" {
-		if _, has := v.knownRules[x]; has {
+	if x := tree.OneIdent(); x != nil {
+		if _, has := v.knownRules[x.String()]; has {
 			v.err = append(v.err, validationError{s: tree.OneIdent().Scanner(),
 				msg: "identifier '%s' clashes with a defined rule", kind: NameClashesWithRule})
 		}
@@ -120,15 +124,15 @@ func (v *validator) validateNamed(tree NamedNode) Stopper {
 }
 
 func (v *validator) validateAtom(tree AtomNode) Stopper {
-	if ident := tree.OneIdent().String(); ident != "" {
-		if ident != "@" {
-			if _, has := v.knownRules[ident]; !has {
+	if ident := tree.OneIdent(); ident != nil {
+		if ident.String() != "@" {
+			if _, has := v.knownRules[ident.String()]; !has {
 				v.err = append(v.err, validationError{s: tree.OneIdent().Scanner(),
 					msg: "identifier '%s' is not a defined rule", kind: UnknownRule})
 			}
 		}
-	} else if x := tree.OneRe().String(); x != "" {
-		if _, err := regexp.Compile(x); err != nil {
+	} else if x := tree.OneRe(); x != nil {
+		if _, err := regexp.Compile(x.String()); err != nil {
 			v.err = append(v.err, validationError{s: tree.OneRe().Scanner(),
 				msg: "regex '%s' is not valid, %s", kind: InvalidRegex, args: []interface{}{err}})
 		}

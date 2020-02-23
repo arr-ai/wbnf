@@ -93,20 +93,20 @@ var whitespaceRE = regexp.MustCompile(`\s`)
 var escapedSpaceRE = regexp.MustCompile(`((?:\A|[^\\])(?:\\\\)*)\\_`)
 
 func buildAtom(atom AtomNode) parser.Term {
-	x, _ := ast.Which(atom.Node.(ast.Branch), IdentRE, IdentSTR, IdentIDENT, IdentREF, IdentTerm)
+	x, _ := ast.Which(atom.Node.(ast.Branch), "RE", "STR", "IDENT", "REF", "term")
 	name := ""
 	switch x {
-	case IdentTerm, IdentREF, "":
+	case "term", "REF", "":
 	default:
 		name = atom.One(x).Scanner().String()
 	}
 
 	switch x {
-	case IdentIDENT:
+	case "IDENT":
 		return parser.Rule(name)
-	case IdentSTR:
+	case "STR":
 		return parser.S(parseString(name))
-	case IdentRE:
+	case "RE":
 		s := whitespaceRE.ReplaceAllString(name, "")
 		// Do this twice to cover adjacent escaped spaces `\_\_`.
 		s = escapedSpaceRE.ReplaceAllString(s, "$1 ")
@@ -115,19 +115,18 @@ func buildAtom(atom AtomNode) parser.Term {
 			s = s[2 : len(s)-1]
 		}
 		return parser.RE(s)
-	case IdentREF:
+	case "REF":
 		refNode := atom.OneRef()
 		ref := parser.REF{
 			Ident:   refNode.OneIdent().String(),
 			Default: nil,
 		}
-		defTerm := refNode.OneDefault().String()
-		if defTerm != "" {
-			ref.Default = parser.S(parseString(defTerm))
+		if defTerm := refNode.OneDefault(); defTerm != nil {
+			ref.Default = parser.S(parseString(defTerm.String()))
 		}
 		return ref
-	case IdentTerm:
-		return buildTerm(atom.OneTerm())
+	case "term":
+		return buildTerm(*atom.OneTerm())
 	}
 	// Must be the empty term '()'
 	return parser.Seq{}
@@ -136,7 +135,7 @@ func buildAtom(atom AtomNode) parser.Term {
 func buildQuant(q QuantNode, term parser.Term) parser.Term {
 	switch q.Choice() {
 	case 0:
-		switch q.OneOp() {
+		switch q.AllOp()[0] {
 		case "*":
 			return parser.Any(term)
 		case "?":
@@ -163,8 +162,8 @@ func buildQuant(q QuantNode, term parser.Term) parser.Term {
 		}
 		return parser.Quant{Term: term, Min: min, Max: max}
 	case 2:
-		assoc := parser.NewAssociativity(q.OneOp())
-		sep := buildNamed(q.OneNamed())
+		assoc := parser.NewAssociativity(q.AllOp()[0])
+		sep := buildNamed(*q.OneNamed())
 		delim := parser.Delim{Term: term, Sep: sep, Assoc: assoc}
 		if q.OneOptLeading() != "" {
 			delim.CanStartWithSep = true
@@ -178,10 +177,9 @@ func buildQuant(q QuantNode, term parser.Term) parser.Term {
 }
 
 func buildNamed(n NamedNode) parser.Term {
-	atom := buildAtom(n.OneAtom())
-	ident := n.OneIdent().String()
-	if ident != "" {
-		return parser.Eq(ident, atom)
+	atom := buildAtom(*n.OneAtom())
+	if ident := n.OneIdent(); ident != nil {
+		return parser.Eq(ident.String(), atom)
 	}
 	return atom
 }
@@ -192,15 +190,19 @@ func buildTerm(t TermNode) parser.Term {
 		for _, t := range t.AllTerm() {
 			terms = append(terms, buildTerm(t))
 		}
-		switch t.OneOp() {
+		op := ""
+		if ops := t.AllOp(); len(ops) > 0 {
+			op = ops[0]
+		}
+		switch op {
 		case "|":
 			return append(parser.Oneof{}, terms...)
 		case ">":
 			return append(parser.Stack{}, terms...)
 		}
 		var sg *parser.ScopedGrammar
-		if g := t.OneGrammar(); g.Node != nil {
-			nested := NewFromAst(g.Node)
+		if g := t.AllGrammar(); len(g) == 1 {
+			nested := NewFromAst(g[0].Node)
 			sg = &parser.ScopedGrammar{
 				Grammar: nested,
 			}
@@ -220,7 +222,7 @@ func buildTerm(t TermNode) parser.Term {
 	}
 	// named and quants need to be added backwards
 	// "a":","*     ->   Any(Delim(... S("a")))
-	next := buildNamed(t.OneNamed())
+	next := buildNamed(*t.OneNamed())
 	quants := t.AllQuant()
 	for i := range quants {
 		next = buildQuant(quants[len(quants)-1-i], next)
@@ -244,8 +246,8 @@ func NewFromAst(node ast.Node) parser.Grammar {
 	g := parser.Grammar{}
 	tree := NewGrammarNode(node)
 	for _, stmt := range tree.AllStmt() {
-		for _, prod := range stmt.AllProd() {
-			g[parser.Rule(prod.OneIdent().String())] = buildProd(prod)
+		if prod := stmt.OneProd(); prod != nil {
+			g[parser.Rule(prod.OneIdent().String())] = buildProd(*prod)
 		}
 	}
 	return g
@@ -272,21 +274,8 @@ func (c *compiler) makeGrammar(filename, text string) (GrammarNode, error) {
 		return GrammarNode{}, err
 	}
 	WalkerOps{
-		EnterImportNode: func(impNode ImportNode) Stopper {
-			var parts []string
-			for _, p := range impNode.AllPath() {
-				// Fixme: codegen isnt quite right yet for nested grammars
-				_, child := ast.Which(p.Node.(ast.Branch), "")
-				switch child := child.(type) {
-				case ast.Many:
-					for _, c := range child {
-						parts = append(parts, c.Scanner().String())
-					}
-				case ast.One:
-					parts = append(parts, child.Scanner().String())
-				}
-			}
-			importPath := filepath.Join(parts...)
+		EnterPragmaImportNode: func(impNode PragmaImportNode) Stopper {
+			importPath := filepath.Join(impNode.OnePath().AllToken()...)
 			if c.resolver != nil {
 				importPath = c.resolver.Resolve(filename, importPath)
 			}

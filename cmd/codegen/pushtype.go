@@ -1,10 +1,13 @@
 package codegen
 
 func (tm *TypeMap) findType(name string) grammarType {
-	return (*tm)[name]
+	return (*tm).types[name]
 }
 
 func (tm *TypeMap) pushType(name, parent string, child grammarType) {
+	if tm.types == nil {
+		tm.types = map[string]grammarType{}
+	}
 	if name == "" {
 		tm.createOrAddParent(parent, child)
 		return
@@ -41,7 +44,7 @@ func (tm *TypeMap) createOrAddParent(parent string, child grammarType) {
 			val = rule{name: parentTypeName, childs: []grammarType{child}}
 		}
 	}
-	(*tm)[parentTypeName] = val
+	(*tm).types[parentTypeName] = val
 }
 
 func getNewCount(old countManager, new grammarType) countManager {
@@ -84,6 +87,10 @@ func checkForDupes(children []grammarType, next grammarType) []grammarType {
 			appendNext = false
 		case stackBackRef:
 			if _, ok := next.(stackBackRef); ok {
+				return children
+			}
+		case choice:
+			if _, ok := next.(choice); ok {
 				return children
 			}
 		}

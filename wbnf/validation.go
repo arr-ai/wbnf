@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/arr-ai/wbnf/parser"
 )
@@ -87,8 +88,24 @@ type validator struct {
 	err        []error
 }
 
+func (v validator) identIsOk(id string) bool {
+	if _, has := v.knownRules[id]; has {
+		return false
+	}
+	for k := range v.knownRules {
+		if strings.EqualFold(k, id) {
+			return false
+		}
+	}
+	return true
+}
+
 func (v *validator) Error() string {
-	return fmt.Sprint(v.err)
+	lines := make([]string, 0, len(v.err))
+	for _, err := range v.err {
+		lines = append(lines, err.Error())
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (v *validator) validateTerm(tree TermNode) Stopper {
@@ -101,7 +118,7 @@ func (v *validator) validateTerm(tree TermNode) Stopper {
 		for _, child := range tree.AllTerm() {
 			if name := child.OneNamed(); name != nil {
 				if x := name.OneIdent().String(); x != "" {
-					if _, has := names[x]; has {
+					if !v.identIsOk(x) {
 						v.err = append(v.err, validationError{s: name.OneIdent().Scanner(),
 							msg: "identifier '%s' is being used multiple times in a single term", kind: MultipleTermsWithSameName})
 					}
@@ -115,9 +132,9 @@ func (v *validator) validateTerm(tree TermNode) Stopper {
 
 func (v *validator) validateNamed(tree NamedNode) Stopper {
 	if x := tree.OneIdent(); x != nil {
-		if _, has := v.knownRules[x.String()]; has {
+		if !v.identIsOk(x.String()) {
 			v.err = append(v.err, validationError{s: tree.OneIdent().Scanner(),
-				msg: "identifier '%s' clashes with a defined rule", kind: NameClashesWithRule})
+				msg: "identifier '%s' clashes (case-insensitive) with a defined rule", kind: NameClashesWithRule})
 		}
 	}
 	return nil

@@ -8,7 +8,7 @@ sysl_file -> import* EOL* (application EOL*)+;
 
 
 // -------------- Imports --------------- //
-import  -> "import"  prefix="/"{0,2} import=PATH ( "as"  APP_NAME)? ("~" mode=NAME)? EOL;
+import  -> "import"  prefix="/"{0,2} PATH ( "as"  APP_NAME)? ("~" mode=NAME)? EOL;
 
 
 
@@ -22,7 +22,7 @@ app_decl   -> SHORTCUT | table | wrap | endpoint | view;
 
 table -> mode=("!table"|"!type") NAME attribs?  ":" COMMENT*
     \n+ level=INDENT
-        (COMMENT | (name=NAME "<:") type=(collection_type|type_spec) optional="?"? attribs?):INDENT_SEP EOL;
+        (COMMENT | (NAME "<:") type=(collection_type|type_spec) optional="?"? attribs?):INDENT_SEP EOL;
 wrap -> "!wrap" NAME attribs?  ":" COMMENT*
     \n+ level=INDENT
         (table | "!table"APP_NAME):INDENT_SEP EOL;

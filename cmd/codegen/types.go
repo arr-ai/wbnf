@@ -185,7 +185,7 @@ func (t backRef) TypeName() string        { return "" }
 func (t backRef) Ident() string           { return t.name }
 func (t backRef) Children() []grammarType { return nil }
 func (t backRef) String() string {
-	return fmt.Sprintf(`func (c %s) %sRef() ast.Node { return ast.First(c.Node, %s) }
+	return fmt.Sprintf(`func (c %s) %sRef() ast.Node { return ast.First(c.Node, "%s") }
 `,
 		GoTypeName(t.parent), strcase.ToCamel(t.name), t.name)
 }
@@ -197,13 +197,13 @@ func (t namedToken) Children() []grammarType { return nil }
 func (t namedToken) String() string {
 	replacer := strings.NewReplacer("{{parent}}", GoTypeName(t.parent),
 		"{{childtype}}", strcase.ToCamel(DropCaps(t.name)),
-		"{{name}}", IdentName(t.name),
+		"{{name}}", t.name,
 	)
 	out := ""
 	if t.count.wantOne() {
 		out += replacer.Replace(`
 func (c {{parent}}) One{{childtype}}() string {
-	if child := ast.First(c.Node, {{name}}); child != nil {
+	if child := ast.First(c.Node, "{{name}}"); child != nil {
 		return ast.First(child, "").Scanner().String()
 	}
 	return ""
@@ -214,7 +214,7 @@ func (c {{parent}}) One{{childtype}}() string {
 		out += replacer.Replace(`
 func (c {{parent}}) All{{childtype}}() []string {
 	var out []string
-	for _, child := range ast.All(c.Node, {{name}}) {
+	for _, child := range ast.All(c.Node, "{{name}}") {
 		out = append(out, ast.First(child, "").Scanner().String())
 	}
 	return out
@@ -263,13 +263,13 @@ func (t namedRule) String() string {
 	replacer := strings.NewReplacer("{{parent}}", GoTypeName(t.parent),
 		"{{child}}", strcase.ToCamel(DropCaps(t.name)),
 		"{{returnType}}", t.returnType,
-		"{{name}}", IdentName(t.name),
+		"{{name}}", t.name,
 	)
 	out := ""
 	if t.count.wantOne() {
 		out += replacer.Replace(`
 func (c {{parent}}) One{{child}}() *{{returnType}} {
-	if child := ast.First(c.Node, {{name}}); child != nil {
+	if child := ast.First(c.Node, "{{name}}"); child != nil {
 		return &{{returnType}}{child}
 	}
 	return nil
@@ -279,7 +279,7 @@ func (c {{parent}}) One{{child}}() *{{returnType}} {
 	if t.count.wantAll() {
 		out += replacer.Replace(`func (c {{parent}}) All{{child}}() []{{returnType}} {
 	var out []{{returnType}}
-	for _, child := range ast.All(c.Node, {{name}}) {
+	for _, child := range ast.All(c.Node, "{{name}}") {
 		out = append(out, {{returnType}}{child})
 	}
 	return out

@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/iancoleman/strcase"
-
 	"github.com/arr-ai/frozen"
 	"github.com/arr-ai/wbnf/wbnf"
 )
@@ -15,7 +13,7 @@ type IdentsWriter struct {
 }
 
 func IdentName(name string) string {
-	return "Ident" + strings.NewReplacer(".", "", "%", "").Replace(strcase.ToCamel(name))
+	return "Ident" + strings.NewReplacer(".", "", "%", "").Replace(name)
 }
 
 func (i IdentsWriter) String() string {

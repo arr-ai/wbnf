@@ -10,14 +10,16 @@ import (
 
 func MakeTypesFromGrammar(g parser.Grammar) map[string]grammarType {
 	tm := &TypeMap{}
-	return tm.walkGrammar("", g, mergeGrammarRules("", g, frozen.NewMap()))
+	return tm.walkGrammar("", g, mergeGrammarRules("", g, frozen.NewMap())).types
 }
 
-type TypeMap map[string]grammarType
+type TypeMap struct {
+	types map[string]grammarType
+}
 
 func (tm *TypeMap) merge(other TypeMap) TypeMap {
-	for k, v := range other {
-		(*tm)[k] = v
+	for k, v := range other.types {
+		(*tm).types[k] = v
 	}
 	return *tm
 }
@@ -40,7 +42,7 @@ func mergeGrammarRules(prefix string, g parser.Grammar, knownRules frozen.Map) f
 }
 
 func (tm *TypeMap) walkGrammar(prefix string, g parser.Grammar, knownRules frozen.Map) TypeMap {
-	result := map[string]grammarType{}
+	result := TypeMap{}
 	for r, term := range g {
 		typeName := prefix + strcase.ToCamel(r.String())
 		tm.walkTerm(term, typeName, setWantOneGetter(),

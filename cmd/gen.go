@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
 	"go/format"
+	"go/scanner"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -75,6 +77,19 @@ func gen(c *cli.Context) error {
 
 	out, err := format.Source(buf.Bytes())
 	if err != nil {
+		if err, ok := err.(scanner.ErrorList); ok {
+			for _, e := range err {
+				start := e.Pos.Offset - 10
+				ctxlen := 40
+				if start < 0 {
+					start = 0
+				}
+				if start+ctxlen > buf.Len() {
+					ctxlen = buf.Len() - start
+				}
+				fmt.Fprintf(os.Stderr, "%s, ... %s\n", e.Error(), string(buf.Bytes()[start:start+ctxlen]))
+			}
+		}
 		return err
 	}
 
@@ -85,5 +100,5 @@ func gen(c *cli.Context) error {
 		ioutil.WriteFile(outFile, out, 0644) //nolint:errcheck
 	}
 
-	return nil
+	return err
 }

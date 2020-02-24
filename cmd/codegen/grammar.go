@@ -51,7 +51,7 @@ func safeString(src string) string {
 
 func makeAtom(node ast.Node) *goNode {
 	atom := node.(ast.Branch)
-	x, _ := ast.Which(atom, wbnf.IdentRE, wbnf.IdentSTR, wbnf.IdentIDENT, wbnf.IdentREF, wbnf.IdentTerm)
+	x, child := ast.Which(atom, wbnf.IdentRE, wbnf.IdentSTR, wbnf.IdentIDENT, wbnf.IdentREF, wbnf.IdentTerm)
 	name := ""
 	switch x {
 	case wbnf.IdentTerm, "":
@@ -71,7 +71,15 @@ func makeAtom(node ast.Node) *goNode {
 		}
 		return &goNode{name: fmt.Sprintf("parser.RE(`%s`)", name)}
 	case wbnf.IdentREF:
-		return &goNode{name: fmt.Sprintf("parser.REF(`%s`)", name)}
+		val := &goNode{name: "parser.REF",
+			scope:    squigglyScope,
+			children: []goNode{{name: fmt.Sprintf("Ident:`%s`", name)}},
+		}
+		if def := ast.First(child.(ast.One).Node, wbnf.IdentDefault); def != nil {
+			name = safeString(def.Scanner().String())
+			val.Add(goNode{name: fmt.Sprintf("Default: parser.S(%s)", name)})
+		}
+		return val
 	case wbnf.IdentTerm:
 		return makeTerm(atom.One(x))
 	}

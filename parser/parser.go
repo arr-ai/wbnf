@@ -347,9 +347,11 @@ func (p *seqParser) Parse(scope Scope, input *Scanner, output *TreeElement) (out
 	furthest := *input
 	first := NewScanner(input.String())
 
+	scope = scope.Mark(tracepoint{detail: p.Describe(), offset: input.offset})
 	for i, item := range p.parsers {
 		var v TreeElement
 		ident := identFromTerm(p.t[i])
+		scope = scope.Mark(tracepoint{detail: p.Describe(), offset: input.offset})
 		if err := item.Parse(scope, input, &v); err != nil {
 			elist := []error{err}
 			if fixup := p.attemptRuleCompletion(scope, first, input, i); fixup != nil {
@@ -389,6 +391,7 @@ type delimParser struct {
 func parseAppend(p Parser, scope Scope,
 	input *Scanner, slice *[]TreeElement, errOut *error) bool {
 	var v TreeElement
+
 	if err := p.Parse(scope, input, &v); err != nil {
 		*errOut = err
 		return false
@@ -418,6 +421,8 @@ func (p *delimParser) Parse(scope Scope, input *Scanner, output *TreeElement) (o
 	}(&out)
 
 	scope.data = scope.data.With(dontAttemptSeqFix, struct{}{})
+	scope = scope.Mark(tracepoint{detail: p.Describe(), offset: input.offset})
+
 	var parseErr error
 	switch {
 	case parseAppend(p.term, scope, input, &result, &parseErr):
@@ -426,7 +431,8 @@ func (p *delimParser) Parse(scope Scope, input *Scanner, output *TreeElement) (o
 		if !parseAppend(p.sep, scope, input, &result, &parseErr) {
 			return parseErr
 		}
-		scope = scope.WithIdent(identFromTerm(p.t.Sep), p.sep, result[len(result)-1])
+		scope = scope.Mark(tracepoint{detail: p.Describe(), offset: input.offset}).
+			WithIdent(identFromTerm(p.t.Term), p.term, result[len(result)-1])
 		if !parseAppend(p.term, scope, input, &result, &parseErr) {
 			return parseErr
 		}
@@ -435,7 +441,8 @@ func (p *delimParser) Parse(scope Scope, input *Scanner, output *TreeElement) (o
 	}
 
 	s := *input
-	scope = scope.WithIdent(identFromTerm(p.t.Term), p.term, result[len(result)-1])
+	scope = scope.Mark(tracepoint{detail: p.Describe(), offset: input.offset}).
+		WithIdent(identFromTerm(p.t.Term), p.term, result[len(result)-1])
 	for parseAppend(p.sep, scope, input, &result, &parseErr) {
 		if !parseAppend(p.term, scope, input, &result, &parseErr) {
 			if p.t.CanEndWithSep {
@@ -446,8 +453,10 @@ func (p *delimParser) Parse(scope Scope, input *Scanner, output *TreeElement) (o
 			}
 			break
 		}
-		scope = scope.WithIdent(identFromTerm(p.t.Term), p.term, result[len(result)-1])
 		s = *input
+
+		scope = scope.Mark(tracepoint{detail: p.Describe(), offset: input.offset}).
+			WithIdent(identFromTerm(p.t.Term), p.term, result[len(result)-1])
 	}
 	*input = s
 
@@ -534,6 +543,7 @@ func (p *quantParser) Parse(scope Scope, input *Scanner, output *TreeElement) (o
 	var v TreeElement
 	start := *input
 	for i := 0; p.t.Max == 0 || i < p.t.Max; i++ {
+		scope = scope.Mark(tracepoint{detail: p.Describe(), offset: input.offset})
 		if out = p.term.Parse(scope, &start, &v); out != nil {
 			break
 		}
@@ -575,6 +585,7 @@ func (p *oneofParser) Parse(scope Scope, input *Scanner, output *TreeElement) (o
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	furthest := *input
 
+	scope = scope.Mark(tracepoint{detail: p.Describe(), offset: input.offset})
 	var errors []error
 	for i, par := range p.parsers {
 		var v TreeElement
@@ -637,6 +648,7 @@ func (t *refParser) Parse(scope Scope, input *Scanner, output *TreeElement) (out
 	var v TreeElement
 	if expected, ok := valFrom(scope, t.Ident); ok {
 		term := termFromRefVal(expected.val)
+		scope = scope.Mark(tracepoint{detail: t.Describe(), offset: input.offset})
 		if err := term.Parser(Rule(t.Ident), cache{}).Parse(scope, input, &v); err != nil {
 			return err
 		}

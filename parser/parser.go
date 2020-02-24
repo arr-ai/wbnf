@@ -6,8 +6,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/arr-ai/frozen"
-
 	"github.com/arr-ai/wbnf/errors"
 )
 
@@ -63,14 +61,8 @@ type scopeVal struct {
 	val TreeElement
 }
 
-func NewScopeWith(s frozen.Map, ident string, p Parser, val TreeElement) frozen.Map {
-	if ident == "" {
-		return s
-	}
-	return s.With(ident, &scopeVal{p, val})
-}
-func valFrom(s frozen.Map, ident string) (*scopeVal, bool) {
-	if val, ok := s.Get(ident); ok {
+func valFrom(s Scope, ident string) (*scopeVal, bool) {
+	if val, ok := s.data.Get(ident); ok {
 		return val.(*scopeVal), ok
 	}
 	return nil, false
@@ -157,18 +149,20 @@ func (g Grammar) Compile(node interface{}) Parsers {
 //-----------------------------------------------------------------------------
 
 type ruleParser struct {
+	parserDetailMixin
 	rule Rule
 	t    Rule
 }
 
-func (p ruleParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement) error {
+func (p ruleParser) Parse(scope Scope, input *Scanner, output *TreeElement) error {
 	panic(errors.Inconceivable)
 }
 
 func (t Rule) Parser(rule Rule, c cache) Parser {
 	return ruleParser{
-		rule: rule,
-		t:    t,
+		parserDetailMixin: newParserDetail(string(rule)),
+		rule:              rule,
+		t:                 t,
 	}
 }
 
@@ -216,12 +210,13 @@ func applyWrapRE(re string, prepare func(string) string, c cache) string {
 }
 
 type sParser struct {
+	parserDetailMixin
 	rule Rule
 	t    S
 	re   *regexp.Regexp
 }
 
-func (p *sParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement) error {
+func (p *sParser) Parse(scope Scope, input *Scanner, output *TreeElement) error {
 	if ok := eatRegexp(input, p.re, output); !ok {
 		return newParseError(p.rule, "",
 			fmt.Errorf("expect: %s", NewScanner(p.t.String()).Context()),
@@ -233,19 +228,21 @@ func (p *sParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement) e
 func (t S) Parser(rule Rule, c cache) Parser {
 	re := applyWrapRE(string(t), func(re string) string { return "(" + regexp.QuoteMeta(re) + ")" }, c)
 	return &sParser{
-		rule: rule,
-		t:    t,
-		re:   regexp.MustCompile(`(?m)\A` + re),
+		parserDetailMixin: newParserDetail(string(rule)),
+		rule:              rule,
+		t:                 t,
+		re:                regexp.MustCompile(`(?m)\A` + re),
 	}
 }
 
 type reParser struct {
+	parserDetailMixin
 	rule Rule
 	t    RE
 	re   *regexp.Regexp
 }
 
-func (p *reParser) Parse(_ frozen.Map, input *Scanner, output *TreeElement) error {
+func (p *reParser) Parse(scope Scope, input *Scanner, output *TreeElement) error {
 	if ok := eatRegexp(input, p.re, output); !ok {
 		return newParseError(p.rule, "",
 			fmt.Errorf("expect: %s", NewScanner(p.re.String()).Context()),
@@ -257,15 +254,17 @@ func (p *reParser) Parse(_ frozen.Map, input *Scanner, output *TreeElement) erro
 func (t RE) Parser(rule Rule, c cache) Parser {
 	re := applyWrapRE(string(t), func(re string) string { return "(" + re + ")" }, c)
 	return &reParser{
-		rule: rule,
-		t:    t,
-		re:   regexp.MustCompile(`(?m)\A` + re),
+		parserDetailMixin: newParserDetail(string(rule)),
+		rule:              rule,
+		t:                 t,
+		re:                regexp.MustCompile(`(?m)\A` + re),
 	}
 }
 
 //-----------------------------------------------------------------------------
 
 type seqParser struct {
+	parserDetailMixin
 	rule    Rule
 	t       Seq
 	parsers []Parser
@@ -316,8 +315,8 @@ const dontAttemptSeqFix = "dont-attempt-seq-fix"
 
 // Special helper function to try and determine if the sequence could be completed with simple missing strings
 // The main purpose of this is to catch `missing ;` style errors at end-of-line
-func (p *seqParser) attemptRuleCompletion(scope frozen.Map, first, input *Scanner, failedIndex int) error {
-	if scope.Has(dontAttemptSeqFix) {
+func (p *seqParser) attemptRuleCompletion(scope Scope, first, input *Scanner, failedIndex int) error {
+	if scope.data.Has(dontAttemptSeqFix) {
 		return nil
 	}
 	switch p.parsers[failedIndex].(type) {
@@ -342,7 +341,7 @@ func (p *seqParser) attemptRuleCompletion(scope frozen.Map, first, input *Scanne
 	return nil
 }
 
-func (p *seqParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement) (out error) {
+func (p *seqParser) Parse(scope Scope, input *Scanner, output *TreeElement) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	result := make([]TreeElement, 0, len(p.parsers))
 	furthest := *input
@@ -359,7 +358,7 @@ func (p *seqParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement)
 			*input = furthest
 			return newParseError(p.rule, "could not complete sequence", elist...)
 		}
-		scope = NewScopeWith(scope, ident, p.parsers[i], v)
+		scope = scope.WithIdent(ident, p.parsers[i], v)
 		furthest = *input
 		result = append(result, v)
 	}
@@ -368,16 +367,18 @@ func (p *seqParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement)
 
 func (t Seq) Parser(rule Rule, c cache) Parser {
 	return &seqParser{
-		rule:    rule,
-		t:       t,
-		parsers: c.makeParsers(t),
-		put:     tag(rule, seqTag),
+		parserDetailMixin: newParserDetail(string(rule)),
+		rule:              rule,
+		t:                 t,
+		parsers:           c.makeParsers(t),
+		put:               tag(rule, seqTag),
 	}
 }
 
 //-----------------------------------------------------------------------------
 
 type delimParser struct {
+	parserDetailMixin
 	rule Rule
 	t    Delim
 	term Parser
@@ -385,7 +386,7 @@ type delimParser struct {
 	put  putter
 }
 
-func parseAppend(p Parser, scope frozen.Map,
+func parseAppend(p Parser, scope Scope,
 	input *Scanner, slice *[]TreeElement, errOut *error) bool {
 	var v TreeElement
 	if err := p.Parse(scope, input, &v); err != nil {
@@ -400,7 +401,7 @@ type Empty struct{}
 
 func (Empty) IsTreeElement() {}
 
-func (p *delimParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement) (out error) {
+func (p *delimParser) Parse(scope Scope, input *Scanner, output *TreeElement) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	var result []TreeElement
 
@@ -416,7 +417,7 @@ func (p *delimParser) Parse(scope frozen.Map, input *Scanner, output *TreeElemen
 		}
 	}(&out)
 
-	scope = scope.With(dontAttemptSeqFix, struct{}{})
+	scope.data = scope.data.With(dontAttemptSeqFix, struct{}{})
 	var parseErr error
 	switch {
 	case parseAppend(p.term, scope, input, &result, &parseErr):
@@ -425,7 +426,7 @@ func (p *delimParser) Parse(scope frozen.Map, input *Scanner, output *TreeElemen
 		if !parseAppend(p.sep, scope, input, &result, &parseErr) {
 			return parseErr
 		}
-		scope = NewScopeWith(scope, identFromTerm(p.t.Sep), p.sep, result[len(result)-1])
+		scope = scope.WithIdent(identFromTerm(p.t.Sep), p.sep, result[len(result)-1])
 		if !parseAppend(p.term, scope, input, &result, &parseErr) {
 			return parseErr
 		}
@@ -434,7 +435,7 @@ func (p *delimParser) Parse(scope frozen.Map, input *Scanner, output *TreeElemen
 	}
 
 	s := *input
-	scope = NewScopeWith(scope, identFromTerm(p.t.Term), p.term, result[len(result)-1])
+	scope = scope.WithIdent(identFromTerm(p.t.Term), p.term, result[len(result)-1])
 	for parseAppend(p.sep, scope, input, &result, &parseErr) {
 		if !parseAppend(p.term, scope, input, &result, &parseErr) {
 			if p.t.CanEndWithSep {
@@ -445,7 +446,7 @@ func (p *delimParser) Parse(scope frozen.Map, input *Scanner, output *TreeElemen
 			}
 			break
 		}
-		scope = NewScopeWith(scope, identFromTerm(p.t.Term), p.term, result[len(result)-1])
+		scope = scope.WithIdent(identFromTerm(p.t.Term), p.term, result[len(result)-1])
 		s = *input
 	}
 	*input = s
@@ -475,11 +476,12 @@ func (p *delimParser) Parse(scope frozen.Map, input *Scanner, output *TreeElemen
 
 func (t Delim) Parser(rule Rule, c cache) Parser {
 	p := &delimParser{
-		rule: rule,
-		t:    t,
-		term: t.Term.Parser("", c),
-		sep:  t.Sep.Parser("", c),
-		put:  tag(rule, delimTag),
+		parserDetailMixin: newParserDetail(string(rule)),
+		rule:              rule,
+		t:                 t,
+		term:              t.Term.Parser("", c),
+		sep:               t.Sep.Parser("", c),
+		put:               tag(rule, delimTag),
 	}
 	c.registerRule(&p.term)
 	c.registerRule(&p.sep)
@@ -519,13 +521,14 @@ func (t Delim) LRTerms(node Node) lrtgen {
 //-----------------------------------------------------------------------------
 
 type quantParser struct {
+	parserDetailMixin
 	rule Rule
 	t    Quant
 	term Parser
 	put  putter
 }
 
-func (p *quantParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement) (out error) {
+func (p *quantParser) Parse(scope Scope, input *Scanner, output *TreeElement) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	result := make([]TreeElement, 0, p.t.Min)
 	var v TreeElement
@@ -548,10 +551,11 @@ func (p *quantParser) Parse(scope frozen.Map, input *Scanner, output *TreeElemen
 
 func (t Quant) Parser(rule Rule, c cache) Parser {
 	p := &quantParser{
-		rule: rule,
-		t:    t,
-		term: t.Term.Parser("", c),
-		put:  tag(rule, quantTag),
+		parserDetailMixin: newParserDetail(string(rule)),
+		rule:              rule,
+		t:                 t,
+		term:              t.Term.Parser("", c),
+		put:               tag(rule, quantTag),
 	}
 	c.registerRule(&p.term)
 	return p
@@ -560,13 +564,14 @@ func (t Quant) Parser(rule Rule, c cache) Parser {
 //-----------------------------------------------------------------------------
 
 type oneofParser struct {
+	parserDetailMixin
 	rule    Rule
 	t       Oneof
 	parsers []Parser
 	put     putter
 }
 
-func (p *oneofParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement) (out error) {
+func (p *oneofParser) Parse(scope Scope, input *Scanner, output *TreeElement) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	furthest := *input
 
@@ -591,10 +596,11 @@ func (p *oneofParser) Parse(scope frozen.Map, input *Scanner, output *TreeElemen
 
 func (t Oneof) Parser(rule Rule, c cache) Parser {
 	return &oneofParser{
-		rule:    rule,
-		t:       t,
-		parsers: c.makeParsers(t),
-		put:     tag(rule, oneofTag),
+		parserDetailMixin: newParserDetail(string(rule)),
+		rule:              rule,
+		t:                 t,
+		parsers:           c.makeParsers(t),
+		put:               tag(rule, oneofTag),
 	}
 }
 
@@ -627,7 +633,7 @@ func termFromRefVal(from TreeElement) Term {
 	return term
 }
 
-func (t *REF) Parse(scope frozen.Map, input *Scanner, output *TreeElement) (out error) {
+func (t *refParser) Parse(scope Scope, input *Scanner, output *TreeElement) (out error) {
 	var v TreeElement
 	if expected, ok := valFrom(scope, t.Ident); ok {
 		term := termFromRefVal(expected.val)
@@ -650,8 +656,13 @@ func (t *REF) Parse(scope frozen.Map, input *Scanner, output *TreeElement) (out 
 	return nil
 }
 
+type refParser struct {
+	parserDetailMixin
+	REF
+}
+
 func (t REF) Parser(rule Rule, c cache) Parser {
-	return &t
+	return &refParser{parserDetailMixin: newParserDetail(string(rule)), REF: t}
 }
 
 //-----------------------------------------------------------------------------

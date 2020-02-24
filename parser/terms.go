@@ -6,8 +6,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/arr-ai/frozen"
-
 	"github.com/arr-ai/wbnf/errors"
 )
 
@@ -54,7 +52,7 @@ func (p Parsers) Parse(rule Rule, input *Scanner) (TreeElement, error) {
 	start := *input
 	for {
 		var e TreeElement
-		if err := p.parsers[rule].Parse(frozen.NewMap(), input, &e); err != nil {
+		if err := p.parsers[rule].Parse(Scope{}, input, &e); err != nil {
 			return nil, err
 		}
 

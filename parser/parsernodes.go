@@ -2,8 +2,7 @@ package parser
 
 import (
 	"fmt"
-
-	"github.com/arr-ai/frozen"
+	"math/rand"
 )
 
 type TreeElement interface {
@@ -86,18 +85,24 @@ func (n Node) Format(state fmt.State, c rune) {
 	fmt.Fprint(state, "]")
 }
 
+type Detail struct {
+	Id     int32
+	Source Scanner
+}
 type Parser interface {
-	Parse(scope frozen.Map, input *Scanner, output *TreeElement) error
+	Parse(scope Scope, input *Scanner, output *TreeElement) error
+	Describe() Detail
 }
 
-type Func func(scope frozen.Map, input *Scanner, output *TreeElement) error
+type Func func(scope Scope, input *Scanner, output *TreeElement) error
 
-func (f Func) Parse(scope frozen.Map, input *Scanner, output *TreeElement) error {
+func (f Func) Parse(scope Scope, input *Scanner, output *TreeElement) error {
 	return f(scope, input, output)
 }
+func (f Func) Describe() Detail { return Detail{} }
 
 func Transform(parser Parser, transform func(Node) Node) Parser {
-	return Func(func(scope frozen.Map, input *Scanner, output *TreeElement) error {
+	return Func(func(scope Scope, input *Scanner, output *TreeElement) error {
 		var v TreeElement
 		if err := parser.Parse(scope, input, &v); err != nil {
 			return err
@@ -105,4 +110,16 @@ func Transform(parser Parser, transform func(Node) Node) Parser {
 		*output = transform(v.(Node))
 		return nil
 	})
+}
+
+type parserDetailMixin struct {
+	Detail
+}
+
+func (p parserDetailMixin) Describe() Detail { return p.Detail }
+func newParserDetail(name string) parserDetailMixin {
+	return parserDetailMixin{Detail{
+		Id:     rand.Int31(),
+		Source: *NewScanner(name),
+	}}
 }

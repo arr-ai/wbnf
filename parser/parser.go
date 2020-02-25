@@ -312,52 +312,17 @@ func nodesEqual(a, b interface{}) bool {
 	return false
 }
 
-const dontAttemptSeqFix = "dont-attempt-seq-fix"
-
-// Special helper function to try and determine if the sequence could be completed with simple missing strings
-// The main purpose of this is to catch `missing ;` style errors at end-of-line
-func (p *seqParser) attemptRuleCompletion(scope frozen.Map, first, input *Scanner, failedIndex int) error {
-	if scope.Has(dontAttemptSeqFix) {
-		return nil
-	}
-	switch p.parsers[failedIndex].(type) {
-	case *sParser:
-	default:
-		return nil
-	}
-
-	pclone := *p
-	pclone.parsers = append([]Parser{}, p.parsers...)
-
-	pclone.parsers = pclone.parsers[failedIndex+1:]
-	var v TreeElement
-	if pclone.Parse(scope, NewScanner(input.String()), &v) == nil {
-		switch child := p.parsers[failedIndex].(type) {
-		case *sParser:
-			ctx := first.Slice(0, strings.Index(first.String(), input.String()))
-
-			return possibleFixup(fmt.Sprintf("Missing '%s' @ %s", child.t, getErrorStrings(ctx)))
-		}
-	}
-	return nil
-}
-
 func (p *seqParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement) (out error) {
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	result := make([]TreeElement, 0, len(p.parsers))
 	furthest := *input
-	first := NewScanner(input.String())
 
 	for i, item := range p.parsers {
 		var v TreeElement
 		ident := identFromTerm(p.t[i])
 		if err := item.Parse(scope, input, &v); err != nil {
-			elist := []error{err}
-			if fixup := p.attemptRuleCompletion(scope, first, input, i); fixup != nil {
-				elist = append(elist, fixup)
-			}
 			*input = furthest
-			return newParseError(p.rule, "could not complete sequence", elist...)
+			return newParseError(p.rule, "could not complete sequence", err)
 		}
 		scope = NewScopeWith(scope, ident, p.parsers[i], v)
 		furthest = *input
@@ -416,7 +381,6 @@ func (p *delimParser) Parse(scope frozen.Map, input *Scanner, output *TreeElemen
 		}
 	}(&out)
 
-	scope = scope.With(dontAttemptSeqFix, struct{}{})
 	var parseErr error
 	switch {
 	case parseAppend(p.term, scope, input, &result, &parseErr):

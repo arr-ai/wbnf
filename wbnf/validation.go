@@ -46,6 +46,10 @@ func validate(tree GrammarNode) error {
 	}
 	ops.Walk(tree)
 
+	if cycles := checkForRecursion(tree); cycles != nil {
+		v.err = append(v.err, cycles)
+	}
+
 	if len(v.err) == 0 {
 		return nil
 	}
@@ -62,6 +66,7 @@ const (
 	NameClashesWithRule
 	MinMaxQuantError
 	MultipleTermsWithSameName // something like `term -> foo op="*" op="|";`, likely missing a separator
+	PossibleCycleDetected
 )
 
 type validationError struct {

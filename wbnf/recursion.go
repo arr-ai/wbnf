@@ -1,10 +1,9 @@
 package wbnf
 
 import (
+	"fmt"
 	"sort"
 	"strings"
-
-	"github.com/arr-ai/wbnf/parser"
 
 	"github.com/arr-ai/frozen"
 )
@@ -43,15 +42,13 @@ func checkForRecursion(tree GrammarNode) error {
 	paths := findPaths("", gn, frozen.NewSet(), nil)
 	for _, p := range paths {
 		if len(p) != frozen.NewSetFromStrings(p...).Count() {
-			badRoutes = append(badRoutes, strings.Join(p, ", "))
+			badRoutes = append(badRoutes, strings.Join(p, " > "))
 		}
 	}
 
 	if len(badRoutes) > 0 {
 		return validationError{
-			s:    parser.Scanner{},
-			msg:  "Possible cycle(s) detected: %s",
-			args: []interface{}{badRoutes},
+			msg:  fmt.Sprintf("Possible cycle(s) detected: \n\t%s", strings.Join(badRoutes, "\n\t")),
 			kind: PossibleCycleDetected,
 		}
 	}

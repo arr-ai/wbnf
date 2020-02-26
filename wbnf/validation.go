@@ -25,8 +25,9 @@ func findDefinedRules(tree GrammarNode) (map[string]struct{}, error) {
 	if len(dupeRules) == 0 {
 		return out, nil
 	}
-	return nil, validationError{msg: "the following rule(s) are defined multiple times: %s",
-		kind: DuplicatedRule, args: []interface{}{dupeRules}}
+	return nil, validationError{
+		msg:  fmt.Sprintf("the following rule(s) are defined multiple times: %s", dupeRules),
+		kind: DuplicatedRule}
 }
 
 func validate(tree GrammarNode) error {
@@ -78,13 +79,16 @@ type validationError struct {
 
 func (v validationError) Error() string {
 	var args []interface{}
-	args = append(args, v.s.String())
-	if len(v.args) > 0 {
-		args = append(args, v.args...)
-	}
-	args = append(args, v.s.Offset())
+	if v.s.String() != "" {
+		args = append(args, v.s.String())
+		if len(v.args) > 0 {
+			args = append(args, v.args...)
+		}
+		args = append(args, v.s.Offset())
 
-	return fmt.Sprintf(v.msg+"@ %d", args...)
+		return fmt.Sprintf(v.msg+"@ %d", args...)
+	}
+	return fmt.Sprintf(v.msg, args...)
 }
 
 type validator struct {
@@ -168,7 +172,7 @@ func (v *validator) validateQuant(tree QuantNode) Stopper {
 		if min != 0 && max != 0 {
 			if max < min {
 				v.err = append(v.err, validationError{
-					msg: "quant: min (%d) > max (%d)", kind: MinMaxQuantError, args: []interface{}{min, max}})
+					msg: fmt.Sprintf("quant: min (%d) > max (%d)", min, max), kind: MinMaxQuantError})
 			}
 		}
 	case 2:

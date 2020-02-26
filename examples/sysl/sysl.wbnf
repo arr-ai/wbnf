@@ -8,8 +8,8 @@ sysl_file -> import* application+;
 
 
 // -------------- Imports --------------- //
-import  -> import {
-    import -> "import"  prefix=("//"|"/")? PATH ( "as"  APP_NAME)? ("~" mode=NAME)? EOL;
+import  -> import_ {
+    import_ -> "import"  prefix=("//"|"/")? PATH ( "as"  APP_NAME)? ("~" mode=NAME)? EOL;
 };
 
 

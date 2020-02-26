@@ -9,7 +9,7 @@ method_def -> method=(HTTP_VERBS) params? query_param? attribs? ":" \n+ level=IN
 
 params -> "(" ( field | reference=APPLICATION_NAME ):"," ")";
 
-query_param -> "?" (Name=(NAME) "=" (NativeDataTypes| NAME | "{" NAME "}") optional="?"?):"&";
+query_param -> "?" (ident=(NAME) "=" (NativeDataTypes| NAME | "{" NAME "}") optional="?"?):"&";
 
 field -> NAME (array_size? "<:" (field_type | (\n+ level=INDENT @:INDENT_SEP)) QSTRING?)?;
 

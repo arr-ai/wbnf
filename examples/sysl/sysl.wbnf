@@ -4,12 +4,13 @@
 
 // Sysl grammar
 
-sysl_file -> import* EOL* (application EOL*)+;
+sysl_file -> import* application+;
 
 
 // -------------- Imports --------------- //
-import  -> "import"  prefix="/"{0,2} import=PATH ( "as"  APP_NAME)? ("~" mode=NAME)? EOL;
-
+import  -> import {
+    import -> "import"  prefix=("//"|"/")? PATH ( "as"  APP_NAME)? ("~" mode=NAME)? EOL;
+};
 
 
 // -------------- Applications --------------- //
@@ -22,7 +23,7 @@ app_decl   -> SHORTCUT | table | wrap | endpoint | view;
 
 table -> mode=("!table"|"!type") NAME attribs?  ":" COMMENT*
     \n+ level=INDENT
-        (COMMENT | (name=NAME "<:") type=(collection_type|type_spec) optional="?"? attribs?):INDENT_SEP EOL;
+        (COMMENT | (NAME "<:") type=(collection_type|type_spec) optional="?"? attribs?):INDENT_SEP EOL;
 wrap -> "!wrap" NAME attribs?  ":" COMMENT*
     \n+ level=INDENT
         (table | "!table"APP_NAME):INDENT_SEP EOL;
@@ -66,9 +67,18 @@ HTTP_VERBS -> "GET" | "POST" | "DELETE" | "PUT" | "PATCH";
 NativeDataTypes -> "int32" | "int64" | "int" |
                 "float" | "string" | "date" |
                 "bool" | "decimal" | "datetime";
-APPLICATION_NAME    -> pkg=(NAME:"::" ".")? APP_NAME:".";
 
-COMMENT -> "#" [^\n]* "\n";
+APPLICATION_NAME ->  \s* pkg? appname {
+    pkg -> (NAME:"::" ".");
+    appname -> APP_NAME:".";
+
+    NAME    -> [a-zA-Z_][-a-zA-Z0-9_]*;
+    PATH    -> /{[a-zA-Z0-9._]+}:"/";
+    .wrapRE -> /{()};
+};
+
+COMMENT_NO_NL -> "#" [^\n]*;
+COMMENT -> COMMENT_NO_NL "\n";
 EOL     -> COMMENT+ | [\_\t]*\n;
 QSTRING -> /{"[^"]*"};
 

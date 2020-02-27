@@ -140,10 +140,10 @@ func (n Branch) fromParserNode(g parser.Grammar, term parser.Term, ctrs counters
 		node := e.(parser.Node)
 		tag = node.Tag
 		tgen := t.LRTerms(node)
-		for _, child := range node.Children {
+		for i, child := range node.Children {
 			term := tgen.Next()
 			if _, ok := child.(parser.Empty); ok {
-				n.one("@empty", Extra{})
+				n.many("@empty", Extra{map[bool]string{true: "@prefix", false: "@suffix"}[i == 0]})
 			} else {
 				if term == t {
 					if _, ok := child.(parser.Node); ok {

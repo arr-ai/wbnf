@@ -4,4 +4,38 @@ view -> "!view" NAME "(" view_params? ")"
 
 view_params -> (NAME "<:" (collection_type|type_spec)):",";
 
-expr_block -> "";
+expr_block  -> arg=expr? "->" ("<" return=type_spec ">")? "(" scopevar=NAME? ":"
+        \n+ level=INDENT expr_stmt:INDENT_SEP  \s* ")" EOL;
+
+
+atom  ->  (dot=("?."|".") "table" "of" ident=NAME) expr?
+       |  (dot=("?."|".") atom)
+       |  ident=(NAME | /{[a-zA-Z0-9_]+} | SHORTCUT | ".");
+
+expr  ->  @:op="??"
+       >  @:op=("but" "not")
+       >  @:op=("&&" | "||")
+       >  @:op=('|' | '&' | 'and' | '^' | 'xor')
+       >  @:op=('!'? 'in' | '!'? 'contains' | '!=' | '<=' | '>=' | "<" | ">" | "==")
+       >  @:op=(add="+" | sub="-")
+       >  @:op=(mul="*" | mod="%" | div="/")
+       >  @:op=(pow="**")
+       >  @:func
+       >  (func expr?) | "(" expr ")" | unaryop=("-" | "!" | "~")? atom;
+func  -> unary_no_scope | unary | nary | matching  | navigate | rank {
+                scopearg -> NAME ":";
+                unary_no_scope -> fn=('any') "(" expr ")";
+                unary -> fn=('where' | 'flatten') "(" scopearg? expr ")";
+                nary  -> fn=NAME "(" args=expr:","? ")";
+                matching -> lhs=NAME "!"? "~" squiggly_args=("[" NAME:"," "]")? ">" rhs {
+                    rhs -> table=(dot=("?."|".") "table" "of" ident=NAME) |
+                           "(" expr ")" |
+                           NAME;
+                };
+                navigate -> lhs=NAME qn="?"? "->" ("set" "of" | "sequence" "of")? attr=("."? NAME) ("via" via=NAME)?;
+                rank -> "rank" ("<" type_spec ">")? "(" (expr ("asc"|"desc")?):"," "as" as=NAME ")";
+          };
+expr_stmt -> expr_dot_assign | expr_assign | COMMENT_NO_NL {
+    expr_dot_assign -> obj=NAME? "." field=NAME;
+    expr_assign   -> "let"? ident=NAME "=" expr;
+};

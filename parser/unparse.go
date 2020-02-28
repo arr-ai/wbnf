@@ -87,3 +87,7 @@ func (t Named) Unparse(g Grammar, e TreeElement, w io.Writer) (n int, err error)
 func (t ScopedGrammar) Unparse(g Grammar, e TreeElement, w io.Writer) (n int, err error) {
 	panic(errors.Inconceivable)
 }
+
+func (t CutPoint) Unparse(g Grammar, e TreeElement, w io.Writer) (n int, err error) {
+	return t.Term.Unparse(g, e, w)
+}

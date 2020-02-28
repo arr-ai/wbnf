@@ -208,7 +208,7 @@ func TestTinyGrammarGrammarGrammar(t *testing.T) {
 	t.Parallel()
 
 	tiny := parser.Rule("tiny")
-	tinyGrammar := parser.Grammar{tiny: parser.S("x")}
+	tinyGrammar := parser.Grammar{tiny: parser.CutPoint{parser.S("x")}}
 	tinyGrammarSrc := `tiny -> "x";`
 
 	parsers := Core()

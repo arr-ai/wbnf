@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"math/rand"
 	"reflect"
 	"regexp"
 	"strings"
@@ -74,6 +75,26 @@ func valFrom(s frozen.Map, ident string) (*scopeVal, bool) {
 		return val.(*scopeVal), ok
 	}
 	return nil, false
+}
+
+const cutpointkey = ".Cutpoint-key."
+
+type cutpointdata int32
+
+const invalidCutpoint = cutpointdata(-1)
+
+func (c cutpointdata) valid() bool { return c >= 0 }
+
+func pastCutPoint(s frozen.Map) cutpointdata {
+	return s.GetElse(cutpointkey, invalidCutpoint).(cutpointdata)
+}
+func removeCutPoint(s frozen.Map) (frozen.Map, cutpointdata) {
+	prev := pastCutPoint(s)
+	return s.Without(frozen.NewSet(cutpointkey)), prev
+}
+func addCutPoint(s frozen.Map) (frozen.Map, cutpointdata) {
+	cp := cutpointdata(rand.Int31())
+	return s.With(cutpointkey, cp), cp
 }
 
 func tag(rule Rule, alt Rule) putter {
@@ -223,7 +244,7 @@ type sParser struct {
 
 func (p *sParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement) error {
 	if ok := eatRegexp(input, p.re, output); !ok {
-		return newParseError(p.rule, "",
+		return newParseError(p.rule, "", pastCutPoint(scope),
 			fmt.Errorf("expect: %s", NewScanner(p.t.String()).Context()),
 			fmt.Errorf("actual: %s", getErrorStrings(input)))
 	}
@@ -245,9 +266,9 @@ type reParser struct {
 	re   *regexp.Regexp
 }
 
-func (p *reParser) Parse(_ frozen.Map, input *Scanner, output *TreeElement) error {
+func (p *reParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement) error {
 	if ok := eatRegexp(input, p.re, output); !ok {
-		return newParseError(p.rule, "",
+		return newParseError(p.rule, "", pastCutPoint(scope),
 			fmt.Errorf("expect: %s", NewScanner(p.re.String()).Context()),
 			fmt.Errorf("actual: %s", getErrorStrings(input)))
 	}
@@ -321,8 +342,14 @@ func (p *seqParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement)
 		var v TreeElement
 		ident := identFromTerm(p.t[i])
 		if err := item.Parse(scope, input, &v); err != nil {
+			if isFatal(err) {
+				return err
+			}
 			*input = furthest
-			return newParseError(p.rule, "could not complete sequence", err)
+			return newParseError(p.rule, "could not complete sequence", pastCutPoint(scope), err)
+		}
+		if _, ok := item.(*cutPointParser); ok {
+			scope, _ = addCutPoint(scope)
 		}
 		scope = NewScopeWith(scope, ident, p.parsers[i], v)
 		furthest = *input
@@ -482,8 +509,17 @@ func (p *quantParser) Parse(scope frozen.Map, input *Scanner, output *TreeElemen
 	result := make([]TreeElement, 0, p.t.Min)
 	var v TreeElement
 	start := *input
-	for i := 0; p.t.Max == 0 || i < p.t.Max; i++ {
+
+	mycp := invalidCutpoint
+	scope, prevcp := removeCutPoint(scope)
+	if prevcp.valid() {
+		scope, mycp = addCutPoint(scope)
+	}
+	for p.t.Max == 0 || len(result) < p.t.Max {
 		if out = p.term.Parse(scope, &start, &v); out != nil {
+			if isNotMyFatalError(out, mycp) {
+				return out
+			}
 			break
 		}
 		result = append(result, v)
@@ -495,7 +531,8 @@ func (p *quantParser) Parse(scope frozen.Map, input *Scanner, output *TreeElemen
 	}
 
 	return newParseError(p.rule,
-		fmt.Sprintf("quant failed, expected: (%d, %d), have %d value(s)", p.t.Min, p.t.Max, len(result)), out)
+		fmt.Sprintf("quant failed, expected: (%d, %d), have %d value(s)",
+			p.t.Min, p.t.Max, len(result)), prevcp, out)
 }
 
 func (t Quant) Parser(rule Rule, c cache) Parser {
@@ -522,11 +559,19 @@ func (p *oneofParser) Parse(scope frozen.Map, input *Scanner, output *TreeElemen
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	furthest := *input
 
+	mycp := invalidCutpoint
+	scope, prevcp := removeCutPoint(scope)
+	if prevcp.valid() {
+		scope, mycp = addCutPoint(scope)
+	}
 	var errors []error
 	for i, par := range p.parsers {
 		var v TreeElement
 		start := *input
 		if err := par.Parse(scope, &start, &v); err != nil {
+			if isNotMyFatalError(err, mycp) {
+				return err
+			}
 			errors = append(errors, err)
 
 			if furthest.Offset() < start.Offset() {
@@ -538,7 +583,7 @@ func (p *oneofParser) Parse(scope frozen.Map, input *Scanner, output *TreeElemen
 		}
 	}
 	*input = furthest
-	return newParseError(p.rule, "None of the available options could be satisfied", errors...)
+	return newParseError(p.rule, "None of the available options could be satisfied", prevcp, errors...)
 }
 
 func (t Oneof) Parser(rule Rule, c cache) Parser {
@@ -587,7 +632,7 @@ func (t *REF) Parse(scope frozen.Map, input *Scanner, output *TreeElement) (out 
 			return err
 		}
 		if !nodesEqual(v, expected.val) {
-			return newParseError(Rule(t.Ident), "Backref not matched",
+			return newParseError(Rule(t.Ident), "Backref not matched", invalidCutpoint,
 				fmt.Errorf("expected: %s", expected),
 				fmt.Errorf("actual: %s", v))
 		}
@@ -596,7 +641,7 @@ func (t *REF) Parse(scope frozen.Map, input *Scanner, output *TreeElement) (out 
 			return err
 		}
 	} else {
-		return newParseError(Rule(t.Ident), "Backref not found")
+		return newParseError(Rule(t.Ident), "Backref not found", invalidCutpoint)
 	}
 	*output = v
 	return nil
@@ -659,4 +704,15 @@ func (t ScopedGrammar) Parser(name Rule, c cache) Parser {
 		}
 	}
 	return result
+}
+
+type cutPointParser struct {
+	p Parser
+}
+
+func (t *cutPointParser) Parse(scope frozen.Map, input *Scanner, output *TreeElement) (out error) {
+	return t.p.Parse(scope, input, output)
+}
+func (t CutPoint) Parser(rule Rule, c cache) Parser {
+	return &cutPointParser{t.Term.Parser(rule, c)}
 }

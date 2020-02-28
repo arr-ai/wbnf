@@ -59,3 +59,7 @@ func (t Named) Resolve(oldRule, newRule Rule) Term {
 func (t ScopedGrammar) Resolve(oldRule, newRule Rule) Term {
 	panic(errors.Inconceivable)
 }
+
+func (t CutPoint) Resolve(oldRule, newRule Rule) Term {
+	return t.Term.Resolve(oldRule, newRule)
+}

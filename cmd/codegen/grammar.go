@@ -2,11 +2,11 @@ package codegen
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
-	"github.com/arr-ai/wbnf/wbnf"
+	"github.com/arr-ai/frozen"
 
-	"github.com/arr-ai/wbnf/ast"
 	"github.com/arr-ai/wbnf/parser"
 )
 
@@ -49,171 +49,160 @@ func safeString(src string) string {
 	return r.Replace(src)
 }
 
-func makeAtom(node ast.Node) *goNode {
-	atom := node.(ast.Branch)
-	x, child := ast.Which(atom, wbnf.IdentRE, wbnf.IdentSTR, wbnf.IdentIDENT, wbnf.IdentREF, wbnf.IdentTerm)
-	name := ""
-	switch x {
-	case wbnf.IdentTerm, "":
-	case wbnf.IdentREF:
-		name = safeString(atom.One(x).One("IDENT").Scanner().String())
-	default:
-		name = safeString(atom.One(x).Scanner().String())
+func prefixName(prefix string, node goNode) goNode {
+	return goNode{
+		name:     prefix + node.name,
+		children: node.children,
+		scope:    node.scope,
 	}
-	switch x {
-	case wbnf.IdentIDENT:
-		return &goNode{name: fmt.Sprintf("parser.Rule(`%s`)", name)}
-	case wbnf.IdentSTR:
-		return &goNode{name: fmt.Sprintf("parser.S(%s)", name)}
-	case wbnf.IdentRE:
-		if strings.HasPrefix(name, "/{") {
-			name = name[2 : len(name)-1]
-		}
-		return &goNode{name: fmt.Sprintf("parser.RE(`%s`)", name)}
-	case wbnf.IdentREF:
-		val := &goNode{name: "parser.REF",
-			scope:    squigglyScope,
-			children: []goNode{{name: fmt.Sprintf("Ident:`%s`", name)}},
-		}
-		if def := ast.First(child.(ast.One).Node, wbnf.IdentDefault); def != nil {
-			name = safeString(def.Scanner().String())
-			val.Add(goNode{name: fmt.Sprintf("Default: parser.S(%s)", name)})
-		}
-		return val
-	case wbnf.IdentTerm:
-		return makeTerm(atom.One(x))
-	}
-	return &goNode{name: "todo"}
 }
-func makeNamed(node ast.Node) *goNode {
-	named := node.(ast.Branch)
-	atom := makeAtom(named.One("atom"))
-
-	if named.One(wbnf.IdentIDENT) != nil {
-		val := &goNode{name: "parser.Eq",
-			scope:    bracesScope,
-			children: []goNode{{name: "\"" + named.One("IDENT").Scanner().String() + "\""}, *atom},
-		}
-		return val
-	}
-	return atom
-}
-func makeQuant(node ast.Node, term goNode) *goNode {
-	switch node.Many(ast.ChoiceTag)[0].(ast.Extra).Data.(parser.Choice) {
-	case 0:
-		switch node.One("op").Scanner().String() {
-		case "*":
-			return &goNode{name: "parser.Any", scope: bracesScope, children: []goNode{term}}
-		case "?":
-			return &goNode{name: "parser.Opt", scope: bracesScope, children: []goNode{term}}
-		case "+":
-			return &goNode{name: "parser.Some", scope: bracesScope, children: []goNode{term}}
-		}
-	case 1:
-		min := "0"
-		max := "0"
-		if x := node.One("min"); x != nil {
-			min = x.Scanner().String()
-		}
-		if x := node.One("max"); x != nil {
-			max = x.Scanner().String()
-		}
-		term.name = "Term: " + term.name
-		return &goNode{name: "parser.Quant", scope: squigglyScope,
-			children: []goNode{term, {name: "Min:" + min}, {name: "Max:" + max}}}
-	case 2:
-		delim := &goNode{name: "parser.Delim", scope: squigglyScope}
-		var assoc string
-		switch node.One("op").Scanner().String() {
-		case "<:":
-			assoc = "Assoc: parser.RightToLeft"
-		case ":>":
-			assoc = "Assoc: parser.LeftToRight"
-		default:
-			assoc = "Assoc: parser.NonAssociative"
-		}
-		term.name = "Term: " + term.name
-		sep := *makeNamed(node.One("named"))
-		sep.name = "Sep: " + sep.name
-		delim.children = []goNode{term, sep, {name: assoc}}
-		if node.One("opt_leading") != nil {
-			delim.children = append(delim.children, goNode{name: "CanStartWithSep: true"})
-		}
-		if node.One("opt_trailing") != nil {
-			delim.children = append(delim.children, goNode{name: "CanEndWithSep: true"})
-		}
-		return delim
-	}
-	return &goNode{name: "todo"}
+func stringNode(fmtString string, args ...interface{}) goNode {
+	return goNode{name: fmt.Sprintf(fmtString, args...)}
 }
 
-func makeTerm(node ast.Node) *goNode {
-	term := node.(ast.Branch)
-	x, _ := ast.Which(term, wbnf.IdentTerm, "atom", "named")
-	switch x {
-	case wbnf.IdentTerm:
-		var next *goNode
-		if ops := term.Many("op"); len(ops) > 0 {
-			switch ops[0].Scanner().String() {
-			case "|":
-				next = &goNode{name: "parser.Oneof", scope: squigglyScope}
-			case ">":
-				next = &goNode{name: "parser.Stack", scope: squigglyScope}
-			}
+func walkTerm(term parser.Term) goNode {
+	node := goNode{}
+	switch t := term.(type) {
+	case parser.Seq:
+		node.name = "parser.Seq"
+		node.scope = squigglyScope
+		for _, t := range t {
+			node.children = append(node.children, walkTerm(t))
+		}
+	case parser.Stack:
+		node.name = "parser.Stack"
+		node.scope = squigglyScope
+		for _, t := range t {
+			node.children = append(node.children, walkTerm(t))
+		}
+	case parser.Oneof:
+		node.name = "parser.Oneof"
+		node.scope = squigglyScope
+		for _, t := range t {
+			node.children = append(node.children, walkTerm(t))
+		}
+	case parser.S:
+		node.name = fmt.Sprintf("parser.S(`%s`)", safeString(string(t)))
+	case parser.Delim:
+		node.name = "parser.Delim"
+		node.scope = squigglyScope
+		node.children = []goNode{
+			prefixName("Term: ", walkTerm(t.Term)),
+			prefixName("Sep: ", walkTerm(t.Sep)),
+		}
+		if t.CanStartWithSep {
+			node.Add(stringNode("CanStartWithSep: true"))
+		}
+		if t.CanEndWithSep {
+			node.Add(stringNode("CanEndWithSep: true"))
+		}
+		switch t.Assoc {
+		case parser.LeftToRight:
+			node.Add(stringNode("Assoc: parser.LeftToRight"))
+		case parser.RightToLeft:
+			node.Add(stringNode("Assoc: parser.RightToLeft"))
+		}
+	case parser.Quant:
+		node.Add(walkTerm(t.Term))
+		if t.Min == 0 && t.Max == 0 {
+			node.name = "parser.Any"
+			node.scope = bracesScope
+		} else if t.Min == 1 && t.Max == 0 {
+			node.name = "parser.Some"
+			node.scope = bracesScope
+		} else if t.Min == 0 && t.Max == 1 {
+			node.name = "parser.Opt"
+			node.scope = bracesScope
 		} else {
-			next = &goNode{name: "parser.Seq", scope: squigglyScope}
+			node.name = "parser.Quant"
+			node.scope = squigglyScope
+			node.Add(stringNode("Min: %d", t.Min))
+			node.Add(stringNode("Max: %d", t.Max))
 		}
-		for _, t := range term.Many(wbnf.IdentTerm) {
-			next.Add(*makeTerm(t))
+	case parser.Named:
+		node.name = "parser.Eq"
+		node.scope = bracesScope
+		node.children = []goNode{
+			stringNode("`%s`", t.Name),
+			walkTerm(t.Term),
 		}
-		if len(next.children) == 1 {
-			next = &next.children[0]
+	case parser.ScopedGrammar:
+		node.name = "parser.ScopedGrammar"
+		node.children = []goNode{
+			prefixName("Term: ", walkTerm(t.Term)),
+			prefixName("Grammar: ", *MakeGrammarString(t.Grammar)),
 		}
-		if sg := ast.First(term, "grammar"); sg != nil {
-			next = &goNode{
-				name: "parser.ScopedGrammar",
-				children: []goNode{
-					{name: "Term: ", children: []goNode{*next}},
-					{name: "Grammar: ", children: []goNode{*MakeGrammar(sg)}},
-				},
-				scope: squigglyScope,
-			}
+		node.scope = squigglyScope
+	case parser.REF:
+		node.name = "parser.REF"
+		node.scope = squigglyScope
+		node.Add(stringNode("Ident: `%s`", t.Ident))
+		if t.Default != nil {
+			node.Add(prefixName("Default: ", walkTerm(t.Default)))
 		}
-		return next
-	case "named":
-		// named and quants need to be added backwards
-		// "a":","*     ->   Any(Delim(... S("a")))
-		next := makeNamed(term.One("named"))
-		quants := term.Many("quant")
-		for i := range quants {
-			next = makeQuant(quants[len(quants)-1-i], *next)
+	case parser.RE:
+		node = stringNode("parser.RE(`%s`)", safeString(string(t)))
+	case parser.Rule:
+		if strings.Contains(string(t), parser.StackDelim) {
+			node = stringNode("parser.At")
+		} else {
+			node = stringNode("parser.Rule(`%s`)", string(t))
 		}
-		return next
+	case parser.CutPoint:
+		node.name = "parser.CutPoint"
+		node.scope = squigglyScope
+		node.Add(walkTerm(t.Term))
+	default:
+		panic("unexpected term")
 	}
-	return &goNode{name: "todo"}
+
+	return node
 }
 
-func makeProd(tree ast.Node) *goNode {
-	terms := tree.Many(wbnf.IdentTerm)
-
-	p := &goNode{
-		name: fmt.Sprintf(`"%s"`,
-			tree.One("IDENT").Scanner().String()),
-		children: nil,
-		scope:    mapScope,
-	}
-	for _, t := range terms {
-		p.Add(*makeTerm(t))
-	}
-	return p
-}
-
-func MakeGrammar(tree ast.Node) *goNode {
+func MakeGrammarString(g parser.Grammar) *goNode {
 	root := goNode{name: "parser.Grammar", scope: squigglyScope}
+	keys := make([]string, 0, len(g))
+	for rule := range g {
+		keys = append(keys, string(rule))
+	}
+	sort.Strings(keys)
+	rules := map[string]goNode{}
+	stackPrefixes := frozen.NewSet()
+	for rule, t := range g {
+		r := string(rule)
+		rules[r] = walkTerm(t)
+		if strings.Contains(r, parser.StackDelim) {
+			stackPrefixes = stackPrefixes.With(strings.Split(r, parser.StackDelim)[0])
+		}
+	}
 
-	for _, stmt := range tree.Many("stmt") {
-		if p := stmt.One("prod"); p != nil {
-			root.Add(*makeProd(p))
+	for _, rule := range keys {
+		if stackPrefixes.Has(rule) {
+			stack := goNode{
+				name:     "parser.Stack",
+				children: []goNode{rules[rule]},
+				scope:    squigglyScope,
+			}
+			for i := 1; ; i++ {
+				stackname := fmt.Sprintf("%s@%d", rule, i)
+				if node, ok := rules[stackname]; ok {
+					stack.Add(node)
+					delete(rules, stackname)
+				} else {
+					break
+				}
+			}
+			root.Add(goNode{
+				name:     fmt.Sprintf(`"%s"`, rule),
+				children: []goNode{stack},
+				scope:    mapScope,
+			})
+		} else if node, ok := rules[rule]; ok {
+			root.Add(goNode{
+				name:     fmt.Sprintf(`"%s"`, rule),
+				children: []goNode{node},
+				scope:    mapScope,
+			})
 		}
 	}
 	return &root

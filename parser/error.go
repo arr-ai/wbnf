@@ -6,42 +6,36 @@ import (
 	"github.com/arr-ai/wbnf/gotree"
 )
 
-type errorNode struct {
-	TreeElement
-}
-
-func (e errorNode) Error() string {
-	es := ""
-	switch t := e.TreeElement.(type) {
-	case Node:
-		es = t.String()
-	case Scanner:
-		es = t.String()
-	}
-	if es != "" {
-		return "partial parse nodes:  " + getErrorStrings(NewScanner(es))
-	}
-	return ""
-}
-
-type possibleFixup string
-
-func (p possibleFixup) Error() string {
-	return string(p)
-}
-
 type ParseError struct {
 	rule     Rule
 	msg      string
 	children []error
 }
 
-func newParseError(rule Rule, msg string, errors ...error) error {
-	return &ParseError{
+type FatalError struct {
+	ParseError
+	cutpointdata
+}
+
+func isFatal(err error) bool {
+	_, ok := err.(FatalError)
+	return ok
+}
+func isNotMyFatalError(err error, cp cutpointdata) bool {
+	fe, ok := err.(FatalError)
+	return ok && fe.cutpointdata != cp
+}
+
+func newParseError(rule Rule, msg string, fatal cutpointdata, errors ...error) error {
+	err := ParseError{
 		rule:     rule,
 		msg:      msg,
 		children: errors,
 	}
+	if fatal.valid() {
+		return FatalError{err, fatal}
+	}
+	return err
 }
 
 func (p ParseError) Error() string {

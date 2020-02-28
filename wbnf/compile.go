@@ -198,7 +198,7 @@ func buildTerm(t TermNode) parser.Term {
 		}
 		var sg *parser.ScopedGrammar
 		if g := t.AllGrammar(); len(g) == 1 {
-			nested := NewFromAst(g[0].Node)
+			nested := buildGrammar(g[0].Node)
 			sg = &parser.ScopedGrammar{
 				Grammar: nested,
 			}
@@ -238,7 +238,7 @@ func buildProd(p ProdNode) parser.Term {
 	return seq
 }
 
-func NewFromAst(node ast.Node) parser.Grammar {
+func buildGrammar(node ast.Node) parser.Grammar {
 	g := parser.Grammar{}
 	tree := NewGrammarNode(node)
 	for _, stmt := range tree.AllStmt() {
@@ -247,6 +247,10 @@ func NewFromAst(node ast.Node) parser.Grammar {
 		}
 	}
 	return g
+}
+
+func NewFromAst(node ast.Node) parser.Grammar {
+	return insertCutPoints(buildGrammar(node))
 }
 
 func mergeGrammarNodes(a, b ast.Branch) ast.Node {

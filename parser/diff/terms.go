@@ -108,6 +108,8 @@ func DiffTerms(a, b parser.Term) TermDiff {
 		return diffNameds(a, b.(parser.Named))
 	case parser.ScopedGrammar:
 		return diffScopedGrammars(a, b.(parser.ScopedGrammar))
+	case parser.CutPoint:
+		return DiffTerms(a.Term, b.(parser.CutPoint).Term)
 	default:
 		panic(fmt.Errorf("unknown term type: %v %[1]T", a))
 	}

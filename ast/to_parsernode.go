@@ -188,6 +188,8 @@ func (n Branch) toParserNode(g parser.Grammar, term parser.Term, ctrs counters) 
 			}
 		}
 		return nil
+	case parser.CutPoint:
+		return n.toParserNode(g, t.Term, ctrs)
 	default:
 		panic(fmt.Errorf("unexpected term type: %v %[1]T", t))
 	}

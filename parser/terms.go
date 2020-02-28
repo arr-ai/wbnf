@@ -153,6 +153,7 @@ type (
 		Term    Term
 		Grammar Grammar
 	}
+	CutPoint struct{ Term }
 )
 
 func NonAssoc(term, sep Term) Delim { return Delim{Term: term, Sep: sep, Assoc: NonAssociative} }
@@ -205,14 +206,15 @@ func (g Grammar) String() string {
 	return sb.String()
 }
 
-func (t Rule) String() string  { return string(t) }
-func (t S) String() string     { return fmt.Sprintf("%q", string(t)) }
-func (t RE) String() string    { return fmt.Sprintf("/%v/", string(t)) }
-func (t REF) String() string   { return fmt.Sprintf("%%%v=%v", t.Ident, t.Default) }
-func (t Seq) String() string   { return "(" + join(t, " ") + ")" }
-func (t Oneof) String() string { return join(t, " | ") }
-func (t Stack) String() string { return join(t, " > ") }
-func (t Named) String() string { return fmt.Sprintf("%s=%v", t.Name, t.Term) }
+func (t Rule) String() string     { return string(t) }
+func (t S) String() string        { return fmt.Sprintf("%q", string(t)) }
+func (t RE) String() string       { return fmt.Sprintf("/%v/", string(t)) }
+func (t REF) String() string      { return fmt.Sprintf("%%%v=%v", t.Ident, t.Default) }
+func (t Seq) String() string      { return "(" + join(t, " ") + ")" }
+func (t Oneof) String() string    { return join(t, " | ") }
+func (t Stack) String() string    { return join(t, " > ") }
+func (t Named) String() string    { return fmt.Sprintf("%s=%v", t.Name, t.Term) }
+func (t CutPoint) String() string { return fmt.Sprintf("cutpoint {%s}", t.Term.String()) }
 
 func (t Delim) String() string {
 	leading := ""

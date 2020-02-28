@@ -27,6 +27,6 @@ call_args -> "(" (arg=((NAME "<:" type_spec) | (QSTRING | NAME)+)):"," ")";
 
 ret_stmt -> "return" ret_val=(TEXT);
 
-group_stmt -> name=(NAME) ":" \n+ level=INDENT stmt:INDENT_SEP;
+group_stmt -> NAME ":" \n+ level=INDENT stmt:INDENT_SEP;
 
-text_stmt -> doc_string=("|" [^\r\n]*) | QSTRING | app_name=(APPLICATION_NAME) ("<-" NAME)?| SHORTCUT;
+text_stmt -> doc_string=("|" [^\r\n]*) | QSTRING | APPLICATION_NAME ("<-" NAME)?| SHORTCUT;

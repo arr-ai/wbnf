@@ -343,22 +343,10 @@ func (t Seq) Parser(rule Rule, c cache) Parser {
 //-----------------------------------------------------------------------------
 
 type delimParser struct {
-	rule Rule
-	t    Delim
-	term Parser
-	sep  Parser
-	put  putter
-}
-
-func parseAppend(p Parser, scope frozen.Map,
-	input *Scanner, slice *[]TreeElement, errOut *error) bool {
-	var v TreeElement
-	if err := p.Parse(scope, input, &v); err != nil {
-		*errOut = err
-		return false
-	}
-	*slice = append(*slice, v)
-	return true
+	rule  Rule
+	t     Delim
+	child Parser
+	put   putter
 }
 
 type Empty struct{}
@@ -369,50 +357,38 @@ func (p *delimParser) Parse(scope frozen.Map, input *Scanner, output *TreeElemen
 	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	var result []TreeElement
 
-	defer func(err *error) {
-		if *err != nil {
-			var errs []error
-			if result != nil {
-				var res TreeElement
-				p.put(&res, Associativity(0), result...)
-				errs = []error{errorNode{res}}
-			}
-			*err = newParseError(p.rule, "delim didnt complete", append(errs, *err)...)
-		}
-	}(&out)
-
-	var parseErr error
-	switch {
-	case parseAppend(p.term, scope, input, &result, &parseErr):
-	case p.t.CanStartWithSep:
-		result = append(result, Empty{})
-		if !parseAppend(p.sep, scope, input, &result, &parseErr) {
-			return parseErr
-		}
-		scope = NewScopeWith(scope, identFromTerm(p.t.Sep), p.sep, result[len(result)-1])
-		if !parseAppend(p.term, scope, input, &result, &parseErr) {
-			return parseErr
-		}
-	default:
-		return parseErr
+	if out := p.child.Parse(scope, input, output); out != nil {
+		return out
 	}
 
-	s := *input
-	scope = NewScopeWith(scope, identFromTerm(p.t.Term), p.term, result[len(result)-1])
-	for parseAppend(p.sep, scope, input, &result, &parseErr) {
-		if !parseAppend(p.term, scope, input, &result, &parseErr) {
-			if p.t.CanEndWithSep {
-				s = *input
-				result = append(result, Empty{})
-			} else {
-				result = result[:len(result)-1]
-			}
-			break
+	var seq Node
+	var final TreeElement
+	if p.t.CanStartWithSep {
+		if x := (*output).(Node).GetNode(0).Children; len(x) != 0 {
+			result = append(result, []TreeElement{Empty{}, x[0]}...)
 		}
-		scope = NewScopeWith(scope, identFromTerm(p.t.Term), p.term, result[len(result)-1])
-		s = *input
+		result = append(result, (*output).(Node).Get(1, 0)) // term
+		seq = (*output).(Node).GetNode(1, 1)
+		if p.t.CanEndWithSep {
+			final = (*output).(Node).Get(2)
+		}
+	} else {
+		result = append(result, (*output).(Node).Get(0, 0)) // term
+		seq = (*output).(Node).GetNode(0, 1)
+		if p.t.CanEndWithSep {
+			final = (*output).(Node).Get(1)
+		}
 	}
-	*input = s
+
+	for _, child := range seq.Children {
+		child := child.(Node)
+		result = append(result, child.Get(0)) // sep
+		result = append(result, child.Get(1)) // term
+	}
+
+	if final != nil && final.(Node).Count() > 0 {
+		result = append(result, []TreeElement{final.(Node).Get(0), Empty{}}...)
+	}
 
 	if n := len(result); n > 1 {
 		switch p.t.Assoc {
@@ -438,15 +414,27 @@ func (p *delimParser) Parse(scope frozen.Map, input *Scanner, output *TreeElemen
 }
 
 func (t Delim) Parser(rule Rule, c cache) Parser {
-	p := &delimParser{
-		rule: rule,
-		t:    t,
-		term: t.Term.Parser("", c),
-		sep:  t.Sep.Parser("", c),
-		put:  tag(rule, delimTag),
+	// Convert the delim to the equivalent sequence.
+	// a -> x:y    ===   a -> x (y x)*
+	// a -> x:,y   ===   a -> y? x (y x)*
+	// a -> x:y,   ===   a -> x (y x)* y?
+	seq := Seq{}
+	if t.CanStartWithSep {
+		seq = append(seq, Opt(t.Sep))
 	}
-	c.registerRule(&p.term)
-	c.registerRule(&p.sep)
+	seq = append(seq, Seq{t.Term, Any(Seq{t.Sep, t.Term})})
+	if t.CanEndWithSep {
+		seq = append(seq, Opt(t.Sep))
+	}
+
+	p := &delimParser{
+		rule:  rule,
+		t:     t,
+		child: seq.Parser(rule, c),
+		put:   tag(rule, delimTag),
+	}
+	c.registerRule(&p.child)
+
 	return p
 }
 

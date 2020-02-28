@@ -62,7 +62,7 @@ func gen(c *cli.Context) error {
 		PackageName:       pkgName,
 		StartRule:         codegen.IdentName(startingRule),
 		StartRuleTypeName: codegen.GoTypeName(startingRule),
-		Grammar:           codegen.MakeGrammar(tree),
+		Grammar:           codegen.MakeGrammarString(g.Grammar()),
 		MiddleSection: append(
 			types.Get(),
 			codegen.IdentsWriter{GrammarNode: tree},

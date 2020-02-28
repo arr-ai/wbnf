@@ -159,6 +159,8 @@ func (tm *TypeMap) walkTerm(term parser.Term, parentName string, quant countMana
 			quant = setWantAllGetter()
 		}
 		tm.walkTerm(t.Term, parentName, quant, knownRules, termId)
+	case parser.CutPoint:
+		tm.walkTerm(t.Term, parentName, quant, knownRules, termId)
 	default:
 		panic("unknown type")
 	}

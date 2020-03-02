@@ -2,8 +2,6 @@ package parser
 
 import (
 	"fmt"
-
-	"github.com/arr-ai/frozen"
 )
 
 type TreeElement interface {
@@ -87,22 +85,5 @@ func (n Node) Format(state fmt.State, c rune) {
 }
 
 type Parser interface {
-	Parse(scope frozen.Map, input *Scanner, output *TreeElement) error
-}
-
-type Func func(scope frozen.Map, input *Scanner, output *TreeElement) error
-
-func (f Func) Parse(scope frozen.Map, input *Scanner, output *TreeElement) error {
-	return f(scope, input, output)
-}
-
-func Transform(parser Parser, transform func(Node) Node) Parser {
-	return Func(func(scope frozen.Map, input *Scanner, output *TreeElement) error {
-		var v TreeElement
-		if err := parser.Parse(scope, input, &v); err != nil {
-			return err
-		}
-		*output = transform(v.(Node))
-		return nil
-	})
+	Parse(scope Scope, input *Scanner, output *TreeElement) error
 }

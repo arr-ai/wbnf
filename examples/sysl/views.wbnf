@@ -4,13 +4,14 @@ view -> "!view" NAME "(" view_params? ")"
 
 view_params -> (NAME "<:" (collection_type|type_spec)):",";
 
-expr_block  -> arg=expr? "->" ("<" return=type_spec ">")? "(" scopevar=NAME? ":"
+expr_block  -> arg=expr? "->" ("<" return=(collection_type|type_spec) ">")? "(" scopevar=NAME? ":"
         \n+ level=INDENT expr_stmt:INDENT_SEP  \s* ")" EOL;
 
 
 atom  ->  (dot=("?."|".") "table" "of" ident=NAME) expr?
        |  (dot=("?."|".") atom)
-       |  ident=(NAME | /{[a-zA-Z0-9_]+} | SHORTCUT | ".");
+       |  ident=(NAME | /{[a-zA-Z0-9_]+} | SHORTCUT | ".")
+       |  quote=(single=/{['] [^']* [']} | double=/{["] ([^"\\] | [\\][\\brntu'"])* ["]});
 
 expr  ->  @:op="??"
        >  @:op=("but" "not")
@@ -26,7 +27,7 @@ func  -> unary_no_scope | unary | nary | matching  | navigate | rank {
                 scopearg -> NAME ":";
                 unary_no_scope -> fn=('any') "(" expr ")";
                 unary -> fn=('where' | 'flatten') "(" scopearg? expr ")";
-                nary  -> fn=NAME "(" args=expr:","? ")";
+                nary  -> fn=("autoinc" | "str" | "substr" | NAME) "(" args=expr:","? ")";
                 matching -> lhs=NAME "!"? "~" squiggly_args=("[" NAME:"," "]")? ">" rhs {
                     rhs -> table=(dot=("?."|".") "table" "of" ident=NAME) |
                            "(" expr ")" |
@@ -38,4 +39,5 @@ func  -> unary_no_scope | unary | nary | matching  | navigate | rank {
 expr_stmt -> expr_dot_assign | expr_assign | COMMENT_NO_NL {
     expr_dot_assign -> obj=NAME? "." field=NAME;
     expr_assign   -> "let"? ident=NAME "=" expr;
+xxx_no_cutpoint -> "rank"; # This rule is used as a temporary work around so the word "rank" is not considered a cutpoint
 };

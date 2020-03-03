@@ -586,6 +586,19 @@ func (t REF) Parser(rule Rule, c cache) Parser {
 	return &t
 }
 
+func (t ExtRef) Parse(scope Scope, input *Scanner, output *TreeElement) (out error) {
+	fn := scope.GetExternal(string(t))
+	if fn != nil {
+		return newParseError(Rule(string(t)), "External handler not found", cutpointdata(1))
+	}
+	*output, out = fn(scope, input)
+	return out
+}
+
+func (t ExtRef) Parser(name Rule, c cache) Parser {
+	return t
+}
+
 //-----------------------------------------------------------------------------
 
 func (t ScopedGrammar) Parser(name Rule, c cache) Parser {

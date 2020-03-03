@@ -161,6 +161,8 @@ func (tm *TypeMap) walkTerm(term parser.Term, parentName string, quant countMana
 		tm.walkTerm(t.Term, parentName, quant, knownRules, termId)
 	case parser.CutPoint:
 		tm.walkTerm(t.Term, parentName, quant, knownRules, termId)
+	case parser.ExtRef:
+		// nothing yet
 	default:
 		panic("unknown type")
 	}

@@ -98,7 +98,7 @@ func findUniqueStrings(g parser.Grammar) frozen.Set {
 			out = out.Merge(forTerm(t.Default), mergeFn)
 		case parser.CutPoint:
 			out = out.Merge(forTerm(t.Term), mergeFn)
-		case parser.RE, parser.Rule: // do nothing
+		case parser.RE, parser.Rule, parser.ExtRef: // do nothing
 		default:
 			panic("unexpected term")
 		}

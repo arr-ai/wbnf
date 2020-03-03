@@ -22,6 +22,9 @@ func Grammar() parser.Parsers {
 		"atom": parser.Oneof{parser.Rule(`IDENT`),
 			parser.Rule(`STR`),
 			parser.Rule(`RE`),
+			parser.Eq(`ExtRef`,
+				parser.Seq{parser.S(`%%`),
+					parser.Rule(`IDENT`)}),
 			parser.Rule(`REF`),
 			parser.Seq{parser.S(`(`),
 				parser.Rule(`term`),
@@ -101,10 +104,35 @@ var (
 
 type IsWalkableType interface{ isWalkableType() }
 
+type AtomExtRefNode struct{ ast.Node }
+
+func (AtomExtRefNode) isWalkableType() {}
+
+func (c AtomExtRefNode) OneIdent() *IdentNode {
+	if child := ast.First(c.Node, IdentIDENT); child != nil {
+		return &IdentNode{child}
+	}
+	return nil
+}
+
+func (c AtomExtRefNode) OneToken() string {
+	if child := ast.First(c.Node, ""); child != nil {
+		return child.Scanner().String()
+	}
+	return ""
+}
+
 type AtomNode struct{ ast.Node }
 
 func (AtomNode) isWalkableType() {}
 func (c AtomNode) Choice() int   { return ast.Choice(c.Node) }
+
+func (c AtomNode) OneExtRef() *AtomExtRefNode {
+	if child := ast.First(c.Node, IdentExtRef); child != nil {
+		return &AtomExtRefNode{child}
+	}
+	return nil
+}
 
 func (c AtomNode) OneIdent() *IdentNode {
 	if child := ast.First(c.Node, IdentIDENT); child != nil {
@@ -494,6 +522,7 @@ const (
 	IdentAtom        = "atom"
 	IdentCOMMENT     = "COMMENT"
 	IdentDefault     = "default"
+	IdentExtRef      = "ExtRef"
 	IdentGrammar     = "grammar"
 	IdentIDENT       = "IDENT"
 	IdentINT         = "INT"
@@ -517,6 +546,8 @@ const (
 )
 
 type WalkerOps struct {
+	EnterAtomExtRefNode       func(AtomExtRefNode) Stopper
+	ExitAtomExtRefNode        func(AtomExtRefNode) Stopper
 	EnterAtomNode             func(AtomNode) Stopper
 	ExitAtomNode              func(AtomNode) Stopper
 	EnterCommentNode          func(CommentNode) Stopper
@@ -555,6 +586,9 @@ type WalkerOps struct {
 
 func (w WalkerOps) Walk(tree IsWalkableType) Stopper {
 	switch node := tree.(type) {
+	case AtomExtRefNode:
+		return w.WalkAtomExtRefNode(node)
+
 	case AtomNode:
 		return w.WalkAtomNode(node)
 
@@ -621,9 +655,50 @@ func (w WalkerOps) Walk(tree IsWalkableType) Stopper {
 	}
 	return nil
 }
+func (w WalkerOps) WalkAtomExtRefNode(node AtomExtRefNode) Stopper {
+	if fn := w.EnterAtomExtRefNode; fn != nil {
+		if s := fn(node); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
+			}
+		}
+	}
+	if child := node.OneIdent(); child != nil {
+		child := *child
+		if fn := w.EnterIdentNode; fn != nil {
+			if s := fn(child); s != nil {
+				if s.ExitNode() {
+					return nil
+				} else if s.Abort() {
+					return s
+				}
+			}
+		}
+	}
+
+	if fn := w.ExitAtomExtRefNode; fn != nil {
+		if s := fn(node); s != nil && s.Abort() {
+			return s
+		}
+	}
+	return nil
+}
+
 func (w WalkerOps) WalkAtomNode(node AtomNode) Stopper {
 	if fn := w.EnterAtomNode; fn != nil {
 		if s := fn(node); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
+			}
+		}
+	}
+	if child := node.OneExtRef(); child != nil {
+		child := *child
+		if s := w.WalkAtomExtRefNode(child); s != nil {
 			if s.ExitNode() {
 				return nil
 			} else if s.Abort() {
@@ -1115,7 +1190,7 @@ named   -> (IDENT op="=")? atom;
 quant   -> op=[?*+]
          | "{" min=INT? "," max=INT? "}"
          | op=/{<:|:>?} opt_leading=","? named opt_trailing=","?;
-atom    -> IDENT | STR | RE | REF | "(" term ")" | "(" ")";
+atom    -> IDENT | STR | RE | ExtRef=("%%" IDENT) | REF | "(" term ")" | "(" ")";
 
 // Terminals
 COMMENT -> /{ //.*$

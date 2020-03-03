@@ -69,3 +69,16 @@ func (s Scope) ReplaceCutPoint(force bool) (newScope Scope, prev, replacement cu
 func (s Scope) GetCutPoint() cutpointdata {
 	return s.m.GetElse(cutpointkey, invalidCutpoint).(cutpointdata)
 }
+
+const externalsKey = ".Externals-key."
+
+func (s Scope) WithExternals(e ExternalRefs) Scope {
+	return s.With(externalsKey, e)
+}
+
+func (s Scope) GetExternal(ident string) ExternalRef {
+	if e, has := s.m.GetElse(externalsKey, ExternalRefs{}).(ExternalRefs)[ident]; has {
+		return e
+	}
+	return nil
+}

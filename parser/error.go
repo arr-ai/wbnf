@@ -56,3 +56,18 @@ func (p ParseError) walkErrors(parent gotree.Tree) {
 	}
 	parent.AddTree(x)
 }
+
+type UnconsumedInputError struct {
+	residue Scanner
+	tree    TreeElement
+}
+
+// UnconsumedInput is returned by a successful parse that didn't fully
+// consume the input.
+func UnconsumedInput(residue Scanner, result TreeElement) UnconsumedInputError {
+	return UnconsumedInputError{residue: residue, tree: result}
+}
+
+func (e UnconsumedInputError) Error() string {
+	return fmt.Sprintf("unconsumed input: %v", e.residue)
+}

@@ -560,21 +560,6 @@ func (t Named) Parser(rule Rule, c cache) Parser {
 
 //-----------------------------------------------------------------------------
 
-func termFromRefVal(from TreeElement) Term {
-	var term Term
-	switch n := from.(type) {
-	case Node:
-		s := Seq{}
-		for _, v := range n.Children {
-			s = append(s, termFromRefVal(v))
-		}
-		term = s
-	case Scanner:
-		term = S(n.String())
-	}
-	return term
-}
-
 func (t *REF) Parse(scope Scope, input *Scanner, output *TreeElement) (out error) {
 	var v TreeElement
 	if parser, expected, ok := scope.GetVal(t.Ident); ok {

@@ -61,7 +61,7 @@ func (p Parsers) Parse(rule Rule, input *Scanner) (TreeElement, error) {
 		}
 
 		if input.Offset() == start.Offset() {
-			return nil, fmt.Errorf("unconsumed input: %v", input.Context())
+			return nil, UnconsumedInput(*input, e)
 		}
 	}
 }

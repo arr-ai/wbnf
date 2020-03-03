@@ -148,6 +148,8 @@ func parseEscape(p Parser, scope Scope, input *Scanner, output *TreeElement) (bo
 				te = unconsumed.tree
 				*input = unconsumed.residue
 			}
+			// FIXME: We cant verify that the te returned matches what the grammar requires
+			// this means we cant safely convert this to an ast later.
 			*output = te
 			if _, ok := input.EatRegexp(esc.closeDelim, &match, nil); !ok {
 				return false, fmt.Errorf("missing escape terminator")

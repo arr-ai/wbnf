@@ -1,11 +1,19 @@
 package parser
 
 import (
+	"fmt"
 	"math/rand"
+	"regexp"
+	"strings"
 
 	"github.com/arr-ai/frozen"
 )
 
+type escape struct {
+	openDelim  *regexp.Regexp
+	closeDelim *regexp.Regexp
+	external   ExternalRef
+}
 type Scope struct {
 	m frozen.Map
 }
@@ -71,14 +79,37 @@ func (s Scope) GetCutPoint() cutpointdata {
 }
 
 const externalsKey = ".Externals-key."
+const parseEscapeKey = ".ParseEscape-key."
 
-func (s Scope) WithExternals(e ExternalRefs) Scope {
-	return s.With(externalsKey, e)
+func (s Scope) WithExternals(extRefs ExternalRefs) Scope {
+	var e *escape
+	for name, external := range extRefs {
+		if strings.HasPrefix(name, "*") {
+			if e != nil {
+				panic(fmt.Errorf("too many escapes"))
+			}
+			openClose := strings.Split(name[1:], "()")
+			e = &escape{
+				openDelim:  regexp.MustCompile(`(?m)\A` + openClose[0]),
+				closeDelim: regexp.MustCompile(`(?m)\A` + openClose[1]),
+				external:   external,
+			}
+			s = s.With(parseEscapeKey, e)
+		}
+	}
+	return s.With(externalsKey, extRefs)
 }
 
 func (s Scope) GetExternal(ident string) ExternalRef {
 	if e, has := s.m.GetElse(externalsKey, ExternalRefs{}).(ExternalRefs)[ident]; has {
 		return e
+	}
+	return nil
+}
+
+func (s Scope) GetParserEscape() *escape {
+	if e, has := s.m.Get(parseEscapeKey); has {
+		return e.(*escape)
 	}
 	return nil
 }

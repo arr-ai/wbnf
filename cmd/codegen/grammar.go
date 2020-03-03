@@ -152,6 +152,8 @@ func walkTerm(term parser.Term) goNode {
 		node.name = "parser.CutPoint"
 		node.scope = squigglyScope
 		node.Add(walkTerm(t.Term))
+	case parser.ExtRef:
+		node = stringNode("parser.ExtRef(`%s`)", safeString(string(t)))
 	default:
 		panic("unexpected term")
 	}

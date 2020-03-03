@@ -63,3 +63,7 @@ func (t ScopedGrammar) Resolve(oldRule, newRule Rule) Term {
 func (t CutPoint) Resolve(oldRule, newRule Rule) Term {
 	return t.Term.Resolve(oldRule, newRule)
 }
+
+func (t ExtRef) Resolve(oldRule, newRule Rule) Term {
+	return t
+}

@@ -93,10 +93,10 @@ var whitespaceRE = regexp.MustCompile(`\s`)
 var escapedSpaceRE = regexp.MustCompile(`((?:\A|[^\\])(?:\\\\)*)\\_`)
 
 func buildAtom(atom AtomNode) parser.Term {
-	x, _ := ast.Which(atom.Node.(ast.Branch), "RE", "STR", "IDENT", "REF", "term")
+	x, _ := ast.Which(atom.Node.(ast.Branch), "RE", "STR", "ExtRef", "IDENT", "REF", "term")
 	name := ""
 	switch x {
-	case "term", "REF", "":
+	case "term", "REF", "ExtRef", "":
 	default:
 		name = atom.One(x).Scanner().String()
 	}
@@ -125,6 +125,9 @@ func buildAtom(atom AtomNode) parser.Term {
 			ref.Default = parser.S(parseString(defTerm))
 		}
 		return ref
+	case "ExtRef":
+		refNode := atom.OneExtRef()
+		return parser.ExtRef(refNode.OneIdent().String())
 	case "term":
 		return buildTerm(*atom.OneTerm())
 	}

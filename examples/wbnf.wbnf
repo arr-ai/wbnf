@@ -10,7 +10,7 @@ named   -> (IDENT op="=")? atom;
 quant   -> op=[?*+]
          | "{" min=INT? "," max=INT? "}"
          | op=/{<:|:>?} opt_leading=","? named opt_trailing=","?;
-atom    -> IDENT | STR | RE | REF | "(" term ")" | "(" ")";
+atom    -> IDENT | STR | RE | ExtRef=("%%" IDENT) | REF | "(" term ")" | "(" ")";
 
 // Terminals
 COMMENT -> /{ //.*$

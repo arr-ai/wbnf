@@ -91,3 +91,7 @@ func (t ScopedGrammar) Unparse(g Grammar, e TreeElement, w io.Writer) (n int, er
 func (t CutPoint) Unparse(g Grammar, e TreeElement, w io.Writer) (n int, err error) {
 	return t.Term.Unparse(g, e, w)
 }
+
+func (t ExtRef) Unparse(g Grammar, te TreeElement, w io.Writer) (n int, err error) {
+	panic("implement me")
+}

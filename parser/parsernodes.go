@@ -86,4 +86,5 @@ func (n Node) Format(state fmt.State, c rune) {
 
 type Parser interface {
 	Parse(scope Scope, input *Scanner, output *TreeElement) error
+	AsTerm() Term
 }

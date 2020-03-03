@@ -78,3 +78,50 @@ func TestParserWithCutpointScope(t *testing.T) {
 		})
 	}
 }
+
+func TestParserEscaping(t *testing.T) {
+	g := Grammar{
+		"x":       Seq{S("a"), RE("\\w+"), S("c")},
+		".wrapRE": RE(`\s*()\s*`),
+	}.Compile(nil)
+	input := "a {:haha:} c"
+
+	expected, err := g.Parse("x", NewScanner("a haha c"))
+	assert.NoError(t, err)
+
+	actual, err := g.ParseWithExternals("x", NewScanner(input), ExternalRefs{
+		"*{:():}": func(scope Scope, input *Scanner) (element TreeElement, err error) {
+			assert.EqualValues(t, "haha:} c", input.String())
+			var eaten Scanner
+			input = input.Eat(4, &eaten)
+			return eaten, nil
+		},
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, expected.(Node).String(), actual.(Node).String())
+
+}
+
+func TestParserEscaping2LevelGrammar(t *testing.T) {
+	g := Grammar{
+		"x": Seq{S("a"), Named{
+			Name: "ref",
+			Term: S("haha"),
+		}, S("c")},
+		".wrapRE": RE(`\s*()\s*`),
+	}.Compile(nil)
+
+	g2 := Grammar{"x": S("haha")}.Compile(nil)
+	input := "a {:haha     :} c"
+
+	expected, err := g.Parse("x", NewScanner("a haha c"))
+	assert.NoError(t, err)
+
+	actual, err := g.ParseWithExternals("x", NewScanner(input), ExternalRefs{
+		"*{:\\s*()\\s*:}": func(scope Scope, input *Scanner) (element TreeElement, err error) {
+			return g2.Parse("x", input)
+		},
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, expected.(Node).String(), actual.(Node).String())
+}

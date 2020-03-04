@@ -71,3 +71,6 @@ func UnconsumedInput(residue Scanner, result TreeElement) UnconsumedInputError {
 func (e UnconsumedInputError) Error() string {
 	return fmt.Sprintf("unconsumed input: %v", e.residue)
 }
+
+func (e UnconsumedInputError) Result() TreeElement { return e.tree }
+func (e UnconsumedInputError) Residue() *Scanner   { return &e.residue }

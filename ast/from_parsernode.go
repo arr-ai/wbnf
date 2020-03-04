@@ -9,7 +9,7 @@ import (
 )
 
 func NewExtRefTreeElement(g parser.Grammar, node parser.TreeElement) parser.TreeElement {
-	return &parser.Node{
+	return parser.Node{
 		Tag:      "extref",
 		Extra:    FromParserNode(g, node),
 		Children: nil,

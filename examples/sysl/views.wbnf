@@ -39,5 +39,6 @@ func  -> unary_no_scope | unary | nary | matching  | navigate | rank {
 expr_stmt -> expr_dot_assign | expr_assign | COMMENT_NO_NL {
     expr_dot_assign -> obj=NAME? "." field=NAME;
     expr_assign   -> "let"? ident=NAME "=" expr;
-xxx_no_cutpoint -> "rank"; # This rule is used as a temporary work around so the word "rank" is not considered a cutpoint
 };
+
+xxx_no_cutpoint -> "rank"; // This rule is used as a temporary work around so the word "rank" is not considered a cutpoint

@@ -618,13 +618,30 @@ func (t Named) AsTerm() Term { return t }
 
 //-----------------------------------------------------------------------------
 
+func termFromRefVal(from TreeElement) Term {
+	var term Term
+	switch n := from.(type) {
+	case Node:
+		s := Seq{}
+		for _, v := range n.Children {
+			s = append(s, termFromRefVal(v))
+		}
+		term = s
+	case Scanner:
+		term = S(n.String())
+	}
+	return term
+}
+
 func (t *REF) Parse(scope Scope, input *Scanner, output *TreeElement) (out error) {
-	scope = scope.PushCall(string(t.Ident), t.AsTerm())
+	scope = scope.PushCall(t.Ident, t.AsTerm())
 	if escaped, err := parseEscape(t, scope, input, output); escaped || err != nil {
 		return err
 	}
 	var v TreeElement
-	if parser, expected, ok := scope.GetVal(t.Ident); ok {
+	if _, expected, ok := scope.GetVal(t.Ident); ok {
+		term := termFromRefVal(expected)
+		parser := term.Parser(Rule(t.Ident), cache{})
 		if err := parser.Parse(scope, input, &v); err != nil {
 			return err
 		}

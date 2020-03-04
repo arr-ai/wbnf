@@ -294,6 +294,9 @@ func (c *compiler) makeGrammar(filename, text string) (GrammarNode, error) {
 			return nil
 		},
 	}.Walk(node)
+	if err != nil {
+		return GrammarNode{}, err
+	}
 	return node, nil
 }
 

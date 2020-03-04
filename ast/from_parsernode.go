@@ -8,6 +8,16 @@ import (
 	"github.com/arr-ai/wbnf/parser"
 )
 
+func NewExtRefTreeElement(g parser.Grammar, node parser.TreeElement) parser.TreeElement {
+	return &parser.Node{
+		Tag:      "extref",
+		Extra:    FromParserNode(g, node),
+		Children: nil,
+	}
+}
+
+func (Branch) IsExtra() {}
+
 func FromParserNode(g parser.Grammar, e parser.TreeElement) Branch {
 	rule := parser.NodeRule(e.(parser.Node))
 	term := g[rule]
@@ -190,6 +200,12 @@ func (n Branch) fromParserNode(g parser.Grammar, term parser.Term, ctrs counters
 	case parser.CutPoint:
 		n.fromParserNode(g, t.Term, ctrs, e)
 	case parser.ExtRef:
+		if node, ok := e.(parser.Node); ok {
+			if b, ok := node.Extra.(Branch); ok {
+				ident := t.String()
+				n.add(ident, b, ctrs[ident])
+			}
+		}
 	default:
 		panic(fmt.Errorf("unexpected term type: %v %[1]T", t))
 	}

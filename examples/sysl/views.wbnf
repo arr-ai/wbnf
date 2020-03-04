@@ -7,11 +7,31 @@ view_params -> (NAME "<:" (collection_type|type_spec)):",";
 expr_block  -> arg=expr? "->" ("<" return=(collection_type|type_spec) ">")? "(" scopevar=NAME? ":"
         \n+ level=INDENT expr_stmt:INDENT_SEP  \s* ")" EOL;
 
+atom_dot_relop -> "." ( rank_func
+                        | agg_func
+                        | single_arg_func
+                        | any_func
+                        | count | single_or_null | snapshot
+                        | first_func
+                        | navigate
+                        | matching
+                      );
 
-atom  ->  (dot=("?."|".") "table" "of" ident=NAME) expr?
-       |  (dot=("?."|".") atom)
-       |  ident=(NAME | /{[a-zA-Z0-9_]+} | SHORTCUT | ".")
-       |  quote=(single=/{['] [^']* [']} | double=/{["] ([^"\\] | [\\][\\brntu'"])* ["]});
+atom  ->  expr_func
+       |  set=("{" expr:"," "}")
+       |  atoms=("[" expr:"," "]")
+       |  empty_tuple="{:}"
+       |  "(" expr ")"
+       |  literal=(
+                      digits=[0-9]+
+                    | decimal=/{[0-9]+[.][0-9]+}
+                    | quote=(single=/{['] [^']* [']} | double=/{["] ([^"\\] | [\\][\\brntu'"])* ["]})
+                    | literal=("null" | "true" | "false")
+                 )
+       |  implied_dot=(atom_dot_relop | navigate | matching | expr_table_of_op)
+       |  ident=(NAME | /{[a-zA-Z0-9_]+} | SHORTCUT | ".");
+
+
 
 expr  ->  @:op="??"
        >  @:op=("but" "not")
@@ -21,24 +41,40 @@ expr  ->  @:op="??"
        >  @:op=(add="+" | sub="-")
        >  @:op=(mul="*" | mod="%" | div="/")
        >  @:op=(pow="**")
-       >  @:func
-       >  (func expr?) | "(" expr ")" | unaryop=("-" | "!" | "~")? atom;
-func  -> unary_no_scope | unary | nary | matching  | navigate | rank {
-                scopearg -> NAME ":";
-                unary_no_scope -> fn=('any') "(" expr ")";
-                unary -> fn=('where' | 'flatten') "(" scopearg? expr ")";
-                nary  -> fn=("autoinc" | "str" | "substr" | NAME) "(" args=expr:","? ")";
-                matching -> lhs=NAME "!"? "~" squiggly_args=("[" NAME:"," "]")? ">" rhs {
-                    rhs -> table=(dot=("?."|".") "table" "of" ident=NAME) |
-                           "(" expr ")" |
-                           NAME;
-                };
-                navigate -> lhs=NAME qn="?"? "->" ("set" "of" | "sequence" "of")? attr=("."? NAME) ("via" via=NAME)?;
-                rank -> "rank" ("<" type_spec ">")? "(" (expr ("asc"|"desc")?):"," "as" as=NAME ")";
-          };
+       >  (atom relop*) | (unaryop=("-" | "!" | "~") atom relop*);
+
+
+expr_table_of_op -> dot=("?."|".") /{table\s+of\s+}? ident=NAME;
+
+expr_func -> func=('autoinc' | 'str' | 'substr' | NativeDataTypes | NAME) "(" args=expr:"," ")";
+rank_expr -> (expr func=('asc' | 'desc')?):",";
+rank_func -> func="rank" ("<" type_spec ">")? "(" rank_expr "as" as=NAME ")";
+agg_func  -> func=('sum'|'min'|'max'|'average') "(" scopevar=(NAME ":")? args=expr:"," ")";
+first_func -> func="first" target=("null" | expr) "by" scopevar=(NAME ":")? rank_expr ")";
+single_arg_func  -> func=("where" | "flatten") "(" scopevar=(NAME ":")? expr ")";
+any_func  -> func="any" "(" expr ")";
+
+single_or_null -> 'singleOrNull' | 'single';
+snapshot       -> 'snapshot';
+count          -> 'count';
+
+navigate -> qn="?"? "->" ("set" "of" | "sequence" "of")? attr=("."? NAME) ("via" via=NAME)?;
+matching -> "!"? "~" squiggly_args=("[" NAME:"," "]")? ">" rhs=(expr_table_of_op | navigate | "(" expr ")" | NAME);
+
+relop  -> expr_table_of_op
+        | rank_func
+        | agg_func
+        | single_arg_func
+        | any_func
+        | count | single_or_null | snapshot
+        | first_func
+        | navigate
+        | matching;
+
 expr_stmt -> expr_dot_assign | expr_assign | COMMENT_NO_NL {
     expr_dot_assign -> obj=NAME? "." field=NAME;
     expr_assign   -> "let"? ident=NAME "=" expr;
 };
 
-xxx_no_cutpoint -> "rank"; // This rule is used as a temporary work around so the word "rank" is not considered a cutpoint
+// This rule is used as a temporary work around so the word "rank" is not considered a cutpoint
+//xxx_no_cutpoint -> "rank" | 'autoinc' | 'str' | 'substr' ;

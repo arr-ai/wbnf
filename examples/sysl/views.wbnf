@@ -1,10 +1,12 @@
 view -> "!view" NAME "(" view_params? ")"
         ("->" retType=(collection_type|type_spec))?
-        attribs? ":" ((\n+ level=INDENT expr_block:INDENT_SEP) | abstract="[~abstract]");
+        (abstract="[~abstract]" | (attribs? ":"(\n+ level=INDENT expr_block:INDENT_SEP)));
 
 view_params -> (NAME "<:" (collection_type|type_spec)):",";
 
-expr_block  -> arg=expr? "->" ("<" return=(collection_type|type_spec) ">")? "(" scopevar=NAME? ":"
+expr_ret_type  -> collection=(("set" | "sequence") "of" type_spec?) | type_spec;
+
+expr_block  -> arg=expr? "->" ("<" expr_ret_type ">")? "(" scopevar=NAME? ":"
         \n+ level=INDENT expr_stmt:INDENT_SEP  \s* ")" EOL;
 
 atom_dot_relop -> "." ( rank_func
@@ -23,8 +25,7 @@ atom  ->  expr_func
        |  empty_tuple="{:}"
        |  "(" expr ")"
        |  literal=(
-                      digits=[0-9]+
-                    | decimal=/{[0-9]+[.][0-9]+}
+                      decimal=/{[0-9]+[.][0-9]+} | digits=[0-9]+
                     | quote=(single=/{['] [^']* [']} | double=/{["] ([^"\\] | [\\][\\brntu'"])* ["]})
                     | literal=("null" | "true" | "false")
                  )
@@ -41,12 +42,12 @@ expr  ->  @:op="??"
        >  @:op=(add="+" | sub="-")
        >  @:op=(mul="*" | mod="%" | div="/")
        >  @:op=(pow="**")
-       >  (atom relop*) | (unaryop=("-" | "!" | "~") atom relop*);
+       >  (atom relop*) | (unaryop=("+" | "-" | "!" | "~") atom relop*);
 
 
 expr_table_of_op -> dot=("?."|".") /{table\s+of\s+}? ident=NAME;
 
-expr_func -> func=('autoinc' | 'str' | 'substr' | NativeDataTypes | NAME) "(" args=expr:"," ")";
+expr_func -> func=('autoinc' | 'str' | 'substr' | NativeDataTypes | NAME) "(" args=(expr:",")? ")";
 rank_expr -> (expr func=('asc' | 'desc')?):",";
 rank_func -> func="rank" ("<" type_spec ">")? "(" rank_expr "as" as=NAME ")";
 agg_func  -> func=('sum'|'min'|'max'|'average') "(" scopevar=(NAME ":")? args=expr:"," ")";
@@ -71,9 +72,10 @@ relop  -> expr_table_of_op
         | navigate
         | matching;
 
-expr_stmt -> expr_dot_assign | expr_assign | COMMENT_NO_NL {
+expr_stmt -> expr_table_assign | expr_assign | expr_dot_assign | COMMENT_NO_NL {
     expr_dot_assign -> obj=NAME? "." field=NAME;
-    expr_assign   -> "let"? ident=NAME "=" expr;
+    expr_assign   -> "let"? ident=NAME "=" (expr_block | expr);
+    expr_table_assign -> /{table\s+of\s+}? ident=NAME "=" (expr_block | expr);
 };
 
 // This rule is used as a temporary work around so the word "rank" is not considered a cutpoint

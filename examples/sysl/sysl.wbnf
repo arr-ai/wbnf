@@ -11,12 +11,21 @@ sysl_file -> COMMENT* import* (COMMENT | application)+;
 import  -> "import"  prefix=("//"|"/")? PATH ( "as"  APP_NAME)? ("~" mode=NAME)? EOL;
 
 
+// -------------- Events --------------- //
+
+event  ->  "<->" NAME params? attribs? ":" COMMENT*
+        ( SHORTCUT | (\n+ level=INDENT stmt:INDENT_SEP));
 
 // -------------- Applications --------------- //
 application ->  APPLICATION_NAME QSTRING?
         attribs? ":" COMMENT* \n+ level=INDENT app_decl:INDENT_SEP;
 
-app_decl   -> COMMENT | SHORTCUT | type_decl | endpoint | view;
+app_decl   -> annotation
+            | COMMENT
+            | SHORTCUT
+            | type_decl
+            | endpoint
+            | view;
 
 // -------------- Types --------------- //
 

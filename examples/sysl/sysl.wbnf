@@ -4,29 +4,36 @@
 
 // Sysl grammar
 
-sysl_file -> import* application+;
+sysl_file -> COMMENT* import* (COMMENT | application)+;
 
 
 // -------------- Imports --------------- //
-import  -> import_ {
-    import_ -> "import"  prefix=("//"|"/")? PATH ( "as"  APP_NAME)? ("~" mode=NAME)? EOL;
-};
+import  -> "import"  prefix=("//"|"/")? PATH ( "as"  APP_NAME)? ("~" mode=NAME)? EOL;
+
 
 
 // -------------- Applications --------------- //
 application ->  APPLICATION_NAME QSTRING?
         attribs? ":" COMMENT* \n+ level=INDENT app_decl:INDENT_SEP;
 
-app_decl   -> SHORTCUT | table | wrap | endpoint | view;
+app_decl   -> COMMENT | SHORTCUT | type_decl | endpoint | view;
 
 // -------------- Types --------------- //
+
+type_decl -> table | facade | alias;
 
 table -> mode=("!table"|"!type") NAME attribs?  ":" COMMENT*
     \n+ level=INDENT
         (COMMENT | (NAME "<:") type=(collection_type|type_spec) optional="?"? attribs?):INDENT_SEP EOL;
-wrap -> "!wrap" NAME attribs?  ":" COMMENT*
+facade -> "!wrap" NAME attribs?  ":" COMMENT*
     \n+ level=INDENT
         (table | "!table"APP_NAME):INDENT_SEP EOL;
+
+alias -> "!alias" NAME attribs?  ":" COMMENT*
+        (alias_line | (\n+ level=INDENT  alias_line:INDENT_SEP)) EOL {
+        alias_line -> annotation* (collection_type | type_spec);
+        };
+
 
 collection_type -> ("set" | "sequence") "of" type_spec;
 
@@ -65,8 +72,8 @@ PREDICATE -> [^\r\n:]+;
 SHORTCUT -> "...";
 HTTP_VERBS -> "GET" | "POST" | "DELETE" | "PUT" | "PATCH";
 NativeDataTypes -> "int32" | "int64" | "int" |
-                "float" | "string" | "date" |
-                "bool" | "decimal" | "datetime";
+                "float" | "string" | "datetime" | "date" |
+                "bool" | "decimal";
 
 APPLICATION_NAME ->  \s* pkg? appname {
     pkg -> (NAME:"::" ".");

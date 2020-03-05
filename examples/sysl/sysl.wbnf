@@ -20,7 +20,7 @@ app_decl   -> COMMENT | SHORTCUT | type_decl | endpoint | view;
 
 // -------------- Types --------------- //
 
-type_decl -> table | facade | alias;
+type_decl -> table | facade | alias | union;
 
 table -> mode=("!table"|"!type") NAME attribs?  ":" COMMENT*
     \n+ level=INDENT
@@ -34,6 +34,11 @@ alias -> "!alias" NAME attribs?  ":" COMMENT*
         alias_line -> annotation* (collection_type | type_spec);
         };
 
+union -> "!union" NAME attribs?  ":"
+    ( SHORTCUT |
+        (\n+ level=INDENT
+            (COMMENT | type_spec | annotation | SHORTCUT ):INDENT_SEP)
+    );
 
 collection_type -> ("set" | "sequence") "of" type_spec;
 

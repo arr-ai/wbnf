@@ -143,13 +143,21 @@ func test(c *cli.Context) error {
 	}
 	tree, err := g.Parse(parser.Rule(startingRule), parser.NewScanner(input))
 	if err != nil {
-		return err
+		if uci, ok := err.(parser.UnconsumedInputError); ok {
+			logrus.Warningln("Partial result:")
+			tree = uci.Result()
+		} else {
+			return err
+		}
 	}
 	a := ast.FromParserNode(g.Grammar(), tree)
 	if printTree {
 		fmt.Println(ast.BuildTreeView(startingRule, a, true))
 	} else {
 		fmt.Println(a)
+	}
+	if err, ok := err.(parser.UnconsumedInputError); ok {
+		return err
 	}
 
 	return nil

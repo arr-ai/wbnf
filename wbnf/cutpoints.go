@@ -83,6 +83,10 @@ func findUniqueStrings(g parser.Grammar) frozen.Set {
 		case parser.Delim:
 			out = out.Merge(forTerm(t.Term), mergeFn)
 			out = out.Merge(forTerm(t.Sep), mergeFn)
+			if t.CanStartWithSep {
+				// ensure that a starting sep will never be a cutpoint
+				out = out.Merge(forTerm(t.Sep), mergeFn)
+			}
 		case parser.Quant:
 			out = out.Merge(forTerm(t.Term), mergeFn)
 		case parser.Named:

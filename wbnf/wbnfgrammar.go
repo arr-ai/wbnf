@@ -43,7 +43,7 @@ func Grammar() parser.Parsers {
 						parser.Delim{Term: parser.Oneof{parser.CutPoint{parser.S(`..`)},
 							parser.CutPoint{parser.S(`.`)},
 							parser.RE(`[a-zA-Z0-9.:]+`)},
-							Sep:             parser.CutPoint{parser.S(`/`)},
+							Sep:             parser.S(`/`),
 							CanStartWithSep: true}),
 					parser.Opt(parser.S(`;`))}}},
 		"prod": parser.Seq{parser.Rule(`IDENT`),

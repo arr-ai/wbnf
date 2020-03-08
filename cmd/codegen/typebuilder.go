@@ -112,19 +112,20 @@ func (tm *TypeMap) walkTerm(term parser.Term, parentName string, quant countMana
 		switch delim := t.Sep.(type) {
 		case parser.Named:
 			childName := parentName + strcase.ToCamel(DropCaps(delim.Name))
-			if _, ok := delim.Term.(parser.S); ok {
+			switch delim.Term.(type) {
+			case parser.S, parser.CutPoint: //fixme: This will only work as long as cutpoints are s() only
 				tm.pushType(childName, parentName, namedToken{
 					name:   delim.Name,
 					parent: parentName,
 					count:  quant,
 				})
-			} else {
+			default:
 				tm.walkTerm(t.Sep, parentName, setWantAllGetter(), knownRules, termId)
 			}
 		case parser.Rule:
 			childName := parentName + strcase.ToCamel(DropCaps(delim.String()))
 			tm.walkTerm(t.Sep, childName, setWantAllGetter(), knownRules, termId)
-		case parser.S: // ignore the delim
+		case parser.CutPoint, parser.S: // ignore the delim
 		default:
 			childName := parentName + "Delim"
 			tm.walkTerm(t.Sep, childName, setWantAllGetter(), knownRules, termId)
@@ -139,7 +140,7 @@ func (tm *TypeMap) walkTerm(term parser.Term, parentName string, quant countMana
 				returnType: GoTypeName(term.String()),
 				count:      quant,
 			})
-		case parser.RE, parser.S:
+		case parser.RE, parser.S, parser.CutPoint:
 			tm.pushType(childName, parentName, namedToken{
 				name:   t.Name,
 				parent: parentName,

@@ -36,10 +36,10 @@ var exprGrammar = parser.Grammar{
 	expr: parser.Stack{
 		parser.Delim{Term: parser.At, Sep: parser.RE(`[-+]`)},
 		parser.Delim{Term: parser.At, Sep: parser.RE(`[*/]`)},
-		parser.Seq{parser.Opt(parser.S("-")), parser.At},
+		parser.Seq{parser.Opt(parser.CutPoint{Term: parser.S("-")}), parser.At},
 		parser.Oneof{parser.RE(`\d+`), parser.At},
-		parser.R2L(parser.At, parser.S("**")),
-		parser.Seq{parser.S("("), parser.At, parser.S(")")},
+		parser.R2L(parser.At, parser.CutPoint{Term: parser.S("**")}),
+		parser.Seq{parser.CutPoint{Term: parser.S("(")}, parser.At, parser.CutPoint{Term: parser.S(")")}},
 	},
 }
 

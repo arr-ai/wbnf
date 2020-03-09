@@ -103,9 +103,9 @@ func (gb grammarBuilder) expandMacro(node MacrocallNode) parser.Term {
 
 	newg := rebuildGrammar(g, func(t parser.Term) parser.Term {
 		switch t := t.(type) {
-		case parser.REF:
+		case parser.Rule:
 			for i, arg := range macro.AllArgs() {
-				if arg.String() == t.Ident {
+				if arg.String() == string(t) {
 					return gb.buildTerm(node.AllTerm()[i])
 				}
 			}

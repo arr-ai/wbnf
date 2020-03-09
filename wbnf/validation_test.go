@@ -25,6 +25,8 @@ func TestValidationErrors(t *testing.T) {
 		{"legal multiple uses of name 1", "a -> (op='|' | op='b');", NoError},
 		{"legal multiple uses of name 2", "a -> x=(op='|') y=(op='b');", NoError},
 
+		{"macro valid", "a -> 'a'; .macro Foo(b) { b }", NoError},
+		{"macro arg clashes with rule", "a -> 'a'; .macro Foo(a) { a }", NameClashesWithRule},
 		// Wish-list validity checks:
 
 		// Should fail because op would return different types

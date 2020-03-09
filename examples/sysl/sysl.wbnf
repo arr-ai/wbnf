@@ -107,4 +107,4 @@ QSTRING -> /{"[^"]*"};
 INDENT      -> %level="" \s+;
 INDENT_SEP  -> \n+ %level;
 
-.macro Indented(child) {\n+ level=INDENT %child:INDENT_SEP}
+.macro Indented(child) {\n+ level=INDENT child:INDENT_SEP}

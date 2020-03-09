@@ -321,7 +321,7 @@ Macros can be used when a common pattern is required through the grammar which c
 Macros are conceptually the same as C-style `#define`'s, except rather than simply substituting text, a full expression can be used.
 
 We will explain how to use macros by implementing the equivalent of the `delimited repeater`.
-First a macro is defined `.macro Delim(term, sep) { %term (%sep %term)* }`, and used `%!Delim(a, "<"? ":" ">"? )` 
+First a macro is defined `.macro Delim(term, sep) { term (sep term)* }`, and used `%!Delim(a, "<"? ":" ">"? )`
 
 This would expand to `a (("<"? ":" ">"?) a)*` which is equivalent of `a:("<"? ":" ">"?)`
 
@@ -351,4 +351,4 @@ Below are a collection of helpful rules which can be dropped into your grammar.
 - `block -> indent=(\n+ %indent="\n" \s+) stmt:%indent;` accepts an indented `stmt`
   node.
 
-- `.macro Indented(term) { indent=(\n+ %indent="\n" \s+) %term:%indent } ` Macro to simplify adding indentation (use like `%!Indented(term)`)
+- `.macro Indented(term) { indent=(\n+ %indent="\n" \s+) term:%indent } ` Macro to simplify adding indentation (use like `%!Indented(term)`)

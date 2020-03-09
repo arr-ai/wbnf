@@ -5,19 +5,21 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/arr-ai/frozen"
+
 	"github.com/arr-ai/wbnf/parser"
 )
 
-func findDefinedRules(tree GrammarNode) (map[string]struct{}, error) {
+func findDefinedRules(tree GrammarNode) (frozen.Set, error) {
 	var dupeRules []string
-	out := map[string]struct{}{}
+	out := frozen.NewSet()
 	ops := WalkerOps{
 		EnterProdNode: func(node ProdNode) Stopper {
 			ident := node.OneIdent().String()
-			if _, has := out[ident]; has {
+			if out.Has(ident) {
 				dupeRules = append(dupeRules, ident)
 			}
-			out[ident] = struct{}{}
+			out = out.With(ident)
 			return &nodeExiter{}
 		},
 	}
@@ -25,7 +27,7 @@ func findDefinedRules(tree GrammarNode) (map[string]struct{}, error) {
 	if len(dupeRules) == 0 {
 		return out, nil
 	}
-	return nil, validationError{
+	return frozen.Set{}, validationError{
 		msg:  fmt.Sprintf("the following rule(s) are defined multiple times: %s", dupeRules),
 		kind: DuplicatedRule}
 }
@@ -40,10 +42,11 @@ func validate(tree GrammarNode) error {
 	}
 
 	ops := WalkerOps{
-		EnterAtomNode:  v.validateAtom,
-		EnterQuantNode: v.validateQuant,
-		EnterNamedNode: v.validateNamed,
-		EnterTermNode:  v.validateTerm,
+		EnterAtomNode:           v.validateAtom,
+		EnterQuantNode:          v.validateQuant,
+		EnterNamedNode:          v.validateNamed,
+		EnterTermNode:           v.validateTerm,
+		EnterPragmaMacrodefNode: v.validateMacro,
 	}
 	ops.Walk(tree)
 
@@ -92,7 +95,7 @@ func (v validationError) Error() string {
 }
 
 type validator struct {
-	knownRules map[string]struct{}
+	knownRules frozen.Set
 	err        []error
 }
 
@@ -124,7 +127,7 @@ func (v *validator) validateTerm(tree TermNode) Stopper {
 
 func (v *validator) validateNamed(tree NamedNode) Stopper {
 	if x := tree.OneIdent(); x != nil {
-		if _, has := v.knownRules[x.String()]; has {
+		if v.knownRules.Has(x.String()) {
 			v.err = append(v.err, validationError{s: tree.OneIdent().Scanner(),
 				msg: "identifier '%s' clashes with a defined rule", kind: NameClashesWithRule})
 		}
@@ -135,7 +138,7 @@ func (v *validator) validateNamed(tree NamedNode) Stopper {
 func (v *validator) validateAtom(tree AtomNode) Stopper {
 	if ident := tree.OneIdent(); ident != nil {
 		if ident.String() != "@" {
-			if _, has := v.knownRules[ident.String()]; !has {
+			if !v.knownRules.Has(ident.String()) {
 				v.err = append(v.err, validationError{s: tree.OneIdent().Scanner(),
 					msg: "identifier '%s' is not a defined rule", kind: UnknownRule})
 			}
@@ -178,4 +181,19 @@ func (v *validator) validateQuant(tree QuantNode) Stopper {
 	case 2:
 	}
 	return nil
+}
+
+func (v *validator) validateMacro(node PragmaMacrodefNode) Stopper {
+	prevRules := v.knownRules
+	defer func() { v.knownRules = prevRules }()
+
+	for _, arg := range node.AllArgs() {
+		if v.knownRules.Has(arg.String()) {
+			v.err = append(v.err, validationError{s: arg.Scanner(),
+				msg: "macro arg '%s' clashes with a defined rule", kind: NameClashesWithRule})
+		} else {
+			v.knownRules = v.knownRules.With(arg.String())
+		}
+	}
+	return NodeExiter
 }

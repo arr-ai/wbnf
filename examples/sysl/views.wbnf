@@ -42,8 +42,12 @@ expr  ->  @:op="??"
        >  @:op=(add="+" | sub="-")
        >  @:op=(mul="*" | mod="%" | div="/")
        >  @:op=(pow="**")
-       >  (atom relop*) | (unaryop=("+" | "-" | "!" | "~") atom relop*);
+       >  expr_if_else | (atom relop*) | (unaryop=("+" | "-" | "!" | "~") atom relop*);
 
+expr_if_else  ->  ("if" expr "?"? "then" expr "else" expr EOL);
+// |
+//                  ("if" lhs=(expr "==")? ":" EOL
+//                    \n+ level=INDENT cond_block=(expr:",") final=("else" expr) INDENT_SEP); */
 
 expr_table_of_op -> dot=("?."|".") /{table\s+of\s+}? ident=NAME;
 

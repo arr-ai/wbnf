@@ -27,6 +27,10 @@ func TestValidationErrors(t *testing.T) {
 
 		{"macro valid", "a -> 'a'; .macro Foo(b) { b }", NoError},
 		{"macro arg clashes with rule", "a -> 'a'; .macro Foo(a) { a }", NameClashesWithRule},
+		{"macro name clashes with rule", "a -> 'a'; .macro a(b) { b }", DuplicatedRule},
+		{"calling a rule", "a -> 'a'; x -> %!a('a');", NotAMacro},
+		{"macro arg count", "a -> %!Foo('a', 'b'); .macro Foo(b) { b };", IncorrectMacroArgCount},
+		{"macro arg count", "a -> %!Foo(); .macro Foo(b) { b };", IncorrectMacroArgCount},
 		// Wish-list validity checks:
 
 		// Should fail because op would return different types

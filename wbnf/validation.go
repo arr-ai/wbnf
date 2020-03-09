@@ -10,45 +10,47 @@ import (
 	"github.com/arr-ai/wbnf/parser"
 )
 
-func findDefinedRules(tree GrammarNode) (frozen.Set, error) {
+func findDefinedRules(tree GrammarNode) (frozen.Set, map[string]PragmaMacrodefNode, error) {
 	var dupeRules []string
 	out := frozen.NewSet()
+	macros := map[string]PragmaMacrodefNode{}
+	adder := func(ident string) {
+		if out.Has(ident) {
+			dupeRules = append(dupeRules, ident)
+		}
+		out = out.With(ident)
+	}
 	ops := WalkerOps{
 		EnterProdNode: func(node ProdNode) Stopper {
-			ident := node.OneIdent().String()
-			if out.Has(ident) {
-				dupeRules = append(dupeRules, ident)
-			}
-			out = out.With(ident)
-			return &nodeExiter{}
+			adder(node.OneIdent().String())
+			return NodeExiter
+		},
+		EnterPragmaMacrodefNode: func(node PragmaMacrodefNode) Stopper {
+			ident := node.OneName().String()
+			adder(ident)
+			macros[ident] = node
+			return NodeExiter
 		},
 	}
 	ops.Walk(tree)
 	if len(dupeRules) == 0 {
-		return out, nil
+		return out, macros, nil
 	}
-	return frozen.Set{}, validationError{
+	return frozen.Set{}, nil, validationError{
 		msg:  fmt.Sprintf("the following rule(s) are defined multiple times: %s", dupeRules),
 		kind: DuplicatedRule}
 }
 
 func validate(tree GrammarNode) error {
-	rules, err := findDefinedRules(tree)
+	rules, macros, err := findDefinedRules(tree)
 	if err != nil {
 		return err
 	}
 	v := validator{
 		knownRules: rules,
+		macros:     macros,
 	}
-
-	ops := WalkerOps{
-		EnterAtomNode:           v.validateAtom,
-		EnterQuantNode:          v.validateQuant,
-		EnterNamedNode:          v.validateNamed,
-		EnterTermNode:           v.validateTerm,
-		EnterPragmaMacrodefNode: v.validateMacro,
-	}
-	ops.Walk(tree)
+	v.walk(tree)
 
 	if cycles := checkForRecursion(tree); cycles != nil {
 		v.err = append(v.err, cycles)
@@ -71,6 +73,8 @@ const (
 	MinMaxQuantError
 	MultipleTermsWithSameName // something like `term -> foo op="*" op="|";`, likely missing a separator
 	PossibleCycleDetected
+	NotAMacro
+	IncorrectMacroArgCount
 )
 
 type validationError struct {
@@ -96,7 +100,20 @@ func (v validationError) Error() string {
 
 type validator struct {
 	knownRules frozen.Set
+	macros     map[string]PragmaMacrodefNode
 	err        []error
+}
+
+func (v *validator) walk(node IsWalkableType) {
+	ops := WalkerOps{
+		EnterAtomNode:           v.validateAtom,
+		EnterQuantNode:          v.validateQuant,
+		EnterNamedNode:          v.validateNamed,
+		EnterTermNode:           v.validateTerm,
+		EnterPragmaMacrodefNode: v.validateMacro,
+		EnterMacrocallNode:      v.validateMacroCall,
+	}
+	ops.Walk(node)
 }
 
 func (v *validator) Error() string {
@@ -195,5 +212,21 @@ func (v *validator) validateMacro(node PragmaMacrodefNode) Stopper {
 			v.knownRules = v.knownRules.With(arg.String())
 		}
 	}
+	v.walk(node.OneTerm())
 	return NodeExiter
+}
+
+func (v *validator) validateMacroCall(node MacrocallNode) Stopper {
+	macro, has := v.macros[node.OneName().String()]
+	if !has {
+		v.err = append(v.err, validationError{s: node.OneName().Scanner(),
+			msg: "Attempting to call %s which is not a macro", kind: NotAMacro})
+	} else {
+		if len(macro.AllArgs()) != len(node.AllTerm()) {
+			v.err = append(v.err, validationError{
+				msg: fmt.Sprintf("Macro %s expected %d args, given %d",
+					node.OneName().String(), len(macro.AllArgs()), len(node.AllTerm())), kind: IncorrectMacroArgCount})
+		}
+	}
+	return nil
 }

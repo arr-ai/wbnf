@@ -89,8 +89,8 @@ NativeDataTypes -> "int32" | "int64" | "int" |
                 "bool" | "decimal";
 
 APPLICATION_NAME ->  \s* pkg? appname {
-    pkg -> (NAME:"::" ".");
-    appname -> APP_NAME:".";
+    pkg -> (NAME /{\s*::\s*})+;
+    appname -> NAME:/{\s*.\s*};
 
     NAME    -> [a-zA-Z_][-a-zA-Z0-9_]*;
     PATH    -> /{[a-zA-Z0-9._]+}:"/";
@@ -100,7 +100,7 @@ APPLICATION_NAME ->  \s* pkg? appname {
 COMMENT_NO_NL -> "#" [^\n]*;
 COMMENT -> COMMENT_NO_NL "\n";
 EOL     -> (COMMENT+ | [\_\t]*\n);
-QSTRING -> /{"[^"]*"};
+QSTRING -> /{" (?: \\. | [^\\"] )* "};
 
 .wrapRE -> \n+ | \s+ | /{[\_]*()[\_]*};
 

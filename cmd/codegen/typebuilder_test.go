@@ -39,7 +39,7 @@ func testChildren(t *testing.T, children []grammarType, tests childrenTestData) 
 		switch x := child.(type) {
 		case namedRule:
 			assert.Equal(t, val.quant, x.count.int, errMessage)
-			assert.Equal(t, val.returnType, x.returnType, errMessage)
+			assert.Equal(t, val.returnType, GoTypeName(x.returnType), errMessage)
 		case namedToken:
 			assert.Equal(t, val.quant, x.count.int, errMessage)
 			assert.Equal(t, "", val.returnType, "Test mis-configured"+errMessage)
@@ -272,6 +272,7 @@ func TestDropCaps(t *testing.T) {
 		"a", "a",
 		"Bar", "Bar",
 		"INT", "Int",
+		"TEXT_LINE", "Text_Line",
 	}
 	for i := 0; i < len(tests); i += 2 {
 		i := i

@@ -86,6 +86,10 @@ func checkForDupes(children []grammarType, next grammarType) []grammarType {
 			if _, ok := next.(stackBackRef); ok {
 				return children
 			}
+		case choice:
+			if _, ok := next.(choice); ok {
+				return children
+			}
 		}
 		result = append(result, c)
 	}

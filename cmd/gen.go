@@ -65,7 +65,7 @@ func gen(c *cli.Context) error {
 		Grammar:           codegen.MakeGrammarString(g.Grammar()),
 		MiddleSection: append(
 			types.Get(),
-			codegen.IdentsWriter{GrammarNode: tree},
+			// FIXME: codegen.IdentsWriter{GrammarNode: tree},
 			codegen.GetVisitorWriter(types.Types(), startingRule)),
 	}
 	var buf bytes.Buffer

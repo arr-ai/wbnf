@@ -14,11 +14,11 @@ import  -> "import"  prefix=("//"|"/")? PATH ( "as"  APP_NAME)? ("~" mode=NAME)?
 // -------------- Events --------------- //
 
 event  ->  "<->" NAME params? attribs? ":" COMMENT*
-        ( SHORTCUT | (\n+ level=INDENT stmt:INDENT_SEP));
+        ( SHORTCUT | %!Indented(stmt));
 
 // -------------- Applications --------------- //
 application ->  APPLICATION_NAME QSTRING?
-        attribs? ":" COMMENT* \n+ level=INDENT app_decl:INDENT_SEP EOL?;
+        attribs? ":" COMMENT*  %!Indented(app_decl) EOL?;
 
 app_decl   -> annotation
             | COMMENT_NO_NL
@@ -33,21 +33,18 @@ app_decl   -> annotation
 type_decl -> table | facade | alias | union;
 
 table -> mode=("!table"|"!type") NAME attribs?  ":" COMMENT*
-    \n+ level=INDENT
-        (COMMENT | (NAME array_size? "<:") type=(collection_type|type_spec) optional="?"? attribs? (":" annotations)?):INDENT_SEP;
+     %!Indented(COMMENT | (NAME array_size? "<:") type=(collection_type|type_spec) optional="?"? attribs? (":" annotations)?);
 facade -> "!wrap" NAME attribs?  ":" COMMENT*
-    \n+ level=INDENT
-        (table | ("!table"|"!type"|"!union") APP_NAME inplace_table_def?):INDENT_SEP {
-            inplace_table_def -> ":" \n+ level=INDENT (NAME attribs?):INDENT_SEP;
+     %!Indented(table | ("!table"|"!type"|"!union") APP_NAME inplace_table_def?) {
+            inplace_table_def -> ":"  %!Indented(NAME attribs?);
         };
 
 alias -> "!alias" NAME attribs?  ":" COMMENT*
-        ((\n+ level=INDENT  alias_line:INDENT_SEP) | alias_line);
+        (%!Indented(alias_line) | alias_line);
 alias_line -> annotation* (collection_type | type_spec);
 union -> "!union" NAME attribs?  ":"
     ( SHORTCUT |
-        (\n+ level=INDENT
-            (COMMENT | type_spec | annotation | SHORTCUT ):INDENT_SEP)
+         %!Indented(COMMENT | type_spec | annotation | SHORTCUT )
     );
 
 collection_type -> ("set"|"sequence") "of" type_spec;
@@ -63,11 +60,11 @@ array_size -> "(" min=("0"|DIGITS) ".." max=DIGITS? ")";
 
 annotation -> "@" var_name=(NAME) "=" value=(QSTRING | array_of_strings | multi_line_docstring);
 
-annotations -> \n+ level=INDENT annotation:INDENT_SEP;
+annotations -> %!Indented(annotation);
 
 array_of_strings -> "[" QSTRING:"," "]";
 
-multi_line_docstring -> ":" \n+ level=INDENT ("|" TEXT):INDENT_SEP;
+multi_line_docstring -> ":" %!Indented("|" TEXT);
 
 http_path_var_with_type -> "{" var=(NAME | DIGITS) "<:" type=(NativeDataTypes | NAME | reference=APPLICATION_NAME) "}";
 
@@ -109,3 +106,5 @@ QSTRING -> /{"[^"]*"};
 
 INDENT      -> %level="" \s+;
 INDENT_SEP  -> \n+ %level;
+
+.macro Indented(child) {\n+ level=INDENT child:INDENT_SEP}

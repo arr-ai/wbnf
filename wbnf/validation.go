@@ -5,47 +5,52 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/arr-ai/frozen"
+
 	"github.com/arr-ai/wbnf/parser"
 )
 
-func findDefinedRules(tree GrammarNode) (map[string]struct{}, error) {
+func findDefinedRules(tree GrammarNode) (frozen.Set, map[string]PragmaMacrodefNode, error) {
 	var dupeRules []string
-	out := map[string]struct{}{}
+	out := frozen.NewSet()
+	macros := map[string]PragmaMacrodefNode{}
+	adder := func(ident string) {
+		if out.Has(ident) {
+			dupeRules = append(dupeRules, ident)
+		}
+		out = out.With(ident)
+	}
 	ops := WalkerOps{
 		EnterProdNode: func(node ProdNode) Stopper {
-			ident := node.OneIdent().String()
-			if _, has := out[ident]; has {
-				dupeRules = append(dupeRules, ident)
-			}
-			out[ident] = struct{}{}
-			return &nodeExiter{}
+			adder(node.OneIdent().String())
+			return NodeExiter
+		},
+		EnterPragmaMacrodefNode: func(node PragmaMacrodefNode) Stopper {
+			ident := node.OneName().String()
+			adder(ident)
+			macros[ident] = node
+			return NodeExiter
 		},
 	}
 	ops.Walk(tree)
 	if len(dupeRules) == 0 {
-		return out, nil
+		return out, macros, nil
 	}
-	return nil, validationError{
+	return frozen.Set{}, nil, validationError{
 		msg:  fmt.Sprintf("the following rule(s) are defined multiple times: %s", dupeRules),
 		kind: DuplicatedRule}
 }
 
 func validate(tree GrammarNode) error {
-	rules, err := findDefinedRules(tree)
+	rules, macros, err := findDefinedRules(tree)
 	if err != nil {
 		return err
 	}
 	v := validator{
 		knownRules: rules,
+		macros:     macros,
 	}
-
-	ops := WalkerOps{
-		EnterAtomNode:  v.validateAtom,
-		EnterQuantNode: v.validateQuant,
-		EnterNamedNode: v.validateNamed,
-		EnterTermNode:  v.validateTerm,
-	}
-	ops.Walk(tree)
+	v.walk(tree)
 
 	if cycles := checkForRecursion(tree); cycles != nil {
 		v.err = append(v.err, cycles)
@@ -68,6 +73,8 @@ const (
 	MinMaxQuantError
 	MultipleTermsWithSameName // something like `term -> foo op="*" op="|";`, likely missing a separator
 	PossibleCycleDetected
+	NotAMacro
+	IncorrectMacroArgCount
 )
 
 type validationError struct {
@@ -92,8 +99,21 @@ func (v validationError) Error() string {
 }
 
 type validator struct {
-	knownRules map[string]struct{}
+	knownRules frozen.Set
+	macros     map[string]PragmaMacrodefNode
 	err        []error
+}
+
+func (v *validator) walk(node IsWalkableType) {
+	ops := WalkerOps{
+		EnterAtomNode:           v.validateAtom,
+		EnterQuantNode:          v.validateQuant,
+		EnterNamedNode:          v.validateNamed,
+		EnterTermNode:           v.validateTerm,
+		EnterPragmaMacrodefNode: v.validateMacro,
+		EnterMacrocallNode:      v.validateMacroCall,
+	}
+	ops.Walk(node)
 }
 
 func (v *validator) Error() string {
@@ -124,7 +144,7 @@ func (v *validator) validateTerm(tree TermNode) Stopper {
 
 func (v *validator) validateNamed(tree NamedNode) Stopper {
 	if x := tree.OneIdent(); x != nil {
-		if _, has := v.knownRules[x.String()]; has {
+		if v.knownRules.Has(x.String()) {
 			v.err = append(v.err, validationError{s: tree.OneIdent().Scanner(),
 				msg: "identifier '%s' clashes with a defined rule", kind: NameClashesWithRule})
 		}
@@ -135,7 +155,7 @@ func (v *validator) validateNamed(tree NamedNode) Stopper {
 func (v *validator) validateAtom(tree AtomNode) Stopper {
 	if ident := tree.OneIdent(); ident != nil {
 		if ident.String() != "@" {
-			if _, has := v.knownRules[ident.String()]; !has {
+			if !v.knownRules.Has(ident.String()) {
 				v.err = append(v.err, validationError{s: tree.OneIdent().Scanner(),
 					msg: "identifier '%s' is not a defined rule", kind: UnknownRule})
 			}
@@ -176,6 +196,37 @@ func (v *validator) validateQuant(tree QuantNode) Stopper {
 			}
 		}
 	case 2:
+	}
+	return nil
+}
+
+func (v *validator) validateMacro(node PragmaMacrodefNode) Stopper {
+	prevRules := v.knownRules
+	defer func() { v.knownRules = prevRules }()
+
+	for _, arg := range node.AllArgs() {
+		if v.knownRules.Has(arg.String()) {
+			v.err = append(v.err, validationError{s: arg.Scanner(),
+				msg: "macro arg '%s' clashes with a defined rule", kind: NameClashesWithRule})
+		} else {
+			v.knownRules = v.knownRules.With(arg.String())
+		}
+	}
+	v.walk(node.OneTerm())
+	return NodeExiter
+}
+
+func (v *validator) validateMacroCall(node MacrocallNode) Stopper {
+	macro, has := v.macros[node.OneName().String()]
+	if !has {
+		v.err = append(v.err, validationError{s: node.OneName().Scanner(),
+			msg: "Attempting to call %s which is not a macro", kind: NotAMacro})
+	} else {
+		if len(macro.AllArgs()) != len(node.AllTerm()) {
+			v.err = append(v.err, validationError{
+				msg: fmt.Sprintf("Macro %s expected %d args, given %d",
+					node.OneName().String(), len(macro.AllArgs()), len(node.AllTerm())), kind: IncorrectMacroArgCount})
+		}
 	}
 	return nil
 }

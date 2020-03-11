@@ -10,9 +10,29 @@ import (
 	"github.com/arr-ai/wbnf/wbnf"
 )
 
+var gotypemap map[string]string
+
 func GoTypeName(rule string) string {
-	return strcase.ToCamel(strings.TrimSuffix(DropCaps(rule), "Node") + "Node")
+	return GoName(rule) + "Node"
 }
+
+func GoName(rule string) string {
+	if strings.HasSuffix(rule, "Node") {
+		return strings.TrimSuffix(rule, "Node")
+	}
+	if gotypemap == nil {
+		gotypemap = map[string]string{}
+	}
+
+	if val, has := gotypemap[rule]; has {
+		return val
+	}
+
+	res := strcase.ToCamel(DropCaps(rule))
+	gotypemap[rule] = res
+	return res
+}
+
 func DropCaps(rule string) string {
 	isCaps := func(r uint8) bool { return r >= 'A' && r <= 'Z' }
 	out := make([]string, 0, len(rule))
@@ -131,7 +151,7 @@ func (c *%s) String() string {
 	if c == nil || c.Node == nil { return "" }
 	return c.Node.Scanner().String()
 }
-`, "%s", t.TypeName())
+`, "%s", GoTypeName(string(t)))
 }
 func (t basicRule) CallbackData() *callbackData { return nil }
 func (t basicRule) Upgrade() unnamedToken {
@@ -170,7 +190,7 @@ func (t stackBackRef) toNamedRule() grammarType {
 	return namedRule{
 		name:       t.name,
 		parent:     t.parent,
-		returnType: GoTypeName(t.parent),
+		returnType: t.parent,
 		count:      countManager{int: wantAllGetter},
 	}
 }
@@ -185,9 +205,9 @@ func (t backRef) TypeName() string        { return "" }
 func (t backRef) Ident() string           { return t.name }
 func (t backRef) Children() []grammarType { return nil }
 func (t backRef) String() string {
-	return fmt.Sprintf(`func (c %s) %sRef() ast.Node { return ast.First(c.Node, %s) }
+	return fmt.Sprintf(`func (c %s) %sRef() ast.Node { return ast.First(c.Node, "%s") }
 `,
-		GoTypeName(t.parent), strcase.ToCamel(t.name), t.name)
+		GoTypeName(t.parent), GoName(t.name), t.name)
 }
 func (t backRef) CallbackData() *callbackData { return nil }
 
@@ -196,7 +216,7 @@ func (t namedToken) Ident() string           { return t.name }
 func (t namedToken) Children() []grammarType { return nil }
 func (t namedToken) String() string {
 	replacer := strings.NewReplacer("{{parent}}", GoTypeName(t.parent),
-		"{{childtype}}", strcase.ToCamel(DropCaps(t.name)),
+		"{{childtype}}", GoName(t.name),
 		"{{name}}", IdentName(t.name),
 	)
 	out := ""
@@ -261,8 +281,8 @@ func (t namedRule) Ident() string           { return t.name }
 func (t namedRule) Children() []grammarType { return nil }
 func (t namedRule) String() string {
 	replacer := strings.NewReplacer("{{parent}}", GoTypeName(t.parent),
-		"{{child}}", strcase.ToCamel(DropCaps(t.name)),
-		"{{returnType}}", t.returnType,
+		"{{child}}", GoName(t.name),
+		"{{returnType}}", GoTypeName(t.returnType),
 		"{{name}}", IdentName(t.name),
 	)
 	out := ""
@@ -290,14 +310,15 @@ func (c {{parent}}) One{{child}}() *{{returnType}} {
 	return out
 }
 func (t namedRule) CallbackData() *callbackData {
-	return &callbackData{getter: strcase.ToCamel(DropCaps(t.name)), walker: t.returnType, isMany: t.count.wantAll()}
+	return &callbackData{getter: GoName(t.name), walker: GoTypeName(t.returnType), isMany: t.count.wantAll()}
 }
 
 func (t rule) TypeName() string        { return t.name }
 func (t rule) Ident() string           { return t.name }
 func (t rule) Children() []grammarType { return t.childs }
 func (t rule) String() string {
-	out := fmt.Sprintf("type %s struct { ast.Node}\n func (%s) isWalkableType() {}\n", t.TypeName(), t.TypeName())
+	out := fmt.Sprintf("type %s struct { ast.Node}\n func (%s) isWalkableType() {}\n",
+		GoTypeName(t.name), GoTypeName(t.name))
 	if len(t.Children()) > 0 {
 		orderedChildren := t.Children()
 		sort.Slice(orderedChildren, func(i, j int) bool {

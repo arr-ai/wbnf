@@ -179,17 +179,16 @@ func (c Extra) narrow() bool {
 }
 
 func (l Leaf) ContentEquals(other Node) bool {
-	switch other.(type) {
+	switch other := other.(type) {
 	case Leaf:
-		return l.Scanner().String() == other.(Leaf).Scanner().String()
+		return l.Scanner().String() == other.Scanner().String()
 	}
 	return false
 }
 
 func (b Branch) ContentEquals(other Node) bool {
-	switch other.(type) {
+	switch other := other.(type) {
 	case Branch:
-		other := other.(Branch)
 		if len(b) != len(other) {
 			return false
 		}
@@ -201,8 +200,8 @@ func (b Branch) ContentEquals(other Node) bool {
 				}
 			case Many:
 				nodes := v.(Many)
-				otherNodes := other.Many(k) // may be nil
-				if otherNodes == nil || len(nodes) != len(otherNodes) {
+				otherNodes := other.Many(k)
+				if len(nodes) != len(otherNodes) {
 					return false
 				}
 				for i, n := range nodes {
@@ -221,9 +220,9 @@ func (b Branch) ContentEquals(other Node) bool {
 }
 
 func (e Extra) ContentEquals(other Node) bool {
-	switch other.(type) {
+	switch other := other.(type) {
 	case Extra:
-		return e.Data == other.(Extra).Data
+		return e.Data == other.Data
 	}
 	return false
 }

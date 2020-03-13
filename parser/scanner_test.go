@@ -31,6 +31,7 @@ func TestScannerLineColumn(t *testing.T) {
 }
 
 func assertLineColumn(t *testing.T, scanner *Scanner, line, column int) {
-	assert.Equal(t, line, scanner.Line())
-	assert.Equal(t, column, scanner.Column())
+	l, c := scanner.Position()
+	assert.Equal(t, line, l)
+	assert.Equal(t, column, c)
 }

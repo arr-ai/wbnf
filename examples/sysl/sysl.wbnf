@@ -15,6 +15,8 @@ import  -> "import"  prefix=("//"|"/")? PATH ( "as"  reference)? ("~" mode=NAME)
 
 event  ->  "<->" NAME params? attribs? ":" COMMENT*
         ( SHORTCUT | %!Indented(stmt));
+subscribe  ->  APPLICATION_NAME "->" NAME params? attribs? ":" COMMENT*
+        ( SHORTCUT | %!Indented(stmt));
 
 // -------------- Applications --------------- //
 application ->  APPLICATION_NAME QSTRING?
@@ -25,6 +27,8 @@ app_decl   -> annotation
             | SHORTCUT
             | type_decl
             | endpoint
+            | event
+            | subscribe
             | view;
 
 

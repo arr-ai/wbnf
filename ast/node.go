@@ -43,6 +43,7 @@ type Node interface {
 	One(name string) Node
 	Many(name string) []Node
 	Scanner() parser.Scanner
+	ContentEquals(n Node) bool // true if scanner and extra data contents are equivalent
 	collapse(level int) Node
 	isNode()
 	clone() Node
@@ -175,4 +176,53 @@ func (n Branch) narrow() bool {
 
 func (c Extra) narrow() bool {
 	return true
+}
+
+func (l Leaf) ContentEquals(other Node) bool {
+	switch other := other.(type) {
+	case Leaf:
+		return l.Scanner().String() == other.Scanner().String()
+	}
+	return false
+}
+
+func (b Branch) ContentEquals(other Node) bool {
+	switch other := other.(type) {
+	case Branch:
+		if len(b) != len(other) {
+			return false
+		}
+		for k, v := range b {
+			switch v.(type) {
+			case One:
+				if !v.(One).Node.ContentEquals(other.One(k)) {
+					return false
+				}
+			case Many:
+				nodes := v.(Many)
+				otherNodes := other.Many(k)
+				if len(nodes) != len(otherNodes) {
+					return false
+				}
+				for i, n := range nodes {
+					if !n.ContentEquals(otherNodes[i]) {
+						return false
+					}
+				}
+			default:
+				panic(fmt.Errorf("unexpected node type: %v", v))
+			}
+
+		}
+		return true
+	}
+	return false
+}
+
+func (e Extra) ContentEquals(other Node) bool {
+	switch other := other.(type) {
+	case Extra:
+		return e.Data == other.Data
+	}
+	return false
 }

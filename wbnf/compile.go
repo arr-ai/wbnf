@@ -92,11 +92,34 @@ func parseString(s string) string {
 var whitespaceRE = regexp.MustCompile(`\s`)
 var escapedSpaceRE = regexp.MustCompile(`((?:\A|[^\\])(?:\\\\)*)\\_`)
 
-func buildAtom(atom AtomNode) parser.Term {
-	x, _ := ast.Which(atom.Node.(ast.Branch), "RE", "STR", "ExtRef", "IDENT", "REF", "term")
+type grammarBuilder struct {
+	macros map[string]PragmaMacrodefNode
+}
+
+func (gb grammarBuilder) expandMacro(node MacrocallNode) parser.Term {
+	name := node.OneName().String()
+	macro := gb.macros[name]
+	g := parser.Grammar{parser.Rule(name): gb.buildTerm(*macro.OneTerm())}
+
+	newg := rebuildGrammar(g, func(t parser.Term) parser.Term {
+		switch t := t.(type) {
+		case parser.Rule:
+			for i, arg := range macro.AllArgs() {
+				if arg.String() == string(t) {
+					return gb.buildTerm(node.AllTerm()[i])
+				}
+			}
+		}
+		return t
+	})
+	return newg[parser.Rule(name)]
+}
+
+func (gb grammarBuilder) buildAtom(atom AtomNode) parser.Term {
+	x, _ := ast.Which(atom.Node.(ast.Branch), "RE", "STR", "macrocall", "ExtRef", "IDENT", "REF", "term")
 	name := ""
 	switch x {
-	case "term", "REF", "ExtRef", "":
+	case "term", "REF", "ExtRef", "macrocall", "":
 	default:
 		name = atom.One(x).Scanner().String()
 	}
@@ -129,13 +152,15 @@ func buildAtom(atom AtomNode) parser.Term {
 		refNode := atom.OneExtRef()
 		return parser.ExtRef(refNode.OneIdent().String())
 	case "term":
-		return buildTerm(*atom.OneTerm())
+		return gb.buildTerm(*atom.OneTerm())
+	case "macrocall":
+		return gb.expandMacro(*atom.OneMacrocall())
 	}
 	// Must be the empty term '()'
 	return parser.Seq{}
 }
 
-func buildQuant(q QuantNode, term parser.Term) parser.Term {
+func (gb grammarBuilder) buildQuant(q QuantNode, term parser.Term) parser.Term {
 	switch q.Choice() {
 	case 0:
 		switch q.OneOp() {
@@ -166,7 +191,7 @@ func buildQuant(q QuantNode, term parser.Term) parser.Term {
 		return parser.Quant{Term: term, Min: min, Max: max}
 	case 2:
 		assoc := parser.NewAssociativity(q.OneOp())
-		sep := buildNamed(*q.OneNamed())
+		sep := gb.buildNamed(*q.OneNamed())
 		delim := parser.Delim{Term: term, Sep: sep, Assoc: assoc}
 		if q.OneOptLeading() != "" {
 			delim.CanStartWithSep = true
@@ -179,19 +204,19 @@ func buildQuant(q QuantNode, term parser.Term) parser.Term {
 	panic("bad input")
 }
 
-func buildNamed(n NamedNode) parser.Term {
-	atom := buildAtom(*n.OneAtom())
+func (gb grammarBuilder) buildNamed(n NamedNode) parser.Term {
+	atom := gb.buildAtom(*n.OneAtom())
 	if ident := n.OneIdent().String(); ident != "" {
 		return parser.Eq(ident, atom)
 	}
 	return atom
 }
 
-func buildTerm(t TermNode) parser.Term {
+func (gb grammarBuilder) buildTerm(t TermNode) parser.Term {
 	if len(t.AllTerm()) > 0 {
 		var terms []parser.Term
 		for _, t := range t.AllTerm() {
-			terms = append(terms, buildTerm(t))
+			terms = append(terms, gb.buildTerm(t))
 		}
 		switch t.OneOp() {
 		case "|":
@@ -201,7 +226,7 @@ func buildTerm(t TermNode) parser.Term {
 		}
 		var sg *parser.ScopedGrammar
 		if g := t.AllGrammar(); len(g) == 1 {
-			nested := buildGrammar(g[0].Node)
+			nested := gb.buildGrammar(g[0].Node)
 			sg = &parser.ScopedGrammar{
 				Grammar: nested,
 			}
@@ -221,39 +246,50 @@ func buildTerm(t TermNode) parser.Term {
 	}
 	// named and quants need to be added backwards
 	// "a":","*     ->   Any(Delim(... S("a")))
-	next := buildNamed(*t.OneNamed())
+	next := gb.buildNamed(*t.OneNamed())
 	quants := t.AllQuant()
 	for i := range quants {
-		next = buildQuant(quants[len(quants)-1-i], next)
+		next = gb.buildQuant(quants[len(quants)-1-i], next)
 	}
 	return next
 }
 
-func buildProd(p ProdNode) parser.Term {
+func (gb grammarBuilder) buildProd(p ProdNode) parser.Term {
 	children := p.AllTerm()
 	if len(children) == 1 {
-		return buildTerm(children[0])
+		return gb.buildTerm(children[0])
 	}
 	seq := make(parser.Seq, 0, len(children))
 	for _, child := range children {
-		seq = append(seq, buildTerm(child))
+		seq = append(seq, gb.buildTerm(child))
 	}
 	return seq
 }
 
-func buildGrammar(node ast.Node) parser.Grammar {
+func (gb grammarBuilder) buildGrammar(node ast.Node) parser.Grammar {
 	g := parser.Grammar{}
 	tree := NewGrammarNode(node)
 	for _, stmt := range tree.AllStmt() {
 		if prod := stmt.OneProd(); prod != nil {
-			g[parser.Rule(prod.OneIdent().String())] = buildProd(*prod)
+			g[parser.Rule(prod.OneIdent().String())] = gb.buildProd(*prod)
 		}
 	}
 	return g
 }
 
 func NewFromAst(node ast.Node) parser.Grammar {
-	return insertCutPoints(buildGrammar(node))
+	gb := grammarBuilder{
+		macros: map[string]PragmaMacrodefNode{},
+	}
+	WalkerOps{
+		EnterPragmaMacrodefNode: func(node PragmaMacrodefNode) Stopper {
+			gb.macros[node.OneName().String()] = node
+			return nil
+		},
+	}.Walk(NewGrammarNode(node))
+	g := gb.buildGrammar(node)
+
+	return insertCutPoints(g)
 }
 
 func mergeGrammarNodes(a, b ast.Branch) ast.Node {
@@ -294,6 +330,9 @@ func (c *compiler) makeGrammar(filename, text string) (GrammarNode, error) {
 			return nil
 		},
 	}.Walk(node)
+	if err != nil {
+		return GrammarNode{}, err
+	}
 	return node, nil
 }
 

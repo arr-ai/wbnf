@@ -36,7 +36,10 @@ named   -> (IDENT op="=")? atom;
 quant   -> op=[?*+]
          | "{" min=INT? "," max=INT? "}"
          | op=/{<:|:>?} opt_leading=","? named opt_trailing=","?;
-atom    -> IDENT | STR | RE | ExtRef=("%%" IDENT) | REF | "(" term ")" | "(" ")";
+atom    -> IDENT | STR | RE | macrocall | ExtRef=("%%" IDENT) | REF | "(" term ")" | "(" ")";
+
+macrocall   -> "%!" name=IDENT "(" term:","? ")";
+REF         -> "%" IDENT ("=" default=STR)?;
 
 // Terminals
 COMMENT -> /{ //.*$
@@ -66,10 +69,11 @@ RE      -> /{
                )(?: (?:[+*?]|\{\d+,?\d?\}) \?? )?
              )+
            };
-REF     -> "%" IDENT ("=" default=STR)?;
+
 // Special
-pragma  -> import {
-                import -> ".import" path=((".."|"."|[a-zA-Z0-9.:]+):,"/") ";"?;
+pragma  -> import | macrodef {
+                import   -> ".import" path=((".."|"."|[a-zA-Z0-9.:]+):,"/") ";"?;
+                macrodef -> ".macro" name=IDENT "(" args=IDENT:","? ")" "{" term "}" ";"?;
             };
 
 .wrapRE -> /{\s*()\s*};
@@ -308,6 +312,20 @@ Some special commands are defined in the grammar to control the way the parser e
 
 `.import relative_filename` Allows the wbnf file to merge the grammar of the imported filename into the current grammar (equivalent to `#include` in c)
 
+`.macro Name(args) { term }` Allows the use of macros to minimise repetition in the grammar (see below)
+
+#### Macros
+
+Macros can be used when a common pattern is required through the grammar which cant easily be converted to a rule.
+
+Macros are conceptually the same as C-style `#define`'s, except rather than simply substituting text, a full expression can be used.
+
+We will explain how to use macros by implementing the equivalent of the `delimited repeater`.
+First a macro is defined `.macro Delim(term, sep) { term (sep term)* }`, and used `%!Delim(a, "<"? ":" ">"? )`
+
+This would expand to `a (("<"? ":" ">"?) a)*` which is equivalent of `a:("<"? ":" ">"?)`
+
+
 #### Magic rules
 
 *Rules* prefixed by a `.` are special rules governing the parser's overall
@@ -316,7 +334,7 @@ behaviour. The following rules are recognised:
 ##### `.wrapRE -> /{some () regex}`
 
 This rule instructs the parser to wrap every regular expression with this one.
-The actual regex is insertd into the `()`.
+The actual regex is inserted into the `()`.
 
 Example:
 
@@ -330,5 +348,7 @@ Example:
 
 Below are a collection of helpful rules which can be dropped into your grammar.
 
-- `block -> indent=(%indent="\n" \s+) stmt:%indent;` accepts an indented `stmt`
+- `block -> indent=(\n+ %indent="\n" \s+) stmt:%indent;` accepts an indented `stmt`
   node.
+
+- `.macro Indented(term) { indent=(\n+ %indent="\n" \s+) term:%indent } ` Macro to simplify adding indentation (use like `%!Indented(term)`)

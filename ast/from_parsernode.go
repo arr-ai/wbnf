@@ -19,6 +19,11 @@ func NewExtRefTreeElement(g parser.Grammar, node parser.TreeElement) parser.Tree
 func (Branch) IsExtra() {}
 
 func FromParserNode(g parser.Grammar, e parser.TreeElement) Branch {
+	if s, ok := e.(parser.Scanner); ok {
+		result := Branch{}
+		result.one("", Leaf(s))
+		return result
+	}
 	rule := parser.NodeRule(e.(parser.Node))
 	term := g[rule]
 	result := Branch{}

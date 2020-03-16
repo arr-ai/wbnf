@@ -5,7 +5,6 @@ import (
 
 	"github.com/arr-ai/frozen"
 	"github.com/arr-ai/wbnf/parser"
-	"github.com/iancoleman/strcase"
 )
 
 func MakeTypesFromGrammar(g parser.Grammar) map[string]grammarType {
@@ -34,7 +33,7 @@ func pushRuleNameForStack(ident, parentName string, knownRules frozen.Map) froze
 func mergeGrammarRules(prefix string, g parser.Grammar, knownRules frozen.Map) frozen.Map {
 	mb := frozen.NewMapBuilder(len(g))
 	for k := range g {
-		mb.Put(k.String(), prefix+strcase.ToCamel(k.String()))
+		mb.Put(k.String(), prefix+GoName(k.String()))
 	}
 	return knownRules.Update(mb.Finish())
 }
@@ -42,7 +41,7 @@ func mergeGrammarRules(prefix string, g parser.Grammar, knownRules frozen.Map) f
 func (tm *TypeMap) walkGrammar(prefix string, g parser.Grammar, knownRules frozen.Map) TypeMap {
 	result := map[string]grammarType{}
 	for r, term := range g {
-		typeName := prefix + strcase.ToCamel(r.String())
+		typeName := prefix + GoName(r.String())
 		tm.walkTerm(term, typeName, setWantOneGetter(),
 			pushRuleNameForStack(r.String(), typeName, knownRules), rand.Int()) //nolint:gosec
 	}
@@ -70,13 +69,13 @@ func (tm *TypeMap) makeLeafType(term parser.Term, parentName string, quant count
 		} else {
 			val = namedRule{
 				name:       t.String(),
-				parent:     GoTypeName(parentName),
-				returnType: GoTypeName(knownRules.MustGet(t.String()).(string)),
+				parent:     parentName,
+				returnType: knownRules.MustGet(t.String()).(string),
 				count:      quant,
 			}
 		}
 	case parser.S, parser.RE:
-		val = unnamedToken{GoTypeName(parentName), quant}
+		val = unnamedToken{parentName, quant}
 	default:
 		panic("Should not have got here")
 	}
@@ -91,7 +90,7 @@ func (tm *TypeMap) walkTerm(term parser.Term, parentName string, quant countMana
 	case parser.REF:
 		tm.pushType("", parentName, backRef{
 			name:   t.Ident,
-			parent: GoTypeName(parentName),
+			parent: parentName,
 		})
 	case parser.ScopedGrammar:
 		knownRules = mergeGrammarRules(parentName, t.Grammar, knownRules)
@@ -111,35 +110,36 @@ func (tm *TypeMap) walkTerm(term parser.Term, parentName string, quant countMana
 		tm.walkTerm(t.Term, parentName, setWantAllGetter(), knownRules, termId)
 		switch delim := t.Sep.(type) {
 		case parser.Named:
-			childName := parentName + strcase.ToCamel(DropCaps(delim.Name))
-			if _, ok := delim.Term.(parser.S); ok {
+			childName := parentName + GoName(delim.Name)
+			switch delim.Term.(type) {
+			case parser.S, parser.CutPoint: //fixme: This will only work as long as cutpoints are s() only
 				tm.pushType(childName, parentName, namedToken{
 					name:   delim.Name,
 					parent: parentName,
 					count:  quant,
 				})
-			} else {
+			default:
 				tm.walkTerm(t.Sep, parentName, setWantAllGetter(), knownRules, termId)
 			}
 		case parser.Rule:
-			childName := parentName + strcase.ToCamel(DropCaps(delim.String()))
+			childName := parentName + GoName(delim.String())
 			tm.walkTerm(t.Sep, childName, setWantAllGetter(), knownRules, termId)
-		case parser.S: // ignore the delim
+		case parser.CutPoint, parser.S: // ignore the delim
 		default:
 			childName := parentName + "Delim"
 			tm.walkTerm(t.Sep, childName, setWantAllGetter(), knownRules, termId)
 		}
 	case parser.Named:
-		childName := parentName + strcase.ToCamel(DropCaps(t.Name))
+		childName := parentName + GoName(t.Name)
 		switch term := t.Term.(type) {
 		case parser.Rule:
 			tm.pushType(childName, parentName, namedRule{
 				name:       t.Name,
 				parent:     parentName,
-				returnType: GoTypeName(term.String()),
+				returnType: term.String(),
 				count:      quant,
 			})
-		case parser.RE, parser.S:
+		case parser.RE, parser.S, parser.CutPoint:
 			tm.pushType(childName, parentName, namedToken{
 				name:   t.Name,
 				parent: parentName,
@@ -150,7 +150,7 @@ func (tm *TypeMap) walkTerm(term parser.Term, parentName string, quant countMana
 			tm.pushType(childName, parentName, namedRule{
 				name:       t.Name,
 				parent:     parentName,
-				returnType: GoTypeName(childName),
+				returnType: childName,
 				count:      quant,
 			})
 		}

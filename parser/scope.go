@@ -113,3 +113,35 @@ func (s Scope) GetParserEscape() *escape {
 	}
 	return nil
 }
+
+type call struct {
+	ident string
+	term  Term
+	scope Scope
+}
+type CallStack struct {
+	stack []call
+}
+
+func (c CallStack) Error() string {
+	var parts []string
+	for _, call := range c.stack {
+		parts = append(parts, fmt.Sprintf("%+v", call))
+	}
+	return strings.Join(parts, "\n")
+}
+
+const callStackKey = ".CallStack-key."
+
+func (s Scope) PushCall(ident string, t Term) Scope {
+	cs := s.GetCallStack()
+	cs.stack = append(cs.stack, call{ident, t, s})
+	return s.With(callStackKey, cs)
+}
+
+func (s Scope) GetCallStack() CallStack {
+	if e, has := s.m.Get(callStackKey); has {
+		return e.(CallStack)
+	}
+	return CallStack{}
+}

@@ -17,18 +17,19 @@ const funcs = `	Enter{{typeName}} func ({{typeName}}) Stopper
 func (w VisitorWriter) String() string {
 	parts := make([]string, 0, len(w.types))
 	for _, t := range w.types {
-		parts = append(parts, strings.ReplaceAll(funcs, "{{typeName}}", t.TypeName()))
+		parts = append(parts, strings.ReplaceAll(funcs, "{{typeName}}", GoTypeName(t.TypeName())))
 	}
 	sort.Strings(parts)
 	out := "\ntype WalkerOps struct {\n" + strings.Join(parts, "\n") + "\n}\n"
 
 	parts = []string{}
 	for _, t := range w.types {
+		typeName := GoTypeName(t.TypeName())
 		if len(t.Children()) > 0 {
-			parts = append(parts, fmt.Sprintf("\tcase %s: return w.Walk%s(node)\n", t.TypeName(), t.TypeName()))
+			parts = append(parts, fmt.Sprintf("\tcase %s: return w.Walk%s(node)\n", typeName, typeName))
 		} else {
 			parts = append(parts, fmt.Sprintf("\tcase %s: if fn := w.Enter%s; fn != nil { return fn(node) }\n",
-				t.TypeName(), t.TypeName()))
+				typeName, typeName))
 		}
 	}
 	sort.Strings(parts)
@@ -46,7 +47,7 @@ func (w VisitorWriter) String() string {
 }
 
 func (w *VisitorWriter) getTypeWalker(t grammarType) string {
-	repl := strings.NewReplacer("{{.CtxName}}", t.TypeName(), `\n`, "\n")
+	repl := strings.NewReplacer("{{.CtxName}}", GoTypeName(t.TypeName()), `\n`, "\n")
 	walker := repl.Replace(`func (w WalkerOps) Walk{{.CtxName}}(node {{.CtxName}}) Stopper {
 	if fn := w.Enter{{.CtxName}}; fn != nil { 
 		if s := fn(node); s != nil { if s.ExitNode() { return nil } else if s.Abort() { return s} }\n}\n`)
@@ -55,7 +56,7 @@ func (w *VisitorWriter) getTypeWalker(t grammarType) string {
 		funcs := child.CallbackData()
 		switch child := child.(type) {
 		case namedRule:
-			if r, ok := w.types[child.returnType]; ok {
+			if r, ok := w.types[GoTypeName(child.returnType)]; ok {
 				if _, ok := r.(basicRule); ok {
 					walker += getWalkerFuncs(funcs, false)
 					continue

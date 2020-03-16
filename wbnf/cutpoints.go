@@ -47,7 +47,6 @@ func insertCutPoints(g parser.Grammar) parser.Grammar {
 				return parser.CutPoint{t}
 			}
 		case parser.ScopedGrammar:
-			t.Term = fixTerm(t.Term, callback)
 			t.Grammar = rebuildGrammar(t.Grammar, callback)
 			return t
 		}
@@ -84,6 +83,10 @@ func findUniqueStrings(g parser.Grammar) frozen.Set {
 		case parser.Delim:
 			out = out.Merge(forTerm(t.Term), mergeFn)
 			out = out.Merge(forTerm(t.Sep), mergeFn)
+			if t.CanStartWithSep {
+				// ensure that a starting sep will never be a cutpoint
+				out = out.Merge(forTerm(t.Sep), mergeFn)
+			}
 		case parser.Quant:
 			out = out.Merge(forTerm(t.Term), mergeFn)
 		case parser.Named:
@@ -127,22 +130,38 @@ func fixTerm(term parser.Term, callback func(t parser.Term) parser.Term) parser.
 	case parser.Seq:
 		out := parser.Seq{}
 		for _, t := range t {
-			out = append(out, callback(t))
+			out = append(out, fixTerm(t, callback))
 		}
 		return out
 	case parser.Stack:
 		out := parser.Stack{}
 		for _, t := range t {
-			out = append(out, callback(t))
+			out = append(out, fixTerm(t, callback))
 		}
-		return out
+		return callback(out)
 	case parser.Oneof:
 		out := parser.Oneof{}
 		for _, t := range t {
-			out = append(out, callback(t))
+			out = append(out, fixTerm(t, callback))
 		}
-		return out
-	case parser.S, parser.Delim, parser.Quant, parser.Named, parser.ScopedGrammar, parser.REF, parser.RE, parser.Rule:
+		return callback(out)
+	case parser.Delim:
+		t.Term = fixTerm(t.Term, callback)
+		t.Sep = fixTerm(t.Sep, callback)
+		return callback(t)
+	case parser.Quant:
+		t.Term = fixTerm(t.Term, callback)
+		return callback(t)
+	case parser.Named:
+		t.Term = fixTerm(t.Term, callback)
+		return callback(t)
+	case parser.ScopedGrammar:
+		t.Term = fixTerm(t.Term, callback)
+		return callback(t)
+	case parser.CutPoint:
+		t.Term = fixTerm(t.Term, callback)
+		return callback(t)
+	case parser.S, parser.REF, parser.RE, parser.Rule:
 		return callback(term)
 	default:
 		panic("unexpected term")

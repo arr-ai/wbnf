@@ -22,8 +22,9 @@ func Grammar() parser.Parsers {
 		"atom": parser.Oneof{parser.Rule(`IDENT`),
 			parser.Rule(`STR`),
 			parser.Rule(`RE`),
+			parser.Rule(`macrocall`),
 			parser.Eq(`ExtRef`,
-				parser.Seq{parser.S(`%%`),
+				parser.Seq{parser.CutPoint{parser.S(`%%`)},
 					parser.Rule(`IDENT`)}),
 			parser.Rule(`REF`),
 			parser.Seq{parser.S(`(`),
@@ -32,24 +33,44 @@ func Grammar() parser.Parsers {
 			parser.Seq{parser.S(`(`),
 				parser.S(`)`)}},
 		"grammar": parser.Some(parser.Rule(`stmt`)),
+		"macrocall": parser.Seq{parser.CutPoint{parser.S(`%!`)},
+			parser.Eq(`name`,
+				parser.Rule(`IDENT`)),
+			parser.S(`(`),
+			parser.Delim{Term: parser.Opt(parser.Rule(`term`)),
+				Sep: parser.S(`,`)},
+			parser.S(`)`)},
 		"named": parser.Seq{parser.Opt(parser.Seq{parser.Rule(`IDENT`),
 			parser.Eq(`op`,
 				parser.S(`=`))}),
 			parser.Rule(`atom`)},
-		"pragma": parser.ScopedGrammar{Term: parser.Rule(`import`),
+		"pragma": parser.ScopedGrammar{Term: parser.Oneof{parser.Rule(`import`),
+			parser.Rule(`macrodef`)},
 			Grammar: parser.Grammar{".wrapRE": parser.RE(`\s*()\s*`),
 				"import": parser.Seq{parser.CutPoint{parser.S(`.import`)},
 					parser.Eq(`path`,
-						parser.Delim{Term: parser.Oneof{parser.S(`..`),
-							parser.S(`.`),
+						parser.Delim{Term: parser.Oneof{parser.CutPoint{parser.S(`..`)},
+							parser.CutPoint{parser.S(`.`)},
 							parser.RE(`[a-zA-Z0-9.:]+`)},
 							Sep:             parser.S(`/`),
 							CanStartWithSep: true}),
-					parser.Opt(parser.S(`;`))}}},
+					parser.Opt(parser.CutPoint{parser.S(`;`)})},
+				"macrodef": parser.Seq{parser.CutPoint{parser.S(`.macro`)},
+					parser.Eq(`name`,
+						parser.Rule(`IDENT`)),
+					parser.S(`(`),
+					parser.Delim{Term: parser.Opt(parser.Eq(`args`,
+						parser.Rule(`IDENT`))),
+						Sep: parser.S(`,`)},
+					parser.S(`)`),
+					parser.S(`{`),
+					parser.Rule(`term`),
+					parser.S(`}`),
+					parser.Opt(parser.CutPoint{parser.S(`;`)})}}},
 		"prod": parser.Seq{parser.Rule(`IDENT`),
 			parser.CutPoint{parser.S(`->`)},
 			parser.Some(parser.Rule(`term`)),
-			parser.S(`;`)},
+			parser.CutPoint{parser.S(`;`)}},
 		"quant": parser.Oneof{parser.Eq(`op`,
 			parser.RE(`[?*+]`)),
 			parser.Seq{parser.S(`{`),
@@ -109,7 +130,7 @@ type AtomExtRefNode struct{ ast.Node }
 func (AtomExtRefNode) isWalkableType() {}
 
 func (c AtomExtRefNode) OneIdent() *IdentNode {
-	if child := ast.First(c.Node, IdentIDENT); child != nil {
+	if child := ast.First(c.Node, "IDENT"); child != nil {
 		return &IdentNode{child}
 	}
 	return nil
@@ -128,42 +149,49 @@ func (AtomNode) isWalkableType() {}
 func (c AtomNode) Choice() int   { return ast.Choice(c.Node) }
 
 func (c AtomNode) OneExtRef() *AtomExtRefNode {
-	if child := ast.First(c.Node, IdentExtRef); child != nil {
+	if child := ast.First(c.Node, "ExtRef"); child != nil {
 		return &AtomExtRefNode{child}
 	}
 	return nil
 }
 
 func (c AtomNode) OneIdent() *IdentNode {
-	if child := ast.First(c.Node, IdentIDENT); child != nil {
+	if child := ast.First(c.Node, "IDENT"); child != nil {
 		return &IdentNode{child}
 	}
 	return nil
 }
 
+func (c AtomNode) OneMacrocall() *MacrocallNode {
+	if child := ast.First(c.Node, "macrocall"); child != nil {
+		return &MacrocallNode{child}
+	}
+	return nil
+}
+
 func (c AtomNode) OneRe() *ReNode {
-	if child := ast.First(c.Node, IdentRE); child != nil {
+	if child := ast.First(c.Node, "RE"); child != nil {
 		return &ReNode{child}
 	}
 	return nil
 }
 
 func (c AtomNode) OneRef() *RefNode {
-	if child := ast.First(c.Node, IdentREF); child != nil {
+	if child := ast.First(c.Node, "REF"); child != nil {
 		return &RefNode{child}
 	}
 	return nil
 }
 
 func (c AtomNode) OneStr() *StrNode {
-	if child := ast.First(c.Node, IdentSTR); child != nil {
+	if child := ast.First(c.Node, "STR"); child != nil {
 		return &StrNode{child}
 	}
 	return nil
 }
 
 func (c AtomNode) OneTerm() *TermNode {
-	if child := ast.First(c.Node, IdentTerm); child != nil {
+	if child := ast.First(c.Node, "term"); child != nil {
 		return &TermNode{child}
 	}
 	return nil
@@ -199,7 +227,7 @@ type GrammarNode struct{ ast.Node }
 func (GrammarNode) isWalkableType() {}
 func (c GrammarNode) AllStmt() []StmtNode {
 	var out []StmtNode
-	for _, child := range ast.All(c.Node, IdentStmt) {
+	for _, child := range ast.All(c.Node, "stmt") {
 		out = append(out, StmtNode{child})
 	}
 	return out
@@ -225,26 +253,60 @@ func (c *IntNode) String() string {
 	return c.Node.Scanner().String()
 }
 
+type MacrocallNode struct{ ast.Node }
+
+func (MacrocallNode) isWalkableType() {}
+
+func (c MacrocallNode) OneName() *IdentNode {
+	if child := ast.First(c.Node, "name"); child != nil {
+		return &IdentNode{child}
+	}
+	return nil
+}
+
+func (c MacrocallNode) AllTerm() []TermNode {
+	var out []TermNode
+	for _, child := range ast.All(c.Node, "term") {
+		out = append(out, TermNode{child})
+	}
+	return out
+}
+
+func (c MacrocallNode) OneToken() string {
+	if child := ast.First(c.Node, ""); child != nil {
+		return child.Scanner().String()
+	}
+	return ""
+}
+
+func (c MacrocallNode) AllToken() []string {
+	var out []string
+	for _, child := range ast.All(c.Node, "") {
+		out = append(out, child.Scanner().String())
+	}
+	return out
+}
+
 type NamedNode struct{ ast.Node }
 
 func (NamedNode) isWalkableType() {}
 
 func (c NamedNode) OneAtom() *AtomNode {
-	if child := ast.First(c.Node, IdentAtom); child != nil {
+	if child := ast.First(c.Node, "atom"); child != nil {
 		return &AtomNode{child}
 	}
 	return nil
 }
 
 func (c NamedNode) OneIdent() *IdentNode {
-	if child := ast.First(c.Node, IdentIDENT); child != nil {
+	if child := ast.First(c.Node, "IDENT"); child != nil {
 		return &IdentNode{child}
 	}
 	return nil
 }
 
 func (c NamedNode) OneOp() string {
-	if child := ast.First(c.Node, IdentOp); child != nil {
+	if child := ast.First(c.Node, "op"); child != nil {
 		return ast.First(child, "").Scanner().String()
 	}
 	return ""
@@ -255,7 +317,7 @@ type PragmaImportNode struct{ ast.Node }
 func (PragmaImportNode) isWalkableType() {}
 
 func (c PragmaImportNode) OnePath() *PragmaImportPathNode {
-	if child := ast.First(c.Node, IdentPath); child != nil {
+	if child := ast.First(c.Node, "path"); child != nil {
 		return &PragmaImportPathNode{child}
 	}
 	return nil
@@ -281,13 +343,61 @@ func (c PragmaImportPathNode) AllToken() []string {
 	return out
 }
 
+type PragmaMacrodefNode struct{ ast.Node }
+
+func (PragmaMacrodefNode) isWalkableType() {}
+func (c PragmaMacrodefNode) AllArgs() []IdentNode {
+	var out []IdentNode
+	for _, child := range ast.All(c.Node, "args") {
+		out = append(out, IdentNode{child})
+	}
+	return out
+}
+
+func (c PragmaMacrodefNode) OneName() *IdentNode {
+	if child := ast.First(c.Node, "name"); child != nil {
+		return &IdentNode{child}
+	}
+	return nil
+}
+
+func (c PragmaMacrodefNode) OneTerm() *TermNode {
+	if child := ast.First(c.Node, "term"); child != nil {
+		return &TermNode{child}
+	}
+	return nil
+}
+
+func (c PragmaMacrodefNode) OneToken() string {
+	if child := ast.First(c.Node, ""); child != nil {
+		return child.Scanner().String()
+	}
+	return ""
+}
+
+func (c PragmaMacrodefNode) AllToken() []string {
+	var out []string
+	for _, child := range ast.All(c.Node, "") {
+		out = append(out, child.Scanner().String())
+	}
+	return out
+}
+
 type PragmaNode struct{ ast.Node }
 
 func (PragmaNode) isWalkableType() {}
+func (c PragmaNode) Choice() int   { return ast.Choice(c.Node) }
 
 func (c PragmaNode) OneImport() *PragmaImportNode {
-	if child := ast.First(c.Node, IdentImport); child != nil {
+	if child := ast.First(c.Node, "import"); child != nil {
 		return &PragmaImportNode{child}
+	}
+	return nil
+}
+
+func (c PragmaNode) OneMacrodef() *PragmaMacrodefNode {
+	if child := ast.First(c.Node, "macrodef"); child != nil {
+		return &PragmaMacrodefNode{child}
 	}
 	return nil
 }
@@ -297,7 +407,7 @@ type ProdNode struct{ ast.Node }
 func (ProdNode) isWalkableType() {}
 
 func (c ProdNode) OneIdent() *IdentNode {
-	if child := ast.First(c.Node, IdentIDENT); child != nil {
+	if child := ast.First(c.Node, "IDENT"); child != nil {
 		return &IdentNode{child}
 	}
 	return nil
@@ -305,7 +415,7 @@ func (c ProdNode) OneIdent() *IdentNode {
 
 func (c ProdNode) AllTerm() []TermNode {
 	var out []TermNode
-	for _, child := range ast.All(c.Node, IdentTerm) {
+	for _, child := range ast.All(c.Node, "term") {
 		out = append(out, TermNode{child})
 	}
 	return out
@@ -332,42 +442,42 @@ func (QuantNode) isWalkableType() {}
 func (c QuantNode) Choice() int   { return ast.Choice(c.Node) }
 
 func (c QuantNode) OneMax() *IntNode {
-	if child := ast.First(c.Node, IdentMax); child != nil {
+	if child := ast.First(c.Node, "max"); child != nil {
 		return &IntNode{child}
 	}
 	return nil
 }
 
 func (c QuantNode) OneMin() *IntNode {
-	if child := ast.First(c.Node, IdentMin); child != nil {
+	if child := ast.First(c.Node, "min"); child != nil {
 		return &IntNode{child}
 	}
 	return nil
 }
 
 func (c QuantNode) OneNamed() *NamedNode {
-	if child := ast.First(c.Node, IdentNamed); child != nil {
+	if child := ast.First(c.Node, "named"); child != nil {
 		return &NamedNode{child}
 	}
 	return nil
 }
 
 func (c QuantNode) OneOp() string {
-	if child := ast.First(c.Node, IdentOp); child != nil {
+	if child := ast.First(c.Node, "op"); child != nil {
 		return ast.First(child, "").Scanner().String()
 	}
 	return ""
 }
 
 func (c QuantNode) OneOptLeading() string {
-	if child := ast.First(c.Node, IdentOptLeading); child != nil {
+	if child := ast.First(c.Node, "opt_leading"); child != nil {
 		return ast.First(child, "").Scanner().String()
 	}
 	return ""
 }
 
 func (c QuantNode) OneOptTrailing() string {
-	if child := ast.First(c.Node, IdentOptTrailing); child != nil {
+	if child := ast.First(c.Node, "opt_trailing"); child != nil {
 		return ast.First(child, "").Scanner().String()
 	}
 	return ""
@@ -403,14 +513,14 @@ type RefNode struct{ ast.Node }
 func (RefNode) isWalkableType() {}
 
 func (c RefNode) OneDefault() *StrNode {
-	if child := ast.First(c.Node, IdentDefault); child != nil {
+	if child := ast.First(c.Node, "default"); child != nil {
 		return &StrNode{child}
 	}
 	return nil
 }
 
 func (c RefNode) OneIdent() *IdentNode {
-	if child := ast.First(c.Node, IdentIDENT); child != nil {
+	if child := ast.First(c.Node, "IDENT"); child != nil {
 		return &IdentNode{child}
 	}
 	return nil
@@ -429,21 +539,21 @@ func (StmtNode) isWalkableType() {}
 func (c StmtNode) Choice() int   { return ast.Choice(c.Node) }
 
 func (c StmtNode) OneComment() *CommentNode {
-	if child := ast.First(c.Node, IdentCOMMENT); child != nil {
+	if child := ast.First(c.Node, "COMMENT"); child != nil {
 		return &CommentNode{child}
 	}
 	return nil
 }
 
 func (c StmtNode) OnePragma() *PragmaNode {
-	if child := ast.First(c.Node, IdentPragma); child != nil {
+	if child := ast.First(c.Node, "pragma"); child != nil {
 		return &PragmaNode{child}
 	}
 	return nil
 }
 
 func (c StmtNode) OneProd() *ProdNode {
-	if child := ast.First(c.Node, IdentProd); child != nil {
+	if child := ast.First(c.Node, "prod"); child != nil {
 		return &ProdNode{child}
 	}
 	return nil
@@ -464,21 +574,21 @@ type TermNode struct{ ast.Node }
 func (TermNode) isWalkableType() {}
 func (c TermNode) AllGrammar() []GrammarNode {
 	var out []GrammarNode
-	for _, child := range ast.All(c.Node, IdentGrammar) {
+	for _, child := range ast.All(c.Node, "grammar") {
 		out = append(out, GrammarNode{child})
 	}
 	return out
 }
 
 func (c TermNode) OneNamed() *NamedNode {
-	if child := ast.First(c.Node, IdentNamed); child != nil {
+	if child := ast.First(c.Node, "named"); child != nil {
 		return &NamedNode{child}
 	}
 	return nil
 }
 
 func (c TermNode) OneOp() string {
-	if child := ast.First(c.Node, IdentOp); child != nil {
+	if child := ast.First(c.Node, "op"); child != nil {
 		return ast.First(child, "").Scanner().String()
 	}
 	return ""
@@ -486,7 +596,7 @@ func (c TermNode) OneOp() string {
 
 func (c TermNode) AllQuant() []QuantNode {
 	var out []QuantNode
-	for _, child := range ast.All(c.Node, IdentQuant) {
+	for _, child := range ast.All(c.Node, "quant") {
 		out = append(out, QuantNode{child})
 	}
 	return out
@@ -494,7 +604,7 @@ func (c TermNode) AllQuant() []QuantNode {
 
 func (c TermNode) AllTerm() []TermNode {
 	var out []TermNode
-	for _, child := range ast.All(c.Node, IdentTerm) {
+	for _, child := range ast.All(c.Node, "term") {
 		out = append(out, TermNode{child})
 	}
 	return out
@@ -518,33 +628,6 @@ func (c *WrapReNode) String() string {
 	return c.Node.Scanner().String()
 }
 
-const (
-	IdentAtom        = "atom"
-	IdentCOMMENT     = "COMMENT"
-	IdentDefault     = "default"
-	IdentExtRef      = "ExtRef"
-	IdentGrammar     = "grammar"
-	IdentIDENT       = "IDENT"
-	IdentINT         = "INT"
-	IdentImport      = "import"
-	IdentMax         = "max"
-	IdentMin         = "min"
-	IdentNamed       = "named"
-	IdentOp          = "op"
-	IdentOptLeading  = "opt_leading"
-	IdentOptTrailing = "opt_trailing"
-	IdentPath        = "path"
-	IdentPragma      = "pragma"
-	IdentProd        = "prod"
-	IdentQuant       = "quant"
-	IdentRE          = "RE"
-	IdentREF         = "REF"
-	IdentSTR         = "STR"
-	IdentStmt        = "stmt"
-	IdentTerm        = "term"
-	IdentWrapRE      = ".wrapRE"
-)
-
 type WalkerOps struct {
 	EnterAtomExtRefNode       func(AtomExtRefNode) Stopper
 	ExitAtomExtRefNode        func(AtomExtRefNode) Stopper
@@ -558,12 +641,16 @@ type WalkerOps struct {
 	ExitIdentNode             func(IdentNode) Stopper
 	EnterIntNode              func(IntNode) Stopper
 	ExitIntNode               func(IntNode) Stopper
+	EnterMacrocallNode        func(MacrocallNode) Stopper
+	ExitMacrocallNode         func(MacrocallNode) Stopper
 	EnterNamedNode            func(NamedNode) Stopper
 	ExitNamedNode             func(NamedNode) Stopper
 	EnterPragmaImportNode     func(PragmaImportNode) Stopper
 	ExitPragmaImportNode      func(PragmaImportNode) Stopper
 	EnterPragmaImportPathNode func(PragmaImportPathNode) Stopper
 	ExitPragmaImportPathNode  func(PragmaImportPathNode) Stopper
+	EnterPragmaMacrodefNode   func(PragmaMacrodefNode) Stopper
+	ExitPragmaMacrodefNode    func(PragmaMacrodefNode) Stopper
 	EnterPragmaNode           func(PragmaNode) Stopper
 	ExitPragmaNode            func(PragmaNode) Stopper
 	EnterProdNode             func(ProdNode) Stopper
@@ -610,6 +697,9 @@ func (w WalkerOps) Walk(tree IsWalkableType) Stopper {
 			return fn(node)
 		}
 
+	case MacrocallNode:
+		return w.WalkMacrocallNode(node)
+
 	case NamedNode:
 		return w.WalkNamedNode(node)
 
@@ -618,6 +708,9 @@ func (w WalkerOps) Walk(tree IsWalkableType) Stopper {
 
 	case PragmaImportPathNode:
 		return w.WalkPragmaImportPathNode(node)
+
+	case PragmaMacrodefNode:
+		return w.WalkPragmaMacrodefNode(node)
 
 	case PragmaNode:
 		return w.WalkPragmaNode(node)
@@ -718,6 +811,16 @@ func (w WalkerOps) WalkAtomNode(node AtomNode) Stopper {
 			}
 		}
 	}
+	if child := node.OneMacrocall(); child != nil {
+		child := *child
+		if s := w.WalkMacrocallNode(child); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
+			}
+		}
+	}
 	if child := node.OneRe(); child != nil {
 		child := *child
 		if fn := w.EnterReNode; fn != nil {
@@ -792,6 +895,46 @@ func (w WalkerOps) WalkGrammarNode(node GrammarNode) Stopper {
 	}
 
 	if fn := w.ExitGrammarNode; fn != nil {
+		if s := fn(node); s != nil && s.Abort() {
+			return s
+		}
+	}
+	return nil
+}
+
+func (w WalkerOps) WalkMacrocallNode(node MacrocallNode) Stopper {
+	if fn := w.EnterMacrocallNode; fn != nil {
+		if s := fn(node); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
+			}
+		}
+	}
+	if child := node.OneName(); child != nil {
+		child := *child
+		if fn := w.EnterIdentNode; fn != nil {
+			if s := fn(child); s != nil {
+				if s.ExitNode() {
+					return nil
+				} else if s.Abort() {
+					return s
+				}
+			}
+		}
+	}
+	for _, child := range node.AllTerm() {
+		if s := w.WalkTermNode(child); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
+			}
+		}
+	}
+
+	if fn := w.ExitMacrocallNode; fn != nil {
 		if s := fn(node); s != nil && s.Abort() {
 			return s
 		}
@@ -888,6 +1031,58 @@ func (w WalkerOps) WalkPragmaImportPathNode(node PragmaImportPathNode) Stopper {
 	return nil
 }
 
+func (w WalkerOps) WalkPragmaMacrodefNode(node PragmaMacrodefNode) Stopper {
+	if fn := w.EnterPragmaMacrodefNode; fn != nil {
+		if s := fn(node); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
+			}
+		}
+	}
+	for _, child := range node.AllArgs() {
+		if fn := w.EnterIdentNode; fn != nil {
+			if s := fn(child); s != nil {
+				if s.ExitNode() {
+					return nil
+				} else if s.Abort() {
+					return s
+				}
+			}
+		}
+	}
+	if child := node.OneName(); child != nil {
+		child := *child
+		if fn := w.EnterIdentNode; fn != nil {
+			if s := fn(child); s != nil {
+				if s.ExitNode() {
+					return nil
+				} else if s.Abort() {
+					return s
+				}
+			}
+		}
+	}
+	if child := node.OneTerm(); child != nil {
+		child := *child
+		if s := w.WalkTermNode(child); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
+			}
+		}
+	}
+
+	if fn := w.ExitPragmaMacrodefNode; fn != nil {
+		if s := fn(node); s != nil && s.Abort() {
+			return s
+		}
+	}
+	return nil
+}
+
 func (w WalkerOps) WalkPragmaNode(node PragmaNode) Stopper {
 	if fn := w.EnterPragmaNode; fn != nil {
 		if s := fn(node); s != nil {
@@ -901,6 +1096,16 @@ func (w WalkerOps) WalkPragmaNode(node PragmaNode) Stopper {
 	if child := node.OneImport(); child != nil {
 		child := *child
 		if s := w.WalkPragmaImportNode(child); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
+			}
+		}
+	}
+	if child := node.OneMacrodef(); child != nil {
+		child := *child
+		if s := w.WalkPragmaMacrodefNode(child); s != nil {
 			if s.ExitNode() {
 				return nil
 			} else if s.Abort() {
@@ -1166,7 +1371,7 @@ func NewGrammarNode(from ast.Node) GrammarNode { return GrammarNode{from} }
 
 func Parse(input *parser.Scanner) (GrammarNode, error) {
 	p := Grammar()
-	tree, err := p.Parse(IdentGrammar, input)
+	tree, err := p.Parse("grammar", input)
 	if err != nil {
 		return GrammarNode{nil}, err
 	}
@@ -1190,7 +1395,10 @@ named   -> (IDENT op="=")? atom;
 quant   -> op=[?*+]
          | "{" min=INT? "," max=INT? "}"
          | op=/{<:|:>?} opt_leading=","? named opt_trailing=","?;
-atom    -> IDENT | STR | RE | ExtRef=("%%" IDENT) | REF | "(" term ")" | "(" ")";
+atom    -> IDENT | STR | RE | macrocall | ExtRef=("%%" IDENT) | REF | "(" term ")" | "(" ")";
+
+macrocall   -> "%!" name=IDENT "(" term:","? ")";
+REF         -> "%" IDENT ("=" default=STR)?;
 
 // Terminals
 COMMENT -> /{ //.*$
@@ -1220,10 +1428,11 @@ RE      -> /{
                )(?: (?:[+*?]|\{\d+,?\d?\}) \?? )?
              )+
            };
-REF     -> "%" IDENT ("=" default=STR)?;
+
 // Special
-pragma  -> import {
-                import -> ".import" path=((".."|"."|[a-zA-Z0-9.:]+):,"/") ";"?;
+pragma  -> import | macrodef {
+                import   -> ".import" path=((".."|"."|[a-zA-Z0-9.:]+):,"/") ";"?;
+                macrodef -> ".macro" name=IDENT "(" args=IDENT:","? ")" "{" term "}" ";"?;
             };
 
 .wrapRE -> /{\s*()\s*};

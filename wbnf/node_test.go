@@ -46,16 +46,16 @@ func assertNodeParsesAsScenario(t *testing.T, s nodeParseScenario) bool { //noli
 	require.Empty(t, src.String())
 	// log.Print(node)
 
-	ast := ast2.FromParserNode(g, node)
+	ast := parser.FromParserNode(g, node)
 	// log.Print(ast)
 	reversalOK := true
 	if s.reversible {
-		node2 := ast2.ToParserNode(g, ast)
+		node2 := parser.ToParserNode(g, ast)
 		// log.Print(node2)
 		ok := parser.AssertEqualNodes(t, node.(parser.Node), node2.(parser.Node))
 		if !ok {
 			t.Error(s)
-			ast2.ToParserNode(g, ast)
+			parser.ToParserNode(g, ast)
 		}
 	}
 	if assert.Equal(t, parser.Rule(s.rule), ast[ast2.RuleTag].(ast2.One).Node.(ast2.Extra).Data) {

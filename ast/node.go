@@ -6,11 +6,6 @@ import (
 )
 
 const (
-	seqTag   = "_"
-	oneofTag = "|"
-	delimTag = ":"
-	quantTag = "?"
-
 	RuleTag   = "@rule"
 	ChoiceTag = "@choice"
 	SkipTag   = "@skip"

@@ -1376,7 +1376,7 @@ func Parse(input *parse.Scanner) (GrammarNode, error) {
 	if err != nil {
 		return GrammarNode{nil}, err
 	}
-	return GrammarNode{ast.FromParserNode(p.Grammar(), tree)}, nil
+	return GrammarNode{parser.FromParserNode(p.Grammar(), tree)}, nil
 }
 
 func ParseString(input string) (GrammarNode, error) {

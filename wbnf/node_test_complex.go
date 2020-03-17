@@ -15,15 +15,15 @@ func TestParserNodeToNode(t *testing.T) {
 	p := Core()
 	v := p.MustParse("grammar", parse.NewScanner(`expr -> @:op="+" > @:op="*" > \d+;`)).(parser.Node)
 	g := p.Grammar()
-	n := ast.FromParserNode(g, v)
-	u := ast.ToParserNode(g, n).(parser.Node)
+	n := parser.FromParserNode(g, v)
+	u := parser.ToParserNode(g, n).(parser.Node)
 	parser.AssertEqualNodes(t, v, u)
 
 	p = NewFromAst(n).Compile(u)
 	v = p.MustParse(parser.Rule("expr"), parse.NewScanner(`1+2*3`)).(parser.Node)
 	g = p.Grammar()
-	n = ast.FromParserNode(g, v)
-	u = ast.ToParserNode(g, n).(parser.Node)
+	n = parser.FromParserNode(g, v)
+	u = parser.ToParserNode(g, n).(parser.Node)
 	parser.AssertEqualNodes(t, v, u)
 }
 
@@ -39,7 +39,7 @@ func TestTinyXMLGrammar(t *testing.T) {
 	assert.NoError(t, err)
 
 	node := v.(parser.Node)
-	xmlParser := NewFromAst(ast.FromParserNode(Core().Grammar(), node)).Compile(&node)
+	xmlParser := NewFromAst(parser.FromParserNode(Core().Grammar(), node)).Compile(&node)
 
 	src := parse.NewScanner(`<a x="1">hello <b>world!</b></a>`)
 	orig := *src
@@ -55,7 +55,7 @@ func TestTinyXMLGrammar(t *testing.T) {
 	xml, err := xmlParser.Parse(parser.Rule("xml"), src)
 	assert.NoError(t, err)
 
-	a := ast.FromParserNode(xmlParser.Grammar(), xml)
+	a := parser.FromParserNode(xmlParser.Grammar(), xml)
 
 	assert.EqualValues(t,
 		ast.Branch{

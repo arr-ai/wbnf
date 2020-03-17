@@ -18,5 +18,8 @@ field_type -> collection_type | (type_spec optional="?"? attribs?) ;
 collector -> '.. * <- *' ":" (SHORTCUT | %!Indented(collector_stmts));
 
 collector_stmts ->  (
-                        call=(target=APPLICATION_NAME "<-" target_endpoint=NAME) | action=APPLICATION_NAME
-                    ) attribs;
+                        action=APPLICATION_NAME attribs
+                        | collector_call_stmts attribs
+                    ) ;
+
+collector_call_stmts -> target=(/{[^<:]+\w}:"::") "<-" target_endpoint=/{[^\[]+\w};

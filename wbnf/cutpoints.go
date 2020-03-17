@@ -162,7 +162,7 @@ func fixTerm(term parser.Term, callback func(t parser.Term) parser.Term) parser.
 	case parser.CutPoint:
 		t.Term = fixTerm(t.Term, callback)
 		return callback(t)
-	case parser.S, parser.REF, parser.RE, parser.Rule:
+	case parser.S, parser.REF, parser.RE, parser.Rule, parser.ExtRef:
 		return callback(term)
 	default:
 		panic(fmt.Errorf("unexpected term type: %v %[1]T", t))

@@ -17,9 +17,13 @@ field_type -> collection_type | (type_spec optional="?"? attribs?) ;
 
 collector -> '.. * <- *' ":" (SHORTCUT | %!Indented(collector_stmts));
 
-collector_stmts ->  (
-                        action=APPLICATION_NAME attribs
-                        | collector_call_stmts attribs
-                    ) ;
+collector_stmts -> collector_http_stmts attribs
+                    | collector_pubsub_call attribs
+                    | collector_call_stmts attribs
+                    | action=APPLICATION_NAME attribs;
 
-collector_call_stmts -> target=(/{[^<:]+\w}:"::") "<-" target_endpoint=/{[^\[]+\w};
+collector_call_stmts -> target=(/{[^<:\n]+\w}:"::") "<-" target_endpoint=/{[^\[\n]+\w};
+
+collector_http_stmts -> method=HTTP_VERBS "/" (http_path_part | "{" http_path_part "}"):"/" ("?" (param=\w+ "=" type=(NativeDataTypes | \w+)):"&")?;
+
+collector_pubsub_call -> subscriber=APPLICATION_NAME "<-" publisher=APPLICATION_NAME "->" name=\w+;

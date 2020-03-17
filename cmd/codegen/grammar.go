@@ -155,7 +155,7 @@ func walkTerm(term parser.Term) goNode {
 	case parser.ExtRef:
 		node = stringNode("parser.ExtRef(`%s`)", safeString(string(t)))
 	default:
-		panic("unexpected term")
+		panic(fmt.Errorf("unexpected term type: %v %[1]T", t))
 	}
 
 	return node

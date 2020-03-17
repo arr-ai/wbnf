@@ -15,29 +15,30 @@ type Scanner struct {
 type source interface {
 	length() int                // the length of the entire source string
 	slice(i, length int) string // the string of the given slice
-	filename() *string          // the name of the file from which the source is derived (if any)
+	filename() string           // the name of the file from which the source is derived (or empty if none)
 }
 
 type stringSource struct {
 	origin *string // the entire source string
-	f      *string // the source filename
+	f      string  // the source filename
 }
 
 func NewScanner(str string) *Scanner {
-	return &Scanner{stringSource{&str, nil}, 0, len(str)}
+	return &Scanner{stringSource{origin: &str}, 0, len(str)}
 }
 
 func NewScannerWithFilename(str, filename string) *Scanner {
-	return &Scanner{stringSource{&str, &filename}, 0, len(str)}
+	return &Scanner{stringSource{&str, filename}, 0, len(str)}
 }
 
 func NewScannerAt(str string, offset, size int) *Scanner {
-	return &Scanner{stringSource{&str, nil}, offset, size}
+	return &Scanner{stringSource{origin: &str}, offset, size}
 }
 
 // - Scanner
 
-func (s Scanner) Filename() *string {
+// The name of the file from which the source is derived (or empty if none).
+func (s Scanner) Filename() string {
 	return s.src.filename()
 }
 
@@ -140,7 +141,7 @@ func (s stringSource) slice(i, length int) string {
 	return (*s.origin)[i : i+length]
 }
 
-func (s stringSource) filename() *string {
+func (s stringSource) filename() string {
 	return s.f
 }
 

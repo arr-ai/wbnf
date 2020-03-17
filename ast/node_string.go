@@ -132,3 +132,26 @@ func (n Branch) Scanner() parse.Scanner {
 	}
 	panic("Scanner() not valid for Branch")
 }
+
+func (n Branch) oneChild() Node {
+	var oneChildren Children
+	for childrenName, children := range n {
+		if !strings.HasPrefix(childrenName, "@") {
+			if oneChildren != nil {
+				return nil
+			}
+			oneChildren = children
+		}
+	}
+	if oneChildren != nil {
+		switch c := oneChildren.(type) {
+		case One:
+			return c.Node
+		case Many:
+			if len(c) == 1 {
+				return c[0]
+			}
+		}
+	}
+	return nil
+}

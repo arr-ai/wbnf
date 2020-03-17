@@ -9,7 +9,7 @@ import (
 )
 
 func ToParserNode(g parser.Grammar, branch Branch) parse.TreeElement {
-	branch = branch.clone().(Branch)
+	branch = branch.Clone().(Branch)
 	rule := branch.pullFromOne(RuleTag).(Extra).Data.(parser.Rule)
 	term := g[rule]
 	ctrs := newCounters(term)

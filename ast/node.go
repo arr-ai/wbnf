@@ -20,7 +20,7 @@ type Children interface {
 	fmt.Stringer
 	Scanner() parse.Scanner
 	isChildren()
-	clone() Children
+	Clone() Children
 	narrow() bool
 }
 
@@ -40,7 +40,7 @@ type Node interface {
 	Scanner() parse.Scanner
 	ContentEquals(n Node) bool // true if scanner and extra data contents are equivalent
 	isNode()
-	clone() Node
+	Clone() Node
 	narrow() bool
 }
 
@@ -90,31 +90,31 @@ func (Extra) Many(_ string) []Node {
 	return nil
 }
 
-func (c One) clone() Children {
-	return One{Node: c.Node.clone()}
+func (c One) Clone() Children {
+	return One{Node: c.Node.Clone()}
 }
 
-func (c Many) clone() Children {
+func (c Many) Clone() Children {
 	result := make(Many, 0, len(c))
 	for _, child := range c {
-		result = append(result, child.clone())
+		result = append(result, child.Clone())
 	}
 	return result
 }
 
-func (l Leaf) clone() Node {
+func (l Leaf) Clone() Node {
 	return l
 }
 
-func (n Branch) clone() Node {
+func (n Branch) Clone() Node {
 	result := Branch{}
 	for name, node := range n {
-		result[name] = node.clone()
+		result[name] = node.Clone()
 	}
 	return result
 }
 
-func (c Extra) clone() Node {
+func (c Extra) Clone() Node {
 	return c
 }
 

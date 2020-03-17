@@ -3,6 +3,8 @@ package ast
 import (
 	"fmt"
 	"github.com/arr-ai/wbnf/parse"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/arr-ai/wbnf/errors"
@@ -188,4 +190,22 @@ func (n Branch) fromParserNode(g parser.Grammar, term parser.Term, ctrs counters
 	default:
 		panic(fmt.Errorf("unexpected term type: %v %[1]T", t))
 	}
+}
+
+var stackLevelRE = regexp.MustCompile(`^(\w+)@(\d+)$`)
+
+func unlevel(name string, g parser.Grammar) (string, int) {
+	if m := stackLevelRE.FindStringSubmatch(name); m != nil {
+		i, err := strconv.Atoi(m[2])
+		if err != nil {
+			panic(errors.Inconceivable)
+		}
+		return m[1], i
+	}
+	if !strings.Contains(name, parser.StackDelim) {
+		if _, has := g[parser.Rule(name+"@1")]; has {
+			return name, 0
+		}
+	}
+	return name, -1
 }

@@ -3,12 +3,6 @@ package ast
 import (
 	"fmt"
 	"github.com/arr-ai/wbnf/parse"
-	"regexp"
-	"strconv"
-	"strings"
-
-	"github.com/arr-ai/wbnf/errors"
-	"github.com/arr-ai/wbnf/parser"
 )
 
 const (
@@ -94,24 +88,6 @@ func (Extra) One(_ string) Node {
 
 func (Extra) Many(_ string) []Node {
 	return nil
-}
-
-var stackLevelRE = regexp.MustCompile(`^(\w+)@(\d+)$`)
-
-func unlevel(name string, g parser.Grammar) (string, int) {
-	if m := stackLevelRE.FindStringSubmatch(name); m != nil {
-		i, err := strconv.Atoi(m[2])
-		if err != nil {
-			panic(errors.Inconceivable)
-		}
-		return m[1], i
-	}
-	if !strings.Contains(name, parser.StackDelim) {
-		if _, has := g[parser.Rule(name+"@1")]; has {
-			return name, 0
-		}
-	}
-	return name, -1
 }
 
 func (c One) clone() Children {

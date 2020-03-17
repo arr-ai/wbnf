@@ -4,6 +4,7 @@ package wbnf
 
 import (
 	"github.com/arr-ai/wbnf/ast"
+	"github.com/arr-ai/wbnf/parse"
 	"github.com/arr-ai/wbnf/parser"
 )
 
@@ -1369,7 +1370,7 @@ func (c GrammarNode) GetAstNode() ast.Node { return c.Node }
 
 func NewGrammarNode(from ast.Node) GrammarNode { return GrammarNode{from} }
 
-func Parse(input *parser.Scanner) (GrammarNode, error) {
+func Parse(input *parse.Scanner) (GrammarNode, error) {
 	p := Grammar()
 	tree, err := p.Parse("grammar", input)
 	if err != nil {
@@ -1379,7 +1380,7 @@ func Parse(input *parser.Scanner) (GrammarNode, error) {
 }
 
 func ParseString(input string) (GrammarNode, error) {
-	return Parse(parser.NewScanner(input))
+	return Parse(parse.NewScanner(input))
 }
 
 var grammarGrammarSrc = unfakeBackquote(`

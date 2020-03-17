@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"github.com/arr-ai/wbnf/parse"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -53,7 +54,7 @@ func TestParserWithCutpointScope(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Run("with cutpoint", func(t *testing.T) {
 				p := Grammar{"a": Seq{CutPoint{S(":")}, test.term}}.Compile(nil)
-				te, err := p.Parse("a", NewScanner(":"+test.input))
+				te, err := p.Parse("a", parse.NewScanner(":"+test.input))
 				if test.err == nil {
 					assert.NotNil(t, te)
 					assert.NoError(t, err)
@@ -65,7 +66,7 @@ func TestParserWithCutpointScope(t *testing.T) {
 			})
 			t.Run("without cutpoint", func(t *testing.T) {
 				p := Grammar{"a": test.term}.Compile(nil)
-				te, err := p.Parse("a", NewScanner(test.input))
+				te, err := p.Parse("a", parse.NewScanner(test.input))
 				if test.err == nil {
 					assert.NotNil(t, te)
 					assert.NoError(t, err)
@@ -86,13 +87,13 @@ func TestParserEscaping(t *testing.T) {
 	}.Compile(nil)
 	input := "a {:haha:} c"
 
-	expected, err := g.Parse("x", NewScanner("a haha c"))
+	expected, err := g.Parse("x", parse.NewScanner("a haha c"))
 	assert.NoError(t, err)
 
-	actual, err := g.ParseWithExternals("x", NewScanner(input), ExternalRefs{
-		"*{:():}": func(scope Scope, input *Scanner) (element TreeElement, err error) {
+	actual, err := g.ParseWithExternals("x", parse.NewScanner(input), ExternalRefs{
+		"*{:():}": func(scope Scope, input *parse.Scanner) (element parse.TreeElement, err error) {
 			assert.EqualValues(t, "haha:} c", input.String())
-			var eaten Scanner
+			var eaten parse.Scanner
 			input = input.Eat(4, &eaten)
 			return eaten, nil
 		},
@@ -114,11 +115,11 @@ func TestParserEscaping2LevelGrammar(t *testing.T) {
 	g2 := Grammar{"x": S("haha")}.Compile(nil)
 	input := "a {:haha     :} c"
 
-	expected, err := g.Parse("x", NewScanner("a haha c"))
+	expected, err := g.Parse("x", parse.NewScanner("a haha c"))
 	assert.NoError(t, err)
 
-	actual, err := g.ParseWithExternals("x", NewScanner(input), ExternalRefs{
-		"*{:\\s*()\\s*:}": func(scope Scope, input *Scanner) (element TreeElement, err error) {
+	actual, err := g.ParseWithExternals("x", parse.NewScanner(input), ExternalRefs{
+		"*{:\\s*()\\s*:}": func(scope Scope, input *parse.Scanner) (element parse.TreeElement, err error) {
 			return g2.Parse("x", input)
 		},
 	})

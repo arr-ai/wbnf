@@ -2,6 +2,7 @@ package wbnf
 
 import (
 	"fmt"
+	"github.com/arr-ai/wbnf/parse"
 	"regexp"
 	"strings"
 	"testing"
@@ -38,7 +39,7 @@ func assertNodeParsesAsScenario(t *testing.T, s nodeParseScenario) bool { //noli
 	g := p.Grammar()
 	require.NoError(t, err)
 
-	src := parser.NewScanner(strings.TrimRight(s.input, " "))
+	src := parse.NewScanner(strings.TrimRight(s.input, " "))
 
 	node, err := p.Parse(parser.Rule(s.rule), src)
 	require.NoError(t, err)
@@ -79,7 +80,7 @@ func assertNodeFailsToParseScenario(t *testing.T, s nodeParseScenario) bool { //
 	p, err := Compile(s.grammar, nil)
 	require.NoError(t, err)
 
-	src := parser.NewScanner(strings.TrimRight(s.input, " "))
+	src := parse.NewScanner(strings.TrimRight(s.input, " "))
 
 	node, err := p.Parse(parser.Rule(s.rule), src)
 	return assert.Error(t, err, "%v", node)

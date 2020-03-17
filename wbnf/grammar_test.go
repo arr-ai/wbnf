@@ -2,6 +2,7 @@ package wbnf
 
 import (
 	"fmt"
+	"github.com/arr-ai/wbnf/parse"
 	"log"
 	"regexp"
 	"strings"
@@ -14,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func assertUnparse(t *testing.T, expected string, parsers parser.Parsers, v parser.TreeElement) bool { //nolint:unparam
+func assertUnparse(t *testing.T, expected string, parsers parser.Parsers, v parse.TreeElement) bool { //nolint:unparam
 	var sb strings.Builder
 	_, err := parsers.Unparse(v, &sb)
 	return assert.NoError(t, err) && assert.Equal(t, expected, sb.String())
@@ -43,7 +44,7 @@ var exprGrammar = parser.Grammar{
 	},
 }
 
-func assertParseToNode(t *testing.T, expected parser.Node, rule parser.Rule, input *parser.Scanner) bool { //nolint:unparam
+func assertParseToNode(t *testing.T, expected parser.Node, rule parser.Rule, input *parse.Scanner) bool { //nolint:unparam
 	parsers := Core()
 	v, err := parsers.Parse(rule, input)
 	if assert.NoError(t, err) {
@@ -62,8 +63,8 @@ type stackBuilder struct {
 
 var stackNamePrefixRE = regexp.MustCompile(`^([a-z\.]*)(?:` + regexp.QuoteMeta(parser.StackDelim) + `(\d+))?\\`)
 
-func (s *stackBuilder) a(name string, extras ...parser.Extra) *stackBuilder {
-	var extra parser.Extra
+func (s *stackBuilder) a(name string, extras ...parse.Extra) *stackBuilder {
+	var extra parse.Extra
 	switch len(extras) {
 	case 0:
 	case 1:
@@ -84,23 +85,23 @@ func (s *stackBuilder) a(name string, extras ...parser.Extra) *stackBuilder {
 	return s
 }
 
-func (s *stackBuilder) z(children ...parser.TreeElement) parser.Node {
+func (s *stackBuilder) z(children ...parse.TreeElement) parser.Node {
 	if children == nil {
-		children = []parser.TreeElement{}
+		children = []parse.TreeElement{}
 	}
 	s.stack[len(s.stack)-1].Children = children
 	for i := len(s.stack) - 1; i > 0; i-- {
-		s.stack[i-1].Children = []parser.TreeElement{*s.stack[i]}
+		s.stack[i-1].Children = []parse.TreeElement{*s.stack[i]}
 	}
 	return *s.stack[0]
 }
 
-func stack(name string, extras ...parser.Extra) *stackBuilder {
+func stack(name string, extras ...parse.Extra) *stackBuilder {
 	return (&stackBuilder{}).a(name, extras...)
 }
 
 func TestParseNamedTerm(t *testing.T) {
-	r := parser.NewScanner(`opt=""`)
+	r := parse.NewScanner(`opt=""`)
 	x := stack(`term`, parser.NonAssociative).z(
 		stack(`_`).z(stack(`term@1`, parser.NonAssociative).a(`term@2`).a(`term@3`).z(
 			stack(`named`).z(
@@ -113,7 +114,7 @@ func TestParseNamedTerm(t *testing.T) {
 }
 
 func TestParseNamedTermInDelim(t *testing.T) {
-	r := parser.NewScanner(`"1":op=","`)
+	r := parse.NewScanner(`"1":op=","`)
 	x := stack(`term`, parser.NonAssociative).z(
 		stack(`_`).z(stack(`term@1`, parser.NonAssociative).a(`term@2`).a(`term@3`).z(
 			stack(`named`).z(
@@ -139,7 +140,7 @@ func TestGrammarParser(t *testing.T) {
 
 	parsers := exprGrammar.Compile(nil)
 
-	r := parser.NewScanner("1+2*3")
+	r := parse.NewScanner("1+2*3")
 	v, err := parsers.Parse(expr, r)
 	require.NoError(t, err)
 	assertUnparse(t, "1+2*3", parsers, v)
@@ -150,7 +151,7 @@ func TestGrammarParser(t *testing.T) {
 		fmt.Sprintf("%v", v),
 	)
 
-	r = parser.NewScanner("1+(2-3/4)")
+	r = parse.NewScanner("1+(2-3/4)")
 	v, err = parsers.Parse(expr, r)
 	assert.NoError(t, err)
 	assertUnparse(t, "1+(2-3/4)", parsers, v)
@@ -173,7 +174,7 @@ func TestExprGrammarGrammar(t *testing.T) {
 	t.Parallel()
 
 	parsers := Core()
-	r := parser.NewScanner(exprGrammarSrc)
+	r := parse.NewScanner(exprGrammarSrc)
 	v, err := parsers.Parse("grammar", r)
 	require.NoError(t, err, "r=%v\nv=%v", r.Context(), v)
 	require.Equal(t, len(exprGrammarSrc), r.Offset(), "r=%v\nv=%v", r.Context(), v)
@@ -194,7 +195,7 @@ func TestGrammarSnippet(t *testing.T) {
 	t.Parallel()
 
 	parsers := Core()
-	r := parser.NewScanner(`prod+`)
+	r := parse.NewScanner(`prod+`)
 	v, err := parsers.Parse("term", r)
 	require.NoError(t, err)
 	assert.Equal(t,
@@ -212,7 +213,7 @@ func TestTinyGrammarGrammarGrammar(t *testing.T) {
 	tinyGrammarSrc := `tiny -> "x";`
 
 	parsers := Core()
-	r := parser.NewScanner(tinyGrammarSrc)
+	r := parse.NewScanner(tinyGrammarSrc)
 	v, err := parsers.Parse("grammar", r)
 	require.NoError(t, err)
 	e := v.(parser.Node)
@@ -225,7 +226,7 @@ func TestExprGrammarGrammarGrammar(t *testing.T) {
 	t.Parallel()
 
 	parsers := Core()
-	r := parser.NewScanner(exprGrammarSrc)
+	r := parse.NewScanner(exprGrammarSrc)
 	v, err := parsers.Parse("grammar", r)
 	require.NoError(t, err)
 	e := v.(parser.Node)
@@ -238,7 +239,7 @@ func TestBacktrackGrammar(t *testing.T) {
 	t.Parallel()
 
 	parsers := MustCompile(`a -> ("x" ":" "x"+ ";"?)+;`, nil)
-	_, err := parsers.Parse(parser.Rule("a"), parser.NewScanner(`x:x;x:x`))
+	_, err := parsers.Parse(parser.Rule("a"), parse.NewScanner(`x:x;x:x`))
 	assert.NoError(t, err)
 
 	// TODO: Make this work. Probably requires an LL(k) or LL(*) parser.
@@ -284,7 +285,7 @@ func TestScopeGrammar(t *testing.T) {
 	}
 	p := g.Compile(nil)
 
-	te := p.MustParse("a", parser.NewScanner("acC"))
+	te := p.MustParse("a", parse.NewScanner("acC"))
 	tree := ast.FromParserNode(g, te)
 	te2 := ast.ToParserNode(g, tree)
 
@@ -307,7 +308,7 @@ func TestScopeGrammarwithWrapping(t *testing.T) {
 	}
 	p := g.Compile(nil)
 
-	te := p.MustParse("pragma", parser.NewScanner(".import foowbnf"))
+	te := p.MustParse("pragma", parse.NewScanner(".import foowbnf"))
 	tree := ast.FromParserNode(g, te)
 	te2 := ast.ToParserNode(g, tree)
 

@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"github.com/arr-ai/wbnf/parse"
 	"math/rand"
 	"regexp"
 	"strings"
@@ -37,18 +38,18 @@ func (s Scope) Has(ident string) bool {
 
 type scopeVal struct {
 	p   Parser
-	val TreeElement
+	val parse.TreeElement
 	cp  cutpointdata
 }
 
-func (s Scope) WithVal(ident string, p Parser, val TreeElement) Scope {
+func (s Scope) WithVal(ident string, p Parser, val parse.TreeElement) Scope {
 	if ident != "" {
 		s.m = s.m.With(ident, &scopeVal{p: p, val: val})
 	}
 	return s
 }
 
-func (s Scope) GetVal(ident string) (Parser, TreeElement, bool) {
+func (s Scope) GetVal(ident string) (Parser, parse.TreeElement, bool) {
 	if val, ok := s.m.Get(ident); ok {
 		sv := val.(*scopeVal)
 		return sv.p, sv.val, ok

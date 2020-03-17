@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"github.com/arr-ai/wbnf/parse"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,7 +36,7 @@ func assertEqualNodes(t *testing.T, v, u Node, path []interface{}) bool {
 			switch vc := vc.(type) {
 			case Node:
 				ok(assertEqualNodes(t, vc, uc.(Node), subpath))
-			case Scanner:
+			case parse.Scanner:
 				ok(assert.Equal(t, vc, uc, "%v: %v != %v", subpath, vc, uc))
 			default:
 				ok(false)

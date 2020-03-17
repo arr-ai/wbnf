@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/arr-ai/wbnf/parse"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -141,7 +142,7 @@ func test(c *cli.Context) error {
 	if !g.HasRule(parser.Rule(startingRule)) {
 		return fmt.Errorf("starting rule '%s' not in test grammar", startingRule)
 	}
-	tree, err := g.Parse(parser.Rule(startingRule), parser.NewScanner(input))
+	tree, err := g.Parse(parser.Rule(startingRule), parse.NewScanner(input))
 	if err != nil {
 		if uci, ok := err.(parser.UnconsumedInputError); ok {
 			logrus.Warningln("Partial result:")

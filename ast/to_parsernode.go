@@ -2,12 +2,13 @@ package ast
 
 import (
 	"fmt"
+	"github.com/arr-ai/wbnf/parse"
 
 	"github.com/arr-ai/wbnf/errors"
 	"github.com/arr-ai/wbnf/parser"
 )
 
-func ToParserNode(g parser.Grammar, branch Branch) parser.TreeElement {
+func ToParserNode(g parser.Grammar, branch Branch) parse.TreeElement {
 	branch = branch.clone().(Branch)
 	rule := branch.pullFromOne(RuleTag).(Extra).Data.(parser.Rule)
 	term := g[rule]
@@ -16,7 +17,7 @@ func ToParserNode(g parser.Grammar, branch Branch) parser.TreeElement {
 	return relabelNode(string(rule), branch.toParserNode(g, term, ctrs))
 }
 
-func relabelNode(name string, e parser.TreeElement) parser.TreeElement {
+func relabelNode(name string, e parse.TreeElement) parse.TreeElement {
 	if n, ok := e.(parser.Node); ok {
 		n.Tag = name
 		return n
@@ -85,12 +86,12 @@ func (n Branch) pullFromMany(name string) Node {
 	return nil
 }
 
-func (n Branch) toParserNode(g parser.Grammar, term parser.Term, ctrs counters) (out parser.TreeElement) {
+func (n Branch) toParserNode(g parser.Grammar, term parser.Term, ctrs counters) (out parse.TreeElement) {
 	defer enterf("%v.toParserNode(g, term=%T(%[2]v), ctrs=%v)", n, term, ctrs).exitf("%v", &out)
 	switch t := term.(type) {
 	case parser.S, parser.RE:
 		if node := n.pull("", ctrs[""]); node != nil {
-			return parser.Scanner(node.(Leaf))
+			return parse.Scanner(node.(Leaf))
 		}
 		return nil
 	case parser.Rule:
@@ -109,7 +110,7 @@ func (n Branch) toParserNode(g parser.Grammar, term parser.Term, ctrs counters) 
 			case Branch:
 				return relabelNode(string(t), node.toParserNode(g, term, childCtrs))
 			case Leaf:
-				return parser.Scanner(node)
+				return parse.Scanner(node)
 			default:
 				panic(fmt.Errorf("wrong node type: %v", node))
 			}
@@ -137,7 +138,7 @@ func (n Branch) toParserNode(g parser.Grammar, term parser.Term, ctrs counters) 
 			return parser.Node{
 				Tag:      oneofTag,
 				Extra:    extra,
-				Children: []parser.TreeElement{n.toParserNode(g, t[extra], ctrs)},
+				Children: []parse.TreeElement{n.toParserNode(g, t[extra], ctrs)},
 			}
 		}
 		return nil
@@ -182,7 +183,7 @@ func (n Branch) toParserNode(g parser.Grammar, term parser.Term, ctrs counters) 
 			case Branch:
 				return relabelNode(t.Name, node.toParserNode(g, t.Term, childCtrs))
 			case Leaf:
-				return parser.Scanner(node)
+				return parse.Scanner(node)
 			default:
 				panic(fmt.Errorf("wrong node type: %v", node))
 			}

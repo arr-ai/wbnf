@@ -2,13 +2,14 @@ package ast
 
 import (
 	"fmt"
+	"github.com/arr-ai/wbnf/parse"
 	"strings"
 
 	"github.com/arr-ai/wbnf/errors"
 	"github.com/arr-ai/wbnf/parser"
 )
 
-func NewExtRefTreeElement(g parser.Grammar, node parser.TreeElement) parser.TreeElement {
+func NewExtRefTreeElement(g parser.Grammar, node parse.TreeElement) parse.TreeElement {
 	return parser.Node{
 		Tag:      "extref",
 		Extra:    FromParserNode(g, node),
@@ -18,8 +19,8 @@ func NewExtRefTreeElement(g parser.Grammar, node parser.TreeElement) parser.Tree
 
 func (Branch) IsExtra() {}
 
-func FromParserNode(g parser.Grammar, e parser.TreeElement) Branch {
-	if s, ok := e.(parser.Scanner); ok {
+func FromParserNode(g parser.Grammar, e parse.TreeElement) Branch {
+	if s, ok := e.(parse.Scanner); ok {
 		result := Branch{}
 		result.one("", Leaf(s))
 		return result
@@ -115,12 +116,12 @@ func (n Branch) many(name string, node Node) {
 	}
 }
 
-func (n Branch) fromParserNode(g parser.Grammar, term parser.Term, ctrs counters, e parser.TreeElement) {
+func (n Branch) fromParserNode(g parser.Grammar, term parser.Term, ctrs counters, e parse.TreeElement) {
 	var tag string
 	defer enterf("fromParserNode(term=%T(%[1]v), ctrs=%v, v=%v)", term, ctrs, e).exitf("tag=%q, n=%v", &tag, &n)
 	switch t := term.(type) {
 	case parser.S, parser.RE:
-		n.add("", Leaf(e.(parser.Scanner)), ctrs[""])
+		n.add("", Leaf(e.(parse.Scanner)), ctrs[""])
 	case parser.Rule:
 		term := g[t]
 		childCtrs := newCounters(term)
@@ -193,7 +194,7 @@ func (n Branch) fromParserNode(g parser.Grammar, term parser.Term, ctrs counters
 		n.add(t.Name, node, ctrs[t.Name])
 	case parser.REF:
 		switch e := e.(type) {
-		case parser.Scanner:
+		case parse.Scanner:
 			n.add(t.Ident, Leaf(e), ctrs[t.Ident])
 		case parser.Node:
 			b := Branch{}

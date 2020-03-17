@@ -2,12 +2,12 @@ package ast
 
 import (
 	"fmt"
+	"github.com/arr-ai/wbnf/parse"
 	"regexp"
 	"sort"
 	"strings"
 
 	"github.com/arr-ai/wbnf/errors"
-	"github.com/arr-ai/wbnf/parser"
 )
 
 func (c One) String() string {
@@ -59,7 +59,7 @@ var specialCharRE = regexp.MustCompile("[[:cntrl:]:,'`(){}[\\]]")
 
 func (l Leaf) String() string {
 	var sb strings.Builder
-	scanner := parser.Scanner(l)
+	scanner := parse.Scanner(l)
 	s := scanner.String()
 	fmt.Fprintf(&sb, "%d‣", scanner.Offset())
 	switch {
@@ -110,23 +110,23 @@ func (c Extra) String() string {
 	return fmt.Sprintf("%v", c.Data)
 }
 
-func (c One) Scanner() parser.Scanner {
+func (c One) Scanner() parse.Scanner {
 	return c.Node.Scanner()
 }
 
-func (c Many) Scanner() parser.Scanner {
+func (c Many) Scanner() parse.Scanner {
 	panic("Scanner() not valid for Many")
 }
 
-func (c Extra) Scanner() parser.Scanner {
+func (c Extra) Scanner() parse.Scanner {
 	panic("Scanner() not valid for Extra")
 }
 
-func (l Leaf) Scanner() parser.Scanner {
-	return parser.Scanner(l)
+func (l Leaf) Scanner() parse.Scanner {
+	return parse.Scanner(l)
 }
 
-func (n Branch) Scanner() parser.Scanner {
+func (n Branch) Scanner() parse.Scanner {
 	if len(n) == 1 && n.oneChild() != nil {
 		return n.oneChild().Scanner()
 	}

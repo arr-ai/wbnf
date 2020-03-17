@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"github.com/arr-ai/wbnf/parse"
 	"io"
 	"sort"
 	"strings"
@@ -18,7 +19,7 @@ type Grammar map[Rule]Term
 // Unparse inverts the action of a parser, taking a generated AST and producing
 // the source it came from. Currently, it doesn't quite do that, and is only
 // being used for quick eyeballing to validate output.
-func (g Grammar) Unparse(e TreeElement, w io.Writer) (n int, err error) {
+func (g Grammar) Unparse(e parse.TreeElement, w io.Writer) (n int, err error) {
 	rule := NodeRule(e.(Node))
 	return g[rule].Unparse(g, e, w)
 }
@@ -43,14 +44,14 @@ func (p Parsers) HasRule(rule Rule) bool {
 	return has
 }
 
-func (p Parsers) Unparse(e TreeElement, w io.Writer) (n int, err error) {
+func (p Parsers) Unparse(e parse.TreeElement, w io.Writer) (n int, err error) {
 	return p.grammar.Unparse(e, w)
 }
 
 // Parse parses some source per a given rule.
-func (p Parsers) ParseWithExternals(rule Rule, input *Scanner, exts ExternalRefs) (TreeElement, error) {
+func (p Parsers) ParseWithExternals(rule Rule, input *parse.Scanner, exts ExternalRefs) (parse.TreeElement, error) {
 	scope := Scope{}.WithExternals(exts).PushCall(string(rule), rule)
-	var e TreeElement
+	var e parse.TreeElement
 	if err := p.parsers[rule].Parse(scope, input, &e); err != nil {
 		return nil, err
 	}
@@ -62,13 +63,13 @@ func (p Parsers) ParseWithExternals(rule Rule, input *Scanner, exts ExternalRefs
 	return nil, UnconsumedInput(*input, e)
 }
 
-func (p Parsers) Parse(rule Rule, input *Scanner) (TreeElement, error) {
+func (p Parsers) Parse(rule Rule, input *parse.Scanner) (parse.TreeElement, error) {
 	return p.ParseWithExternals(rule, input, nil)
 }
 
 // MustParse calls Parse and returns the result or panics if an error was
 // returned.
-func (p Parsers) MustParse(rule Rule, input *Scanner) TreeElement {
+func (p Parsers) MustParse(rule Rule, input *parse.Scanner) parse.TreeElement {
 	i, err := p.Parse(rule, input)
 	if err != nil {
 		panic(err)
@@ -80,7 +81,7 @@ func (p Parsers) MustParse(rule Rule, input *Scanner) TreeElement {
 type Term interface {
 	fmt.Stringer
 	Parser(name Rule, c cache) Parser
-	Unparse(g Grammar, e TreeElement, w io.Writer) (n int, err error)
+	Unparse(g Grammar, e parse.TreeElement, w io.Writer) (n int, err error)
 	Resolve(oldRule, newRule Rule) Term
 }
 

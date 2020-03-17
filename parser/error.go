@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"github.com/arr-ai/wbnf/parse"
 
 	"github.com/arr-ai/wbnf/gotree"
 )
@@ -58,13 +59,13 @@ func (p ParseError) walkErrors(parent gotree.Tree) {
 }
 
 type UnconsumedInputError struct {
-	residue Scanner
-	tree    TreeElement
+	residue parse.Scanner
+	tree    parse.TreeElement
 }
 
 // UnconsumedInput is returned by a successful parse that didn't fully
 // consume the input.
-func UnconsumedInput(residue Scanner, result TreeElement) UnconsumedInputError {
+func UnconsumedInput(residue parse.Scanner, result parse.TreeElement) UnconsumedInputError {
 	return UnconsumedInputError{residue: residue, tree: result}
 }
 
@@ -72,5 +73,5 @@ func (e UnconsumedInputError) Error() string {
 	return fmt.Sprintf("unconsumed input: %v", e.residue)
 }
 
-func (e UnconsumedInputError) Result() TreeElement { return e.tree }
-func (e UnconsumedInputError) Residue() *Scanner   { return &e.residue }
+func (e UnconsumedInputError) Result() parse.TreeElement { return e.tree }
+func (e UnconsumedInputError) Residue() *parse.Scanner   { return &e.residue }

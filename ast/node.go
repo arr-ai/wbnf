@@ -2,6 +2,7 @@ package ast
 
 import (
 	"fmt"
+	"github.com/arr-ai/wbnf/parse"
 	"regexp"
 	"strconv"
 	"strings"
@@ -23,7 +24,7 @@ const (
 
 type Children interface {
 	fmt.Stringer
-	Scanner() parser.Scanner
+	Scanner() parse.Scanner
 	isChildren()
 	clone() Children
 	narrow() bool
@@ -42,7 +43,7 @@ type Node interface {
 	fmt.Stringer
 	One(name string) Node
 	Many(name string) []Node
-	Scanner() parser.Scanner
+	Scanner() parse.Scanner
 	ContentEquals(n Node) bool // true if scanner and extra data contents are equivalent
 	collapse(level int) Node
 	isNode()
@@ -54,7 +55,7 @@ func (Branch) isNode() {}
 func (Leaf) isNode()   {}
 func (Extra) isNode()  {}
 
-type Leaf parser.Scanner
+type Leaf parse.Scanner
 
 func (Leaf) One(_ string) Node {
 	return nil

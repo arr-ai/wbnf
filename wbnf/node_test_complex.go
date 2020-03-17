@@ -2,6 +2,7 @@ package wbnf
 
 import (
 	"fmt"
+	"github.com/arr-ai/wbnf/parse"
 	"testing"
 
 	"github.com/arr-ai/wbnf/ast"
@@ -12,14 +13,14 @@ import (
 
 func TestParserNodeToNode(t *testing.T) {
 	p := Core()
-	v := p.MustParse("grammar", parser.NewScanner(`expr -> @:op="+" > @:op="*" > \d+;`)).(parser.Node)
+	v := p.MustParse("grammar", parse.NewScanner(`expr -> @:op="+" > @:op="*" > \d+;`)).(parser.Node)
 	g := p.Grammar()
 	n := ast.FromParserNode(g, v)
 	u := ast.ToParserNode(g, n).(parser.Node)
 	parser.AssertEqualNodes(t, v, u)
 
 	p = NewFromAst(n).Compile(u)
-	v = p.MustParse(parser.Rule("expr"), parser.NewScanner(`1+2*3`)).(parser.Node)
+	v = p.MustParse(parser.Rule("expr"), parse.NewScanner(`1+2*3`)).(parser.Node)
 	g = p.Grammar()
 	n = ast.FromParserNode(g, v)
 	u = ast.ToParserNode(g, n).(parser.Node)
@@ -29,7 +30,7 @@ func TestParserNodeToNode(t *testing.T) {
 func TestTinyXMLGrammar(t *testing.T) {
 	t.Parallel()
 
-	v, err := Core().Parse("grammar", parser.NewScanner(`
+	v, err := Core().Parse("grammar", parse.NewScanner(`
 		xml  -> s "<" s NAME attr* s ">" xml* "</" s NAME s ">" | CDATA=[^<]+;
 		attr -> s NAME s "=" s value=/{"[^"]*"};
 		NAME -> [A-Za-z_:][-A-Za-z0-9._:]*;
@@ -40,7 +41,7 @@ func TestTinyXMLGrammar(t *testing.T) {
 	node := v.(parser.Node)
 	xmlParser := NewFromAst(ast.FromParserNode(Core().Grammar(), node)).Compile(&node)
 
-	src := parser.NewScanner(`<a x="1">hello <b>world!</b></a>`)
+	src := parse.NewScanner(`<a x="1">hello <b>world!</b></a>`)
 	orig := *src
 	s := func(offset int, expected string) ast.Leaf {
 		end := offset + len(expected)

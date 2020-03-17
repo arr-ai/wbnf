@@ -2,12 +2,11 @@ package wbnf
 
 import (
 	"fmt"
+	"github.com/arr-ai/wbnf/parse"
 	"regexp"
 	"strconv"
 
 	"github.com/arr-ai/frozen"
-
-	"github.com/arr-ai/wbnf/parser"
 )
 
 func findDefinedRules(tree GrammarNode) (frozen.Set, map[string]PragmaMacrodefNode, error) {
@@ -78,7 +77,7 @@ const (
 )
 
 type validationError struct {
-	s    parser.Scanner
+	s    parse.Scanner
 	msg  string
 	args []interface{}
 	kind validationErrorKind

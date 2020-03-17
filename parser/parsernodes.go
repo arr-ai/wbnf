@@ -2,26 +2,18 @@ package parser
 
 import (
 	"fmt"
+	"github.com/arr-ai/wbnf/parse"
 )
 
-type TreeElement interface {
-	IsTreeElement()
-}
-
-func (Node) IsTreeElement()    {}
-func (Scanner) IsTreeElement() {}
-
-type Extra interface {
-	IsExtra()
-}
+func (Node) IsTreeElement() {}
 
 type Node struct {
-	Tag      string        `json:"tag"`
-	Extra    Extra         `json:"extra"`
-	Children []TreeElement `json:"nodes"`
+	Tag      string              `json:"tag"`
+	Extra    parse.Extra         `json:"extra"`
+	Children []parse.TreeElement `json:"nodes"`
 }
 
-func NewNode(tag string, extra Extra, children ...TreeElement) *Node {
+func NewNode(tag string, extra parse.Extra, children ...parse.TreeElement) *Node {
 	return &Node{Tag: tag, Extra: extra, Children: children}
 }
 
@@ -30,7 +22,7 @@ func (n Node) Count() int {
 }
 
 func (n Node) Normalize() Node {
-	children := make([]TreeElement, 0, len(n.Children))
+	children := make([]parse.TreeElement, 0, len(n.Children))
 	for _, v := range n.Children {
 		if node, ok := v.(Node); ok {
 			v = node.Normalize()
@@ -44,8 +36,8 @@ func (n Node) Normalize() Node {
 	}
 }
 
-func (n Node) Get(path ...int) TreeElement {
-	var v TreeElement = n
+func (n Node) Get(path ...int) parse.TreeElement {
+	var v parse.TreeElement = n
 	for _, i := range path {
 		v = v.(Node).Children[i]
 	}
@@ -56,13 +48,13 @@ func (n Node) GetNode(path ...int) Node {
 	return n.Get(path...).(Node)
 }
 
-func (n Node) GetScanner(path ...int) Scanner {
-	return n.Get(path...).(Scanner)
-}
-
-func (n Node) GetString(path ...int) string {
-	return n.GetScanner(path...).String()
-}
+//func (n Node) GetScanner(path ...int) Scanner {
+//	return n.Get(path...).(Scanner)
+//}
+//
+//func (n Node) GetString(path ...int) string {
+//	return n.GetScanner(path...).String()
+//}
 
 func (n Node) String() string {
 	return fmt.Sprintf("%s", n) //nolint:gosimple
@@ -85,6 +77,6 @@ func (n Node) Format(state fmt.State, c rune) {
 }
 
 type Parser interface {
-	Parse(scope Scope, input *Scanner, output *TreeElement) error
+	Parse(scope Scope, input *parse.Scanner, output *parse.TreeElement) error
 	AsTerm() Term
 }

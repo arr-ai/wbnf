@@ -45,7 +45,6 @@ type Node interface {
 	Many(name string) []Node
 	Scanner() parse.Scanner
 	ContentEquals(n Node) bool // true if scanner and extra data contents are equivalent
-	collapse(level int) Node
 	isNode()
 	clone() Node
 	narrow() bool
@@ -63,10 +62,6 @@ func (Leaf) One(_ string) Node {
 
 func (Leaf) Many(_ string) []Node {
 	return nil
-}
-
-func (l Leaf) collapse(level int) Node {
-	return l
 }
 
 type Branch map[string]Children
@@ -99,10 +94,6 @@ func (Extra) One(_ string) Node {
 
 func (Extra) Many(_ string) []Node {
 	return nil
-}
-
-func (c Extra) collapse(level int) Node {
-	return c
 }
 
 var stackLevelRE = regexp.MustCompile(`^(\w+)@(\d+)$`)
@@ -227,3 +218,5 @@ func (e Extra) ContentEquals(other Node) bool {
 	}
 	return false
 }
+
+func (Branch) IsExtra() {}

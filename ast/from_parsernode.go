@@ -17,8 +17,6 @@ func NewExtRefTreeElement(g parser.Grammar, node parse.TreeElement) parse.TreeEl
 	}
 }
 
-func (Branch) IsExtra() {}
-
 func FromParserNode(g parser.Grammar, e parse.TreeElement) Branch {
 	if s, ok := e.(parse.Scanner); ok {
 		result := Branch{}
@@ -31,31 +29,7 @@ func FromParserNode(g parser.Grammar, e parse.TreeElement) Branch {
 	result.one("@rule", Extra{rule})
 	ctrs := newCounters(term)
 	result.fromParserNode(g, term, ctrs, e)
-	return result.collapse(0).(Branch)
-}
-
-func (n Branch) collapse(level int) Node {
-	if false && level > 0 {
-		switch oneChild := n.oneChild().(type) {
-		case Branch:
-			oneBranch := oneChild
-			oneBranch.inc(SkipTag)
-			if choice, has := n[ChoiceTag]; has {
-				if oChoice, has := oneBranch[ChoiceTag]; has {
-					oneBranch[ChoiceTag] = append(choice.(Many), oChoice.(Many)...)
-				} else {
-					oneBranch[ChoiceTag] = choice
-				}
-			}
-			if rule, has := n[RuleTag]; has {
-				oneBranch[RuleTag] = rule
-			}
-			return oneBranch
-			// case Leaf:
-			// 	return oneChild
-		}
-	}
-	return n
+	return result
 }
 
 func (n Branch) oneChild() Node {
@@ -126,14 +100,13 @@ func (n Branch) fromParserNode(g parser.Grammar, term parser.Term, ctrs counters
 		term := g[t]
 		childCtrs := newCounters(term)
 		b := Branch{}
-		unleveled, level := unlevel(string(t), g)
+		unleveled, _ := unlevel(string(t), g)
 		b.fromParserNode(g, term, childCtrs, e)
 		var node Node = b
 		// if name := childCtrs.singular(); name != nil {
 		// 	node = b[*name].(One).Node
 		// 	// TODO: zeroOrOne
 		// }
-		node = node.collapse(level)
 		n.add(unleveled, node, ctrs[string(t)])
 	case parser.ScopedGrammar:
 		gcopy := g

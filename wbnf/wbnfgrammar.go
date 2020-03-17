@@ -147,7 +147,7 @@ func (c AtomExtRefNode) OneToken() string {
 type AtomNode struct{ ast.Node }
 
 func (AtomNode) isWalkableType() {}
-func (c AtomNode) Choice() int   { return ast.Choice(c.Node) }
+func (c AtomNode) Choice() int   { return Choice(c.Node) }
 
 func (c AtomNode) OneExtRef() *AtomExtRefNode {
 	if child := ast.First(c.Node, "ExtRef"); child != nil {
@@ -334,7 +334,7 @@ func (c PragmaImportNode) OneToken() string {
 type PragmaImportPathNode struct{ ast.Node }
 
 func (PragmaImportPathNode) isWalkableType() {}
-func (c PragmaImportPathNode) Choice() int   { return ast.Choice(c.Node) }
+func (c PragmaImportPathNode) Choice() int   { return Choice(c.Node) }
 
 func (c PragmaImportPathNode) AllToken() []string {
 	var out []string
@@ -387,7 +387,7 @@ func (c PragmaMacrodefNode) AllToken() []string {
 type PragmaNode struct{ ast.Node }
 
 func (PragmaNode) isWalkableType() {}
-func (c PragmaNode) Choice() int   { return ast.Choice(c.Node) }
+func (c PragmaNode) Choice() int   { return Choice(c.Node) }
 
 func (c PragmaNode) OneImport() *PragmaImportNode {
 	if child := ast.First(c.Node, "import"); child != nil {
@@ -440,7 +440,7 @@ func (c ProdNode) AllToken() []string {
 type QuantNode struct{ ast.Node }
 
 func (QuantNode) isWalkableType() {}
-func (c QuantNode) Choice() int   { return ast.Choice(c.Node) }
+func (c QuantNode) Choice() int   { return Choice(c.Node) }
 
 func (c QuantNode) OneMax() *IntNode {
 	if child := ast.First(c.Node, "max"); child != nil {
@@ -537,7 +537,7 @@ func (c RefNode) OneToken() string {
 type StmtNode struct{ ast.Node }
 
 func (StmtNode) isWalkableType() {}
-func (c StmtNode) Choice() int   { return ast.Choice(c.Node) }
+func (c StmtNode) Choice() int   { return Choice(c.Node) }
 
 func (c StmtNode) OneComment() *CommentNode {
 	if child := ast.First(c.Node, "COMMENT"); child != nil {

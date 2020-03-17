@@ -1,7 +1,5 @@
 package ast
 
-import "github.com/arr-ai/wbnf/parser"
-
 // Which returns the first child of the branch from the list of names supplied
 func Which(b Branch, names ...string) (string, Children) {
 	if len(names) == 0 {
@@ -13,18 +11,6 @@ func Which(b Branch, names ...string) (string, Children) {
 		}
 	}
 	return "", nil
-}
-
-// Choice attempts to check for the @choice tag, and if found returns the value
-// The return is the 0-based index of the chosen option. -1 means there was no @choice tag
-func Choice(n Node) int {
-	if n == nil {
-		return -1
-	}
-	if choice := First(n, ChoiceTag); choice != nil {
-		return int(choice.(Extra).Data.(parser.Choice))
-	}
-	return -1
 }
 
 // First finds the first child of the given node with the named tag. nil if the named node does not exist

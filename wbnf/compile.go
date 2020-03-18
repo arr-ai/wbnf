@@ -2,6 +2,7 @@ package wbnf
 
 import (
 	"fmt"
+	"github.com/arr-ai/wbnf/parse"
 	"io/ioutil"
 	"path/filepath"
 	"regexp"
@@ -308,7 +309,7 @@ type compiler struct {
 }
 
 func (c *compiler) makeGrammar(filename, text string) (GrammarNode, error) {
-	node, err := Parse(parser.NewScannerWithFilename(text, filename))
+	node, err := Parse(parse.NewScannerWithFilename(text, filename))
 	if err != nil {
 		return GrammarNode{}, err
 	}

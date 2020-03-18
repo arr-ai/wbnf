@@ -308,7 +308,7 @@ type compiler struct {
 }
 
 func (c *compiler) makeGrammar(filename, text string) (GrammarNode, error) {
-	node, err := ParseString(text)
+	node, err := Parse(parser.NewScannerWithFilename(text, filename))
 	if err != nil {
 		return GrammarNode{}, err
 	}

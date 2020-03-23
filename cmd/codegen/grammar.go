@@ -45,7 +45,7 @@ func (g *goNode) Add(n goNode) {
 }
 
 func safeString(src string) string {
-	r := strings.NewReplacer("`", "`+\"`\"+`", " ", "", "\n", "")
+	r := strings.NewReplacer("`", "`+\"`\"+`")
 	return r.Replace(src)
 }
 

@@ -133,12 +133,22 @@ func (tm *TypeMap) walkTerm(term parser.Term, parentName string, quant countMana
 		childName := parentName + GoName(t.Name)
 		switch term := t.Term.(type) {
 		case parser.Rule:
-			tm.pushType(childName, parentName, namedRule{
-				name:       t.Name,
-				parent:     parentName,
-				returnType: term.String(),
-				count:      quant,
-			})
+			var val grammarType
+			if term == parser.At {
+				si := knownRules.MustGet(term).(stackInfo)
+				val = stackBackRef{
+					name:   t.Name,
+					parent: si.parentName,
+				}
+			} else {
+				val = namedRule{
+					name:       t.Name,
+					parent:     parentName,
+					returnType: term.String(),
+					count:      quant,
+				}
+			}
+			tm.pushType(childName, parentName, val)
 		case parser.RE, parser.S, parser.CutPoint:
 			tm.pushType(childName, parentName, namedToken{
 				name:   t.Name,

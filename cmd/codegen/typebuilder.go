@@ -44,6 +44,22 @@ func (tm *TypeMap) walkGrammar(prefix string, g parser.Grammar, knownRules froze
 		typeName := prefix + GoName(r.String())
 		tm.walkTerm(term, typeName, setWantOneGetter(),
 			pushRuleNameForStack(r.String(), typeName, knownRules), rand.Int()) //nolint:gosec
+		// Now we need to check if stack terms were used, if they were we need to ensure that unnamed rule child
+		// was added, otherwise a rule like `f -> foo=@ > BAR;` would not generate a working walker api
+		newT := tm.findType(GoTypeName(typeName))
+		var needStackAddition bool
+		for _, child := range newT.Children() {
+			if x, ok := child.(stackBackRef); ok {
+				if x.name == r.String() {
+					needStackAddition = false
+					break
+				}
+				needStackAddition = true
+			}
+		}
+		if needStackAddition {
+			tm.pushType("", typeName, stackBackRef{name: r.String(), parent: typeName})
+		}
 	}
 
 	return tm.merge(result)

@@ -112,6 +112,8 @@ func DiffTerms(a, b parser.Term) TermDiff {
 		return DiffTerms(a.Term, b.(parser.CutPoint).Term)
 	case parser.ExtRef:
 		return diffSes(parser.S(string(a)), parser.S(string(a)))
+	case parser.REF:
+		return diffRefs(a, b.(parser.REF))
 	default:
 		panic(fmt.Errorf("unknown term type: %v %[1]T", a))
 	}
@@ -157,6 +159,23 @@ func (d REDiff) Equal() bool {
 
 func diffREs(a, b parser.RE) REDiff {
 	return REDiff{A: a, B: b}
+}
+
+//-----------------------------------------------------------------------------
+
+type RefDiff struct {
+	A, B parser.REF
+}
+
+func (d RefDiff) Equal() bool {
+	if d.A.Ident == d.B.Ident {
+		return (d.A.Default == nil && d.B.Default == nil) || DiffTerms(d.A.Default, d.B.Default).Equal()
+	}
+	return false
+}
+
+func diffRefs(a, b parser.REF) RefDiff {
+	return RefDiff{A: a, B: b}
 }
 
 //-----------------------------------------------------------------------------

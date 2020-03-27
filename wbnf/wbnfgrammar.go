@@ -140,6 +140,13 @@ func (c AtomExtRefNode) OneToken() string {
 	if child := ast.First(c.Node, ""); child != nil {
 		return child.Scanner().String()
 	}
+	if b, ok := c.Node.(ast.Branch); ok && len(b) == 1 {
+		for _, c := range b {
+			if child := ast.First(c.(ast.One).Node, ""); child != nil {
+				return child.Scanner().String()
+			}
+		}
+	}
 	return ""
 }
 
@@ -200,6 +207,13 @@ func (c AtomNode) OneTerm() *TermNode {
 func (c AtomNode) OneToken() string {
 	if child := ast.First(c.Node, ""); child != nil {
 		return child.Scanner().String()
+	}
+	if b, ok := c.Node.(ast.Branch); ok && len(b) == 1 {
+		for _, c := range b {
+			if child := ast.First(c.(ast.One).Node, ""); child != nil {
+				return child.Scanner().String()
+			}
+		}
 	}
 	return ""
 }
@@ -276,6 +290,13 @@ func (c MacrocallNode) OneToken() string {
 	if child := ast.First(c.Node, ""); child != nil {
 		return child.Scanner().String()
 	}
+	if b, ok := c.Node.(ast.Branch); ok && len(b) == 1 {
+		for _, c := range b {
+			if child := ast.First(c.(ast.One).Node, ""); child != nil {
+				return child.Scanner().String()
+			}
+		}
+	}
 	return ""
 }
 
@@ -327,6 +348,13 @@ func (c PragmaImportNode) OneToken() string {
 	if child := ast.First(c.Node, ""); child != nil {
 		return child.Scanner().String()
 	}
+	if b, ok := c.Node.(ast.Branch); ok && len(b) == 1 {
+		for _, c := range b {
+			if child := ast.First(c.(ast.One).Node, ""); child != nil {
+				return child.Scanner().String()
+			}
+		}
+	}
 	return ""
 }
 
@@ -371,6 +399,13 @@ func (c PragmaMacrodefNode) OneTerm() *TermNode {
 func (c PragmaMacrodefNode) OneToken() string {
 	if child := ast.First(c.Node, ""); child != nil {
 		return child.Scanner().String()
+	}
+	if b, ok := c.Node.(ast.Branch); ok && len(b) == 1 {
+		for _, c := range b {
+			if child := ast.First(c.(ast.One).Node, ""); child != nil {
+				return child.Scanner().String()
+			}
+		}
 	}
 	return ""
 }
@@ -424,6 +459,13 @@ func (c ProdNode) AllTerm() []TermNode {
 func (c ProdNode) OneToken() string {
 	if child := ast.First(c.Node, ""); child != nil {
 		return child.Scanner().String()
+	}
+	if b, ok := c.Node.(ast.Branch); ok && len(b) == 1 {
+		for _, c := range b {
+			if child := ast.First(c.(ast.One).Node, ""); child != nil {
+				return child.Scanner().String()
+			}
+		}
 	}
 	return ""
 }
@@ -487,6 +529,13 @@ func (c QuantNode) OneToken() string {
 	if child := ast.First(c.Node, ""); child != nil {
 		return child.Scanner().String()
 	}
+	if b, ok := c.Node.(ast.Branch); ok && len(b) == 1 {
+		for _, c := range b {
+			if child := ast.First(c.(ast.One).Node, ""); child != nil {
+				return child.Scanner().String()
+			}
+		}
+	}
 	return ""
 }
 
@@ -529,6 +578,13 @@ func (c RefNode) OneIdent() *IdentNode {
 func (c RefNode) OneToken() string {
 	if child := ast.First(c.Node, ""); child != nil {
 		return child.Scanner().String()
+	}
+	if b, ok := c.Node.(ast.Branch); ok && len(b) == 1 {
+		for _, c := range b {
+			if child := ast.First(c.(ast.One).Node, ""); child != nil {
+				return child.Scanner().String()
+			}
+		}
 	}
 	return ""
 }

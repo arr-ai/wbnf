@@ -251,11 +251,25 @@ func (t unnamedToken) Children() []grammarType { return nil }
 func (t unnamedToken) String() string {
 	replacer := strings.NewReplacer("{{parent}}", GoTypeName(t.parent))
 	out := ""
+	// a rule like: x -> 'a' | 'b' | 'c'; would expect to have an @choice rule and a single unnamedToken() rule
+	// Because the options all only have a single token the code will generate a getter for the "" named tree node
+	// However, this will fail because in this case the ast not would look like [@choice: 0, RULE_NAME: 'a']
+	// instead of simply ["": 'a'] which is what would be expected.
+	// To solve this problem the second if block is added to catch this.
+	// A better solution would be to do `ast.First(ast.First(c.Node, "TheRule").Node, "") but the codegen loses
+	// the rule name, this solution is Good Enough(TM)
 	if t.count.wantOne() {
 		out += replacer.Replace(`
 func (c {{parent}}) OneToken() string {
 	if child := ast.First(c.Node, ""); child != nil {
 		return child.Scanner().String()
+	}
+	if b, ok := c.Node.(ast.Branch); ok && len(b) == 1 {
+		for _, c := range b {
+			if child := ast.First(c.(ast.One).Node, ""); child != nil {
+				return child.Scanner().String()
+			}
+		}
 	}
 	return ""
 }

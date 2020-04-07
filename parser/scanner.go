@@ -32,6 +32,9 @@ func NewScannerWithFilename(str, filename string) *Scanner {
 }
 
 func NewScannerAt(str string, offset, size int) *Scanner {
+	if offset+size > len(str) {
+		panic(fmt.Errorf("%d is out of range [:%d]", offset+size, len(str)))
+	}
 	return &Scanner{stringSource{origin: &str}, offset, size}
 }
 
@@ -59,7 +62,11 @@ func (s Scanner) Format(state fmt.State, c rune) {
 
 func (s Scanner) Context() string {
 	end := s.sliceStart + s.sliceLength
-	return fmt.Sprintf("%s\033[1;31m%s\033[0m%s",
+	lineno, colno := s.Position()
+	return fmt.Sprintf("\n%s:%d:%d:\n%s\033[1;31m%s\033[0m%s",
+		s.Filename(),
+		lineno,
+		colno,
 		s.src.slice(0, s.sliceStart),
 		s.slice(),
 		s.src.slice(end, s.src.length()-end),
@@ -89,6 +96,7 @@ func (s Scanner) Skip(i int) *Scanner {
 	return &Scanner{s.src, s.sliceStart + i, s.sliceLength - i}
 }
 
+// Eat returns a scanner containing the next i bytes and advances s past them.
 func (s *Scanner) Eat(i int, eaten *Scanner) *Scanner {
 	eaten.src = s.src
 	eaten.sliceStart = s.sliceStart
@@ -107,7 +115,7 @@ func (s *Scanner) EatString(str string, eaten *Scanner) bool {
 
 // EatRegexp eats the text matching a regexp, populating match (if != nil) with
 // the whole match and captures (if != nil) with any captured groups. Returns
-// n as the number of captures set and ok iff a match was found.
+// n as the number of captures set and ok if a match was found.
 func (s *Scanner) EatRegexp(re *regexp.Regexp, match *Scanner, captures []Scanner) (n int, ok bool) {
 	if loc := re.FindStringSubmatchIndex(s.slice()); loc != nil {
 		if loc[0] != 0 {

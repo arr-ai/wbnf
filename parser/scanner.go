@@ -32,6 +32,9 @@ func NewScannerWithFilename(str, filename string) *Scanner {
 }
 
 func NewScannerAt(str string, offset, size int) *Scanner {
+	if offset+size > len(str) {
+		panic(fmt.Errorf("%d is out of range [:%d]", offset+size, len(str)))
+	}
 	return &Scanner{stringSource{origin: &str}, offset, size}
 }
 
@@ -57,12 +60,35 @@ func (s Scanner) Format(state fmt.State, c rune) {
 	}
 }
 
-func (s Scanner) Context() string {
+var (
+	NoLimit      = -1
+	DefaultLimit = 3
+)
+
+func (s Scanner) Context(limitLines int) string {
 	end := s.sliceStart + s.sliceLength
-	return fmt.Sprintf("%s\033[1;31m%s\033[0m%s",
-		s.src.slice(0, s.sliceStart),
+	lineno, colno := s.Position()
+
+	aboveCxt := s.src.slice(0, s.sliceStart)
+	belowCxt := s.src.slice(end, s.src.length()-end)
+	if limitLines != NoLimit {
+		a := strings.Split(aboveCxt, "\n")
+		if len(a) > limitLines {
+			aboveCxt = strings.Join(a[len(a)-limitLines-1:], "\n")
+		}
+		b := strings.Split(belowCxt, "\n")
+		if len(b) > limitLines {
+			belowCxt = strings.Join(b[:limitLines], "\n")
+		}
+	}
+
+	return fmt.Sprintf("\n%s:%d:%d:\n\n%s\033[1;31m%s\033[0m%s",
+		s.Filename(),
+		lineno,
+		colno,
+		aboveCxt,
 		s.slice(),
-		s.src.slice(end, s.src.length()-end),
+		belowCxt,
 	)
 }
 
@@ -89,6 +115,7 @@ func (s Scanner) Skip(i int) *Scanner {
 	return &Scanner{s.src, s.sliceStart + i, s.sliceLength - i}
 }
 
+// Eat returns a scanner containing the next i bytes and advances s past them.
 func (s *Scanner) Eat(i int, eaten *Scanner) *Scanner {
 	eaten.src = s.src
 	eaten.sliceStart = s.sliceStart
@@ -125,7 +152,9 @@ func (s *Scanner) EatRegexp(re *regexp.Regexp, match *Scanner, captures []Scanne
 		for i := range captures {
 			captures[i] = *s.Slice(loc[2*i], loc[2*i+1])
 		}
+
 		*s = *s.Skip(skip)
+
 		return n, true
 	}
 	return 0, false

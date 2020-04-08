@@ -186,7 +186,7 @@ func getErrorStrings(input *Scanner) string {
 		text = text[:40] + "  ..."
 	}
 
-	return NewScanner(text).Context()
+	return NewScanner(text).Context(DefaultLimit)
 }
 
 func eatRegexp(input *Scanner, re *regexp.Regexp, output *TreeElement) bool {
@@ -233,7 +233,7 @@ func (p *sParser) Parse(scope Scope, input *Scanner, output *TreeElement) error 
 	}
 	if ok := eatRegexp(input, p.re, output); !ok {
 		return newParseError(p.rule, "", scope.GetCutPoint(),
-			fmt.Errorf("expect: %s", NewScanner(p.t.String()).Context()),
+			fmt.Errorf("expect: %s", NewScanner(p.t.String()).Context(DefaultLimit)),
 			fmt.Errorf("actual: %s", getErrorStrings(input)), scope.GetCallStack())
 	}
 	return nil
@@ -261,7 +261,7 @@ func (p *reParser) Parse(scope Scope, input *Scanner, output *TreeElement) error
 	}
 	if ok := eatRegexp(input, p.re, output); !ok {
 		return newParseError(p.rule, "", scope.GetCutPoint(),
-			fmt.Errorf("expect: %s", NewScanner(p.re.String()).Context()),
+			fmt.Errorf("expect: %s", NewScanner(p.re.String()).Context(DefaultLimit)),
 			fmt.Errorf("actual: %s", getErrorStrings(input)), scope.GetCallStack())
 	}
 	return nil

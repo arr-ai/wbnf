@@ -1,6 +1,8 @@
 package ast
 
-import "github.com/arr-ai/wbnf/parser"
+import (
+	"github.com/arr-ai/wbnf/parser"
+)
 
 // Which returns the first child of the branch from the list of names supplied
 func Which(b Branch, names ...string) (string, Children) {

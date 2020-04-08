@@ -2,6 +2,7 @@ package wbnf
 
 import (
 	"fmt"
+
 	"github.com/arr-ai/frozen"
 	"github.com/arr-ai/wbnf/parser"
 )

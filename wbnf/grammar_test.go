@@ -49,7 +49,7 @@ func assertParseToNode(t *testing.T, expected parser.Node, rule parser.Rule, inp
 	if assert.NoError(t, err) {
 		return parser.AssertEqualNodes(t, expected, v.(parser.Node))
 	} else {
-		t.Logf("input: %s", input.Context())
+		t.Logf("input: %s", input.Context(parser.NoLimit))
 	}
 	return false
 }
@@ -175,8 +175,8 @@ func TestExprGrammarGrammar(t *testing.T) {
 	parsers := Core()
 	r := parser.NewScanner(exprGrammarSrc)
 	v, err := parsers.Parse("grammar", r)
-	require.NoError(t, err, "r=%v\nv=%v", r.Context(), v)
-	require.Equal(t, len(exprGrammarSrc), r.Offset(), "r=%v\nv=%v", r.Context(), v)
+	require.NoError(t, err, "r=%v\nv=%v", r.Context(parser.NoLimit), v)
+	require.Equal(t, len(exprGrammarSrc), r.Offset(), "r=%v\nv=%v", r.Context(parser.NoLimit), v)
 	assertUnparse(t,
 		`// Simple expression grammar`+
 			`expr->@:[-+]`+

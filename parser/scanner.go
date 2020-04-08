@@ -60,16 +60,35 @@ func (s Scanner) Format(state fmt.State, c rune) {
 	}
 }
 
-func (s Scanner) Context() string {
+var (
+	NoLimit      = -1
+	DefaultLimit = 3
+)
+
+func (s Scanner) Context(limitLines int) string {
 	end := s.sliceStart + s.sliceLength
 	lineno, colno := s.Position()
-	return fmt.Sprintf("\n%s:%d:%d:\n%s\033[1;31m%s\033[0m%s",
+
+	aboveCxt := s.src.slice(0, s.sliceStart)
+	belowCxt := s.src.slice(end, s.src.length()-end)
+	if limitLines != NoLimit {
+		a := strings.Split(aboveCxt, "\n")
+		if len(a) > limitLines {
+			aboveCxt = strings.Join(a[len(a)-limitLines-1:], "\n")
+		}
+		b := strings.Split(belowCxt, "\n")
+		if len(b) > limitLines {
+			belowCxt = strings.Join(b[:limitLines], "\n")
+		}
+	}
+
+	return fmt.Sprintf("\n%s:%d:%d:\n\n%s\033[1;31m%s\033[0m%s",
 		s.Filename(),
 		lineno,
 		colno,
-		s.src.slice(0, s.sliceStart),
+		aboveCxt,
 		s.slice(),
-		s.src.slice(end, s.src.length()-end),
+		belowCxt,
 	)
 }
 
@@ -115,7 +134,7 @@ func (s *Scanner) EatString(str string, eaten *Scanner) bool {
 
 // EatRegexp eats the text matching a regexp, populating match (if != nil) with
 // the whole match and captures (if != nil) with any captured groups. Returns
-// n as the number of captures set and ok if a match was found.
+// n as the number of captures set and ok iff a match was found.
 func (s *Scanner) EatRegexp(re *regexp.Regexp, match *Scanner, captures []Scanner) (n int, ok bool) {
 	if loc := re.FindStringSubmatchIndex(s.slice()); loc != nil {
 		if loc[0] != 0 {
@@ -133,7 +152,9 @@ func (s *Scanner) EatRegexp(re *regexp.Regexp, match *Scanner, captures []Scanne
 		for i := range captures {
 			captures[i] = *s.Slice(loc[2*i], loc[2*i+1])
 		}
+
 		*s = *s.Skip(skip)
+
 		return n, true
 	}
 	return 0, false

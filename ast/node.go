@@ -70,8 +70,8 @@ func (l Leaf) collapse(level int) Node {
 
 type Branch map[string]Children
 
-func (n Branch) One(name string) Node {
-	if c, has := n[name]; has {
+func (b Branch) One(name string) Node {
+	if c, has := b[name]; has {
 		if one, ok := c.(One); ok {
 			return one.Node
 		}
@@ -79,8 +79,8 @@ func (n Branch) One(name string) Node {
 	return nil
 }
 
-func (n Branch) Many(name string) []Node {
-	if c, has := n[name]; has {
+func (b Branch) Many(name string) []Node {
+	if c, has := b[name]; has {
 		if many, ok := c.(Many); ok {
 			return many
 		}
@@ -138,9 +138,9 @@ func (l Leaf) clone() Node {
 	return l
 }
 
-func (n Branch) clone() Node {
+func (b Branch) clone() Node {
 	result := Branch{}
-	for name, node := range n {
+	for name, node := range b {
 		result[name] = node.clone()
 	}
 	return result
@@ -162,12 +162,12 @@ func (l Leaf) narrow() bool {
 	return true
 }
 
-func (n Branch) narrow() bool {
-	switch len(n) {
+func (b Branch) narrow() bool {
+	switch len(b) {
 	case 0:
 		return true
 	case 1:
-		for _, group := range n {
+		for _, group := range b {
 			return group.narrow()
 		}
 	}
@@ -193,18 +193,17 @@ func (b Branch) ContentEquals(other Node) bool {
 			return false
 		}
 		for k, v := range b {
-			switch v.(type) {
+			switch v := v.(type) {
 			case One:
-				if !v.(One).Node.ContentEquals(other.One(k)) {
+				if !v.Node.ContentEquals(other.One(k)) {
 					return false
 				}
 			case Many:
-				nodes := v.(Many)
 				otherNodes := other.Many(k)
-				if len(nodes) != len(otherNodes) {
+				if len(v) != len(otherNodes) {
 					return false
 				}
-				for i, n := range nodes {
+				for i, n := range v {
 					if !n.ContentEquals(otherNodes[i]) {
 						return false
 					}

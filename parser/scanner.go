@@ -8,37 +8,40 @@ import (
 
 type Scanner struct {
 	src         source // the source the scanner is drawing from
-	sliceStart  int    // the start of the slice visible to the scanner
-	sliceLength int    // the length of the slice visible to the scanner
+	sliceStart  int    // the start of the slice visible to the scanner, based on the original src
+	sliceLength int    // the length of the slice visible to the scanner, based on the original src
 }
 
 type source interface {
 	length() int                // the length of the entire source string
 	slice(i, length int) string // the string of the given slice
 	filename() string           // the name of the file from which the source is derived (or empty if none)
+	stripSource(i, length int) source
 }
 
 type stringSource struct {
-	origin *string // the entire source string
-	f      string  // the source filename
+	origin string // the entire source string
+	f      string // the source filename
 }
 
 func NewScanner(str string) *Scanner {
-	return &Scanner{stringSource{origin: &str}, 0, len(str)}
+	return &Scanner{stringSource{origin: str}, 0, len(str)}
 }
 
 func NewScannerWithFilename(str, filename string) *Scanner {
-	return &Scanner{stringSource{&str, filename}, 0, len(str)}
+	return &Scanner{stringSource{str, filename}, 0, len(str)}
 }
 
 func NewScannerAt(str string, offset, size int) *Scanner {
-	if offset+size > len(str) {
-		panic(fmt.Errorf("%d is out of range [:%d]", offset+size, len(str)))
-	}
-	return &Scanner{stringSource{origin: &str}, offset, size}
+	return &Scanner{stringSource{origin: str}, offset, size}
 }
 
 // - Scanner
+
+func (r Scanner) StripSource() Scanner {
+	r.src = r.src.stripSource(r.sliceStart, r.sliceLength)
+	return r
+}
 
 // The name of the file from which the source is derived (or empty if none).
 func (s Scanner) Filename() string {
@@ -162,12 +165,21 @@ func (s *Scanner) EatRegexp(re *regexp.Regexp, match *Scanner, captures []Scanne
 
 // - stringSource
 
+func (s stringSource) stripSource(offset, size int) source {
+	s.origin = s.slice(offset, size)
+	return s
+}
+
 func (s stringSource) length() int {
-	return len(*s.origin)
+	return len(s.origin)
 }
 
 func (s stringSource) slice(i, length int) string {
-	return (*s.origin)[i : i+length]
+	// Since offset and length based on the original origin string, so they might be out of range
+	if i < 0 || i+length < 0 || i > len(s.origin) || i+length > len(s.origin) {
+		return s.origin
+	}
+	return (s.origin)[i : i+length]
 }
 
 func (s stringSource) filename() string {

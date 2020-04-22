@@ -65,7 +65,7 @@ func (s Scanner) Format(state fmt.State, c rune) {
 
 var (
 	NoLimit      = -1
-	DefaultLimit = 3
+	DefaultLimit = 1
 )
 
 func (s Scanner) Context(limitLines int) string {
@@ -85,7 +85,7 @@ func (s Scanner) Context(limitLines int) string {
 		}
 	}
 
-	return fmt.Sprintf("\n%s:%d:%d:\n\n%s\033[1;31m%s\033[0m%s",
+	return fmt.Sprintf("\n\033[1;37m%s:%d:%d:\033[0m\n%s\033[1;31m%s\033[0m%s",
 		s.Filename(),
 		lineno,
 		colno,

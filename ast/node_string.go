@@ -115,7 +115,18 @@ func (c One) Scanner() parser.Scanner {
 }
 
 func (c Many) Scanner() parser.Scanner {
-	panic("Scanner() not valid for Many")
+	childrenScanners := make([]parser.Scanner, len(c))
+	for i, n := range c {
+		childrenScanners[i] = n.Scanner()
+	}
+
+	manyScanner := &parser.Scanner{}
+	err := manyScanner.Merge(childrenScanners)
+	if err != nil {
+		panic(err)
+	}
+
+	return *manyScanner
 }
 
 func (c Extra) Scanner() parser.Scanner {
@@ -130,5 +141,24 @@ func (n Branch) Scanner() parser.Scanner {
 	if len(n) == 1 && n.oneChild() != nil {
 		return n.oneChild().Scanner()
 	}
-	panic("Scanner() not valid for Branch")
+
+	scanners := make([]parser.Scanner, 0)
+	for childrenName, ch := range n {
+		if !strings.HasPrefix(childrenName, "@") {
+			switch c := ch.(type) {
+			case One:
+				scanners = append(scanners, c.Node.Scanner())
+			case Many:
+				scanners = append(scanners, c.Scanner())
+			}
+		}
+	}
+
+	branchScanner := &parser.Scanner{}
+	err := branchScanner.Merge(scanners)
+	if err != nil {
+		panic(err)
+	}
+
+	return *branchScanner
 }

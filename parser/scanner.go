@@ -119,17 +119,21 @@ func (s Scanner) Skip(i int) *Scanner {
 	return &Scanner{s.src, s.sliceStart + i, s.sliceLength - i}
 }
 
-func (s *Scanner) Merge(items []Scanner) error {
-	if len(items) < 2 {
-		return errors.New("merge needs at least two scanners")
+func MergeScanners(items ...Scanner) (Scanner, error) {
+	if len(items) == 0 {
+		return Scanner{}, errors.New("needs at least one scanner")
+	}
+
+	if len(items) == 1 {
+		return items[0], nil
 	}
 
 	l, r := items[0].sliceStart, items[0].sliceStart+items[0].sliceLength
 	src := items[0].src
-	fmt.Println(src)
+
 	for _, v := range items {
 		if v.src != src {
-			return errors.New("scanners' sources are not the same")
+			return Scanner{}, errors.New("scanners' sources are not the same")
 		}
 		if v.sliceStart < l {
 			l = v.sliceStart
@@ -139,11 +143,11 @@ func (s *Scanner) Merge(items []Scanner) error {
 		}
 	}
 
-	s.src = src
-	s.sliceStart = l
-	s.sliceLength = r - l
-
-	return nil
+	return Scanner{
+		src:         src,
+		sliceStart:  l,
+		sliceLength: r - l,
+	}, nil
 }
 
 // Eat returns a scanner containing the next i bytes and advances s past them.

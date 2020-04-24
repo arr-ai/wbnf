@@ -115,18 +115,17 @@ func (c One) Scanner() parser.Scanner {
 }
 
 func (c Many) Scanner() parser.Scanner {
-	childrenScanners := make([]parser.Scanner, len(c))
-	for i, n := range c {
-		childrenScanners[i] = n.Scanner()
+	childrenScanners := make([]parser.Scanner, 0, len(c))
+	for _, n := range c {
+		childrenScanners = append(childrenScanners, n.Scanner())
 	}
 
-	manyScanner := &parser.Scanner{}
-	err := manyScanner.Merge(childrenScanners)
+	manyScanner, err := parser.MergeScanners(childrenScanners...)
 	if err != nil {
 		panic(err)
 	}
 
-	return *manyScanner
+	return manyScanner
 }
 
 func (c Extra) Scanner() parser.Scanner {
@@ -154,11 +153,10 @@ func (n Branch) Scanner() parser.Scanner {
 		}
 	}
 
-	branchScanner := &parser.Scanner{}
-	err := branchScanner.Merge(scanners)
+	branchScanner, err := parser.MergeScanners(scanners...)
 	if err != nil {
 		panic(err)
 	}
 
-	return *branchScanner
+	return branchScanner
 }

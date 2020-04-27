@@ -120,12 +120,15 @@ func (c Many) Scanner() parser.Scanner {
 		childrenScanners = append(childrenScanners, n.Scanner())
 	}
 
-	manyScanner, err := parser.MergeScanners(childrenScanners...)
-	if err != nil {
-		panic(err)
+	if len(childrenScanners) > 0 {
+		manyScanner, err := parser.MergeScanners(childrenScanners...)
+		if err != nil {
+			panic(err)
+		}
+		return manyScanner
 	}
 
-	return manyScanner
+	return parser.Scanner{}
 }
 
 func (c Extra) Scanner() parser.Scanner {
@@ -146,17 +149,24 @@ func (n Branch) Scanner() parser.Scanner {
 		if !strings.HasPrefix(childrenName, "@") {
 			switch c := ch.(type) {
 			case One:
-				scanners = append(scanners, c.Node.Scanner())
+				if s := c.Node.Scanner(); !s.IsNil() {
+					scanners = append(scanners, s)
+				}
 			case Many:
-				scanners = append(scanners, c.Scanner())
+				if s := c.Scanner(); !s.IsNil() {
+					scanners = append(scanners, s)
+				}
 			}
 		}
 	}
 
-	branchScanner, err := parser.MergeScanners(scanners...)
-	if err != nil {
-		panic(err)
+	if len(scanners) > 0 {
+		branchScanner, err := parser.MergeScanners(scanners...)
+		if err != nil {
+			panic(err)
+		}
+		return branchScanner
 	}
 
-	return branchScanner
+	return parser.Scanner{}
 }

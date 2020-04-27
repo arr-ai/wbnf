@@ -56,6 +56,10 @@ func (s Scanner) String() string {
 	return s.slice()
 }
 
+func (s Scanner) IsNil() bool {
+	return s.src == nil
+}
+
 func (s Scanner) Format(state fmt.State, c rune) {
 	if c == 'q' {
 		_, _ = fmt.Fprintf(state, "%q", s.slice())
@@ -123,7 +127,6 @@ func MergeScanners(items ...Scanner) (Scanner, error) {
 	if len(items) == 0 {
 		return Scanner{}, errors.New("needs at least one scanner")
 	}
-
 	if len(items) == 1 {
 		return items[0], nil
 	}
@@ -131,9 +134,9 @@ func MergeScanners(items ...Scanner) (Scanner, error) {
 	l, r := items[0].sliceStart, items[0].sliceStart+items[0].sliceLength
 	src := items[0].src
 
-	for _, v := range items {
+	for _, v := range items[1:] {
 		if v.src != src {
-			return Scanner{}, errors.New("scanners' sources are not the same")
+			return Scanner{}, fmt.Errorf("scanners' sources are not the same: %s vs %s", src, v.src)
 		}
 		if v.sliceStart < l {
 			l = v.sliceStart

@@ -50,7 +50,7 @@ func TestScannerMerge(t *testing.T) {
 	assertMergedScanner(t, src, 0, 6, []Scanner{*NewScannerAt(str, 0, 1), *NewScannerAt(str, 0, 4), *NewScannerAt(str, 0, 6)})
 
 	assertMergedScannerErr(t, errors.New("needs at least one scanner"), []Scanner{})
-	assertMergedScannerErr(t, errors.New("scanners' sources are not the same"), []Scanner{*NewScanner(str), *NewScanner("another src")})
+	assertMergedScannerErr(t, errors.New("scanners' sources are not the same: {one\ntwo\nthree\nfour } vs {another src }"), []Scanner{*NewScanner(str), *NewScanner("another src")})
 }
 
 func assertMergedScanner(t *testing.T, src source, offset, length int, items []Scanner) {

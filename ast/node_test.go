@@ -57,6 +57,20 @@ func TestBranchScanner(t *testing.T) {
 		},
 	})
 
+	assertBranchScanner(t, &parser.Scanner{}, Branch{})
+	assertBranchScanner(t, &parser.Scanner{}, Branch{
+		"foo": Many{},
+	})
+	assertBranchScanner(t, &parser.Scanner{}, Branch{
+		"foo": Many{},
+		"bar": Many{},
+	})
+	assertBranchScanner(t, parser.NewScannerAt(str, 5, 1), Branch{
+		"foo": Many{},
+		"bar": One{
+			Node: Leaf(*parser.NewScannerAt(str, 5, 1)),
+		},
+	})
 }
 
 func assertBranchScanner(t *testing.T, s *parser.Scanner, b Branch) {

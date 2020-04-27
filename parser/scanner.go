@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -55,6 +56,10 @@ func (s Scanner) String() string {
 	return s.slice()
 }
 
+func (s Scanner) IsNil() bool {
+	return s.src == nil
+}
+
 func (s Scanner) Format(state fmt.State, c rune) {
 	if c == 'q' {
 		_, _ = fmt.Fprintf(state, "%q", s.slice())
@@ -65,7 +70,7 @@ func (s Scanner) Format(state fmt.State, c rune) {
 
 var (
 	NoLimit      = -1
-	DefaultLimit = 3
+	DefaultLimit = 1
 )
 
 func (s Scanner) Context(limitLines int) string {
@@ -85,7 +90,7 @@ func (s Scanner) Context(limitLines int) string {
 		}
 	}
 
-	return fmt.Sprintf("\n%s:%d:%d:\n\n%s\033[1;31m%s\033[0m%s",
+	return fmt.Sprintf("\n\033[1;37m%s:%d:%d:\033[0m\n%s\033[1;31m%s\033[0m%s",
 		s.Filename(),
 		lineno,
 		colno,
@@ -116,6 +121,36 @@ func (s Scanner) Slice(a, b int) *Scanner {
 
 func (s Scanner) Skip(i int) *Scanner {
 	return &Scanner{s.src, s.sliceStart + i, s.sliceLength - i}
+}
+
+func MergeScanners(items ...Scanner) (Scanner, error) {
+	if len(items) == 0 {
+		return Scanner{}, errors.New("needs at least one scanner")
+	}
+	if len(items) == 1 {
+		return items[0], nil
+	}
+
+	l, r := items[0].sliceStart, items[0].sliceStart+items[0].sliceLength
+	src := items[0].src
+
+	for _, v := range items[1:] {
+		if v.src != src {
+			return Scanner{}, fmt.Errorf("scanners' sources are not the same: %s vs %s", src, v.src)
+		}
+		if v.sliceStart < l {
+			l = v.sliceStart
+		}
+		if v.sliceStart+v.sliceLength > r {
+			r = v.sliceStart + v.sliceLength
+		}
+	}
+
+	return Scanner{
+		src:         src,
+		sliceStart:  l,
+		sliceLength: r - l,
+	}, nil
 }
 
 // Eat returns a scanner containing the next i bytes and advances s past them.

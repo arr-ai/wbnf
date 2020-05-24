@@ -113,7 +113,14 @@ TERM+ ;`:
   match. The entire match will be consumed. The parser will use the first
   capturing group to populate the output node, or the entire match if there is
   none.
-  
+
+  Regular expressions mostly conform to [RE2](https://github.com/google/re2/wiki/Syntax)
+  syntax, with the following exceptions:
+
+  - Whitespace is ignored and may be used to indent complex regular expressions
+    across multiple lines. The space character can be matched with `\_`.
+  - When outside a character class, `}` must be escaped with `\}`.
+
   The following simple RE forms may omit the surrounding `/{…}`:
 
   - `.`, `^` and `$`
@@ -121,7 +128,7 @@ TERM+ ;`:
   - `\d` where d is an RE2 character class.
   - `\pN` or `\PN` where N is a single-letter Unicode character class
   - `\p{…}` `\P{…}`
-  
+
   All simple forms may include a quantifier: `?`, `*`, `+`, `{m,n?}`, `{n}` and,
   optionally, an additional `?` to make the quantifier reluctant (finds the
   shortest matching input).

@@ -2,87 +2,11 @@
 
 [![GitHub Actions Go status](https://github.com/arr-ai/wbnf/workflows/Go/badge.svg)](.)
 
-## Repo Directory Structure (still evolving)
-
- - ast/\
-   Package to convert raw parse tree to more useable AST nodes
-
- - parser/\
-    Package that actually implements the parser
-
- - wbnf/\
-    Package used as the frontend to the parser. Only required if code needs to parse a wbnf grammar at runtime.
-
- - cmd/\
-    Command line interface to the wbnf package
-
-The hope is that the packages will evolved such that parser and ast are merged, only the usable AST nodes will be exported
+ωBNF is pronounced "omega BNF".
 
 ## Grammar Syntax Guide
 
-ωBNF is self describing!
-
-<!-- INJECT: ```text\n${examples/wbnf.wbnf}\n``` -->
-```text
-// Non-terminals
-grammar -> stmt+;
-stmt    -> COMMENT | prod | pragma;
-prod    -> IDENT "->" term+ ";";
-term    -> (@ ("{" grammar "}")? ):op=">"
-         > @:op="|"
-         > @+
-         > named quant*;
-named   -> (IDENT op="=")? atom;
-quant   -> op=[?*+]
-         | "{" min=INT? "," max=INT? "}"
-         | op=/{<:|:>?} opt_leading=","? named opt_trailing=","?;
-atom    -> IDENT | STR | RE | macrocall | ExtRef=("%%" IDENT) | REF | "(" term ")" | "(" ")";
-
-macrocall   -> "%!" name=IDENT "(" term:","? ")";
-REF         -> "%" IDENT ("=" default=STR)?;
-
-// Terminals
-COMMENT -> /{ //.*$
-            | (?s: /\* (?: [^*] | \*+[^*/] ) \*/ )
-            };
-IDENT   -> /{@|[A-Za-z_\.]\w*};
-INT     -> \d+;
-STR     -> /{ " (?: \\. | [^\\"] )* "
-            | ' (?: \\. | [^\\'] )* '
-            | ` (?: ``  | [^`]   )* `
-            };
-RE      -> /{
-             /{
-               (?:
-                 \\.
-                 | { (?: (?: \d+(?:,\d*)? | ,\d+ ) \} )?
-                 | \[ (?: \\. | \[:^?[a-z]+:\] | [^\]] )+ ]
-                 | [^\\{\}]
-               )*
-             \}
-           | (?:
-               (?:
-                 \[ (?: \\. | \[:^?[a-z]+:\] | [^\]] )+ ]
-               | \\[pP](?:[a-z]|\{[a-zA-Z_]+\})
-               | \\[a-zA-Z]
-               | [.^$]
-               )(?: (?:[+*?]|\{\d+,?\d?\}) \?? )?
-             )+
-           };
-
-// Special
-pragma  -> import | macrodef {
-                import   -> ".import" path=((".."|"."|[a-zA-Z0-9.:]+):,"/") ";"?;
-                macrodef -> ".macro" name=IDENT "(" args=IDENT:","? ")" "{" term "}" ";"?;
-            };
-
-.wrapRE -> /{\s*()\s*};
-```
-<!-- /INJECT -->
-
-## The basics
-
-A ωBNF grammar file consists of an unordered list of rules (called
+An ωBNF grammar file consists of an unordered list of rules (called
 *productions*) or *comments*.
 
 ### Comments
@@ -359,3 +283,68 @@ Below are a collection of helpful rules which can be dropped into your grammar.
   node.
 
 - `.macro Indented(term) { indent=(\n+ %indent="\n" \s+) term:%indent } ` Macro to simplify adding indentation (use like `%!Indented(term)`)
+
+
+## The ultimate example: ωBNF is self-hosting!
+
+The ωBNF syntax described above is itself implemented in ωBNF. The following
+grammar is auto-generated from the formal grammar used in the ωBNF parsing
+engine.
+
+<!-- INJECT: ```text\n${examples/wbnf.wbnf}\n``` -->
+```text
+// Non-terminals
+grammar -> stmt+;
+stmt    -> COMMENT | prod | pragma;
+prod    -> IDENT "->" term+ ";";
+term    -> (@ ("{" grammar "}")? ):op=">"
+         > @:op="|"
+         > @+
+         > named quant*;
+named   -> (IDENT op="=")? atom;
+quant   -> op=[?*+]
+         | "{" min=INT? "," max=INT? "}"
+         | op=/{<:|:>?} opt_leading=","? named opt_trailing=","?;
+atom    -> IDENT | STR | RE | macrocall | ExtRef=("%%" IDENT) | REF | "(" term ")" | "(" ")";
+
+macrocall   -> "%!" name=IDENT "(" term:","? ")";
+REF         -> "%" IDENT ("=" default=STR)?;
+
+// Terminals
+COMMENT -> /{ //.*$
+            | (?s: /\* (?: [^*] | \*+[^*/] ) \*/ )
+            };
+IDENT   -> /{@|[A-Za-z_\.]\w*};
+INT     -> \d+;
+STR     -> /{ " (?: \\. | [^\\"] )* "
+            | ' (?: \\. | [^\\'] )* '
+            | ` (?: ``  | [^`]   )* `
+            };
+RE      -> /{
+             /{
+               (?:
+                 \\.
+                 | { (?: (?: \d+(?:,\d*)? | ,\d+ ) \} )?
+                 | \[ (?: \\. | \[:^?[a-z]+:\] | [^\]] )+ ]
+                 | [^\\{\}]
+               )*
+             \}
+           | (?:
+               (?:
+                 \[ (?: \\. | \[:^?[a-z]+:\] | [^\]] )+ ]
+               | \\[pP](?:[a-z]|\{[a-zA-Z_]+\})
+               | \\[a-zA-Z]
+               | [.^$]
+               )(?: (?:[+*?]|\{\d+,?\d?\}) \?? )?
+             )+
+           };
+
+// Special
+pragma  -> import | macrodef {
+                import   -> ".import" path=((".."|"."|[a-zA-Z0-9.:]+):,"/") ";"?;
+                macrodef -> ".macro" name=IDENT "(" args=IDENT:","? ")" "{" term "}" ";"?;
+            };
+
+.wrapRE -> /{\s*()\s*};
+```
+<!-- /INJECT -->

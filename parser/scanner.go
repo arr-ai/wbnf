@@ -73,6 +73,15 @@ var (
 	DefaultLimit = 1
 )
 
+func (s Scanner) Contains(sn Scanner) bool {
+	if s.Filename() != sn.Filename() || s.src != sn.src {
+		return false
+	}
+
+	return s.sliceStart <= sn.sliceStart &&
+		s.sliceStart+s.sliceLength >= sn.sliceStart+sn.sliceLength
+}
+
 func (s Scanner) Context(limitLines int) string {
 	end := s.sliceStart + s.sliceLength
 	lineno, colno := s.Position()

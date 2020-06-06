@@ -86,7 +86,7 @@ func (n Branch) pullFromMany(name string) Node {
 }
 
 func (n Branch) toParserNode(g parser.Grammar, term parser.Term, ctrs counters) (out parser.TreeElement) {
-	defer enterf("%v.toParserNode(g, term=%T(%[2]v), ctrs=%v)", n, term, ctrs).exitf("%v", &out)
+	// defer enterf("%v.toParserNode(g, term=%T(%[2]v), ctrs=%v)", n, term, ctrs).exitf("%v", &out)
 	switch t := term.(type) {
 	case parser.S, parser.RE:
 		if node := n.pull("", ctrs[""]); node != nil {

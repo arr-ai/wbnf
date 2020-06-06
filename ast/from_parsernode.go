@@ -117,7 +117,7 @@ func (n Branch) many(name string, node Node) {
 
 func (n Branch) fromParserNode(g parser.Grammar, term parser.Term, ctrs counters, e parser.TreeElement) {
 	var tag string
-	defer enterf("fromParserNode(term=%T(%[1]v), ctrs=%v, v=%v)", term, ctrs, e).exitf("tag=%q, n=%v", &tag, &n)
+	// defer enterf("fromParserNode(term=%T(%[1]v), ctrs=%v, v=%v)", term, ctrs, e).exitf("tag=%q, n=%v", &tag, &n)
 	switch t := term.(type) {
 	case parser.S, parser.RE:
 		n.add("", Leaf(e.(parser.Scanner)), ctrs[""])

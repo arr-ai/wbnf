@@ -327,7 +327,7 @@ func nodesEqual(a, b interface{}) bool {
 }
 
 func (p *seqParser) Parse(scope Scope, input *Scanner, output *TreeElement) (out error) {
-	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
+	// defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	if escaped, err := parseEscape(p, scope, input, output); escaped || err != nil {
 		return err
 	}
@@ -378,7 +378,7 @@ type Empty struct{}
 func (Empty) IsTreeElement() {}
 
 func (p *delimParser) Parse(scope Scope, input *Scanner, output *TreeElement) (out error) {
-	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
+	// defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	if escaped, err := parseEscape(p, scope, input, output); escaped || err != nil {
 		return err
 	}
@@ -508,7 +508,7 @@ type quantParser struct {
 }
 
 func (p *quantParser) Parse(scope Scope, input *Scanner, output *TreeElement) (out error) {
-	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
+	// defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	if escaped, err := parseEscape(p, scope, input, output); escaped || err != nil {
 		return err
 	}
@@ -561,7 +561,7 @@ type oneofParser struct {
 }
 
 func (p *oneofParser) Parse(scope Scope, input *Scanner, output *TreeElement) (out error) {
-	defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
+	// defer enterf("%s: %T %[2]v", p.rule, p.t).exitf("%v %v", &out, output)
 	if escaped, err := parseEscape(p, scope, input, output); escaped || err != nil {
 		return err
 	}

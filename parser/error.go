@@ -7,9 +7,10 @@ import (
 )
 
 type ParseError struct {
-	rule     Rule
-	msg      string
-	children []error
+	rule      Rule
+	msgFormat string
+	msgArgs   []interface{}
+	children  []func() error
 }
 
 type FatalError struct {
@@ -26,16 +27,19 @@ func isNotMyFatalError(err error, cp cutpointdata) bool {
 	return ok && fe.cutpointdata != cp
 }
 
-func newParseError(rule Rule, msg string, fatal cutpointdata, errors ...error) error {
-	err := ParseError{
-		rule:     rule,
-		msg:      msg,
-		children: errors,
+func newParseError(rule Rule, format string, args ...interface{}) func(fatal cutpointdata, errors ...func() error) error {
+	return func(fatal cutpointdata, errors ...func() error) error {
+		err := ParseError{
+			rule:      rule,
+			msgFormat: format,
+			msgArgs:   args,
+			children:  errors,
+		}
+		if fatal.valid() {
+			return FatalError{err, fatal}
+		}
+		return err
 	}
-	if fatal.valid() {
-		return FatalError{err, fatal}
-	}
-	return err
 }
 
 func (p ParseError) Error() string {
@@ -46,8 +50,9 @@ func (p ParseError) Error() string {
 }
 
 func (p ParseError) walkErrors(parent gotree.Tree) {
-	x := gotree.New(fmt.Sprintf(`rule(%s) - %s`, p.rule, p.msg))
-	for _, err := range p.children {
+	x := gotree.New(fmt.Sprintf(`rule(%s) - %s`, p.rule, fmt.Sprintf(p.msgFormat, p.msgArgs...)))
+	for _, errf := range p.children {
+		err := errf()
 		if pe, ok := err.(*ParseError); ok {
 			pe.walkErrors(x)
 		} else {

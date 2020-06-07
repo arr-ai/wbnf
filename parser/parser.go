@@ -232,9 +232,11 @@ func (p *sParser) Parse(scope Scope, input *Scanner, output *TreeElement) error 
 		return err
 	}
 	if ok := eatRegexp(input, p.re, output); !ok {
-		return newParseError(p.rule, "", scope.GetCutPoint(),
-			fmt.Errorf("expect: %s", NewScanner(p.t.String()).Context(DefaultLimit)),
-			fmt.Errorf("actual: %s", getErrorStrings(input)), scope.GetCallStack())
+		return newParseError(p.rule, "")(scope.GetCutPoint(),
+			func() error { return fmt.Errorf("expect: %s", NewScanner(p.t.String()).Context(DefaultLimit)) },
+			func() error { return fmt.Errorf("actual: %s", getErrorStrings(input)) },
+			func() error { return scope.GetCallStack() },
+		)
 	}
 	return nil
 }
@@ -260,9 +262,11 @@ func (p *reParser) Parse(scope Scope, input *Scanner, output *TreeElement) error
 		return err
 	}
 	if ok := eatRegexp(input, p.re, output); !ok {
-		return newParseError(p.rule, "", scope.GetCutPoint(),
-			fmt.Errorf("expect: %s", NewScanner(p.re.String()).Context(DefaultLimit)),
-			fmt.Errorf("actual: %s", getErrorStrings(input)), scope.GetCallStack())
+		return newParseError(p.rule, "")(scope.GetCutPoint(),
+			func() error { return fmt.Errorf("expect: %s", NewScanner(p.re.String()).Context(DefaultLimit)) },
+			func() error { return fmt.Errorf("actual: %s", getErrorStrings(input)) },
+			func() error { return scope.GetCallStack() },
+		)
 	}
 	return nil
 }
@@ -342,7 +346,10 @@ func (p *seqParser) Parse(scope Scope, input *Scanner, output *TreeElement) (out
 				return err
 			}
 			*input = furthest
-			return newParseError(p.rule, "could not complete sequence", scope.GetCutPoint(), err, scope.GetCallStack())
+			return newParseError(p.rule, "could not complete sequence")(scope.GetCutPoint(),
+				func() error { return err },
+				func() error { return scope.GetCallStack() },
+			)
 		}
 		if _, ok := item.(*cutPointParser); ok {
 			scope, _, _ = scope.ReplaceCutPoint(true)
@@ -535,8 +542,9 @@ func (p *quantParser) Parse(scope Scope, input *Scanner, output *TreeElement) (o
 	}
 
 	return newParseError(p.rule,
-		fmt.Sprintf("quant failed, expected: (%d, %d), have %d value(s)",
-			p.t.Min, p.t.Max, len(result)), prevcp, out, scope.GetCallStack())
+		"quant failed, expected: (%d, %d), have %d value(s)",
+		p.t.Min, p.t.Max, len(result),
+	)(prevcp, func() error { return out }, func() error { return scope.GetCallStack() })
 }
 func (p *quantParser) AsTerm() Term { return p.t }
 
@@ -569,7 +577,7 @@ func (p *oneofParser) Parse(scope Scope, input *Scanner, output *TreeElement) (o
 
 	scope = scope.PushCall(string(p.rule), p.AsTerm())
 	scope, prevcp, mycp := scope.ReplaceCutPoint(false)
-	var errors []error
+	var errors []func() error
 	for i, par := range p.parsers {
 		var v TreeElement
 		start := *input
@@ -577,7 +585,7 @@ func (p *oneofParser) Parse(scope Scope, input *Scanner, output *TreeElement) (o
 			if isNotMyFatalError(err, mycp) {
 				return err
 			}
-			errors = append(errors, err)
+			errors = append(errors, func() error { return err })
 
 			if furthest.Offset() < start.Offset() {
 				furthest = start
@@ -587,9 +595,9 @@ func (p *oneofParser) Parse(scope Scope, input *Scanner, output *TreeElement) (o
 			return p.put(output, Choice(i), v)
 		}
 	}
-	errors = append(errors, scope.GetCallStack())
+	errors = append(errors, func() error { return scope.GetCallStack() })
 	*input = furthest
-	return newParseError(p.rule, "None of the available options could be satisfied", prevcp, errors...)
+	return newParseError(p.rule, "None of the available options could be satisfied")(prevcp, errors...)
 }
 func (p *oneofParser) AsTerm() Term { return p.t }
 
@@ -646,16 +654,20 @@ func (t *REF) Parse(scope Scope, input *Scanner, output *TreeElement) (out error
 			return err
 		}
 		if !nodesEqual(v, expected) {
-			return newParseError(Rule(t.Ident), "Backref not matched", invalidCutpoint,
-				fmt.Errorf("expected: %s", expected),
-				fmt.Errorf("actual: %s", v), scope.GetCallStack())
+			return newParseError(Rule(t.Ident), "Backref not matched")(invalidCutpoint,
+				func() error { return fmt.Errorf("expected: %s", expected) },
+				func() error { return fmt.Errorf("actual: %s", v) },
+				func() error { return scope.GetCallStack() },
+			)
 		}
 	} else if t.Default != nil {
 		if err := t.Default.Parser(Rule(t.Ident), cache{}).Parse(scope, input, &v); err != nil {
 			return err
 		}
 	} else {
-		return newParseError(Rule(t.Ident), "Backref not found", invalidCutpoint, scope.GetCallStack())
+		return newParseError(Rule(t.Ident), "Backref not found")(invalidCutpoint,
+			func() error { return scope.GetCallStack() },
+		)
 	}
 	*output = v
 	return nil
@@ -673,7 +685,9 @@ func (t ExtRef) Parse(scope Scope, input *Scanner, output *TreeElement) (out err
 	}
 	fn := scope.GetExternal(string(t))
 	if fn == nil {
-		return newParseError(Rule(string(t)), "External handler not found", cutpointdata(1), scope.GetCallStack())
+		return newParseError(Rule(string(t)), "External handler not found")(cutpointdata(1),
+			func() error { return scope.GetCallStack() },
+		)
 	}
 	*output, out = fn(scope, input)
 	return out

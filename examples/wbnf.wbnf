@@ -1,4 +1,5 @@
 // Non-terminals
+_       -> grammar;
 grammar -> stmt+;
 stmt    -> COMMENT | prod | pragma;
 prod    -> IDENT "->" term+ ";";

@@ -73,22 +73,22 @@ func (l Leaf) String() string {
 	return sb.String()
 }
 
-func (n Branch) String() string {
+func (b Branch) String() string {
 	var sb strings.Builder
 	sb.WriteString("(")
 	pre := ""
-	if len(n) > 1 {
+	if len(b) > 1 {
 		sb.WriteString("\n  ")
 		pre = "  "
 	}
 	i := 0
-	names := make([]string, 0, len(n))
-	for name := range n {
+	names := make([]string, 0, len(b))
+	for name := range b {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		group := n[name]
+		group := b[name]
 		if i > 0 {
 			sb.WriteString(",\n  ")
 		}
@@ -99,15 +99,15 @@ func (n Branch) String() string {
 		}
 		fmt.Fprintf(&sb, "%s: %s", name, child)
 	}
-	if len(n) > 1 {
+	if len(b) > 1 {
 		sb.WriteString(",\n")
 	}
 	sb.WriteString(")")
 	return sb.String()
 }
 
-func (c Extra) String() string {
-	return fmt.Sprintf("%v", c.Data)
+func (e Extra) String() string {
+	return fmt.Sprintf("%v", e.Data)
 }
 
 func (c One) Scanner() parser.Scanner {
@@ -131,7 +131,7 @@ func (c Many) Scanner() parser.Scanner {
 	return parser.Scanner{}
 }
 
-func (c Extra) Scanner() parser.Scanner {
+func (Extra) Scanner() parser.Scanner {
 	panic("Scanner() not valid for Extra")
 }
 
@@ -139,13 +139,13 @@ func (l Leaf) Scanner() parser.Scanner {
 	return parser.Scanner(l)
 }
 
-func (n Branch) Scanner() parser.Scanner {
-	if len(n) == 1 && n.oneChild() != nil {
-		return n.oneChild().Scanner()
+func (b Branch) Scanner() parser.Scanner {
+	if len(b) == 1 && b.oneChild() != nil {
+		return b.oneChild().Scanner()
 	}
 
 	scanners := make([]parser.Scanner, 0)
-	for childrenName, ch := range n {
+	for childrenName, ch := range b {
 		if !strings.HasPrefix(childrenName, "@") {
 			switch c := ch.(type) {
 			case One:

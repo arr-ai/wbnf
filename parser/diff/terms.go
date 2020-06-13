@@ -7,7 +7,7 @@ import (
 	"github.com/arr-ai/wbnf/parser"
 )
 
-type DiffReport interface {
+type Report interface {
 	Equal() bool
 }
 
@@ -38,13 +38,13 @@ func (d GrammarDiff) Equal() bool {
 	return len(d.OnlyInA) == 0 && len(d.OnlyInB) == 0 && len(d.Prods) == 0
 }
 
-func DiffGrammars(a, b parser.Grammar) GrammarDiff {
+func Grammars(a, b parser.Grammar) GrammarDiff {
 	diff := GrammarDiff{
 		Prods: map[parser.Rule]TermDiff{},
 	}
 	for rule, aTerm := range a {
 		if bTerm, ok := b[rule]; ok {
-			if td := DiffTerms(aTerm, bTerm); !td.Equal() {
+			if td := Terms(aTerm, bTerm); !td.Equal() {
 				diff.Prods[rule] = td
 			}
 		} else {
@@ -67,7 +67,7 @@ func DiffGrammars(a, b parser.Grammar) GrammarDiff {
 //-----------------------------------------------------------------------------
 
 type TermDiff interface {
-	DiffReport
+	Report
 }
 
 type TypesDiffer struct {
@@ -78,7 +78,7 @@ func (d TypesDiffer) Equal() bool {
 	return false
 }
 
-func DiffTerms(a, b parser.Term) TermDiff {
+func Terms(a, b parser.Term) TermDiff {
 	if reflect.TypeOf(a) != reflect.TypeOf(b) {
 		return TypesDiffer{
 			InterfaceDiff: diffInterfaces(
@@ -109,7 +109,7 @@ func DiffTerms(a, b parser.Term) TermDiff {
 	case parser.ScopedGrammar:
 		return diffScopedGrammars(a, b.(parser.ScopedGrammar))
 	case parser.CutPoint:
-		return DiffTerms(a.Term, b.(parser.CutPoint).Term)
+		return Terms(a.Term, b.(parser.CutPoint).Term)
 	case parser.ExtRef:
 		return diffSes(parser.S(string(a)), parser.S(string(a)))
 	case parser.REF:
@@ -169,7 +169,7 @@ type RefDiff struct {
 
 func (d RefDiff) Equal() bool {
 	if d.A.Ident == d.B.Ident {
-		return (d.A.Default == nil && d.B.Default == nil) || DiffTerms(d.A.Default, d.B.Default).Equal()
+		return (d.A.Default == nil && d.B.Default == nil) || Terms(d.A.Default, d.B.Default).Equal()
 	}
 	return false
 }
@@ -201,7 +201,7 @@ func diffTermses(a, b []parser.Term) termsesDiff {
 	}
 
 	for i, term := range a {
-		if td := DiffTerms(term, b[i]); !td.Equal() {
+		if td := Terms(term, b[i]); !td.Equal() {
 			tsd.Terms = append(tsd.Terms, td)
 		}
 	}
@@ -258,8 +258,8 @@ func (d DelimDiff) Equal() bool {
 
 func diffDelims(a, b parser.Delim) DelimDiff {
 	return DelimDiff{
-		Term:            DiffTerms(a.Term, b.Term),
-		Sep:             DiffTerms(a.Sep, b.Sep),
+		Term:            Terms(a.Term, b.Term),
+		Sep:             Terms(a.Sep, b.Sep),
 		Assoc:           diffInterfaces(a.Assoc, b.Assoc),
 		CanStartWithSep: diffInterfaces(a.CanStartWithSep, b.CanStartWithSep),
 		CanEndWithSep:   diffInterfaces(a.CanEndWithSep, b.CanEndWithSep),
@@ -280,7 +280,7 @@ func (d QuantDiff) Equal() bool {
 
 func diffQuants(a, b parser.Quant) QuantDiff {
 	return QuantDiff{
-		Term: DiffTerms(a.Term, b.Term),
+		Term: Terms(a.Term, b.Term),
 		Min:  diffInterfaces(a.Min, b.Min),
 		Max:  diffInterfaces(a.Max, b.Max),
 	}
@@ -300,7 +300,7 @@ func (d NamedDiff) Equal() bool {
 func diffNameds(a, b parser.Named) NamedDiff {
 	return NamedDiff{
 		Name: diffInterfaces(a.Name, b.Name),
-		Term: DiffTerms(a.Term, b.Term),
+		Term: Terms(a.Term, b.Term),
 	}
 }
 
@@ -317,7 +317,7 @@ func (d ScopedGrammarDiff) Equal() bool {
 
 func diffScopedGrammars(a, b parser.ScopedGrammar) ScopedGrammarDiff {
 	return ScopedGrammarDiff{
-		Term:    DiffTerms(a.Term, b.Term),
-		Grammar: DiffGrammars(a.Grammar, b.Grammar),
+		Term:    Terms(a.Term, b.Term),
+		Grammar: Grammars(a.Grammar, b.Grammar),
 	}
 }

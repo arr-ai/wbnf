@@ -54,11 +54,11 @@ type (
 		getter, walker string
 		isMany         bool
 	}
-	grammarType interface {
+	GrammarType interface {
 		TypeName() string
 		Ident() string
 		String() string
-		Children() []grammarType
+		Children() []GrammarType
 		CallbackData() *callbackData
 	}
 	basicRule string // Used for rules which only return an unnamed string (i.e foo -> /{[a-z]*}; )
@@ -85,7 +85,7 @@ type (
 	}
 	rule struct {
 		name   string
-		childs []grammarType
+		childs []GrammarType
 	} // used for the common rules
 )
 
@@ -142,7 +142,7 @@ func setWantAllGetter() countManager { return countManager{int: wantAllGetter} }
 
 func (t basicRule) TypeName() string        { return string(t) }
 func (t basicRule) Ident() string           { return "String" }
-func (t basicRule) Children() []grammarType { return nil }
+func (t basicRule) Children() []GrammarType { return nil }
 func (t basicRule) String() string {
 	return strings.ReplaceAll(`
 type %s struct { ast.Node }
@@ -163,7 +163,7 @@ func (t basicRule) Upgrade() unnamedToken {
 
 func (t choice) TypeName() string        { return "" }
 func (t choice) Ident() string           { return "@choice" }
-func (t choice) Children() []grammarType { return nil }
+func (t choice) Children() []GrammarType { return nil }
 func (t choice) String() string {
 	parentType := GoTypeName(t.parent)
 	/*
@@ -185,8 +185,8 @@ func (t choice) CallbackData() *callbackData { return nil }
 
 func (t stackBackRef) TypeName() string        { return "" }
 func (t stackBackRef) Ident() string           { return t.name }
-func (t stackBackRef) Children() []grammarType { return nil }
-func (t stackBackRef) toNamedRule() grammarType {
+func (t stackBackRef) Children() []GrammarType { return nil }
+func (t stackBackRef) toNamedRule() GrammarType {
 	return namedRule{
 		name:       t.name,
 		parent:     t.parent,
@@ -203,7 +203,7 @@ func (t stackBackRef) CallbackData() *callbackData {
 
 func (t backRef) TypeName() string        { return "" }
 func (t backRef) Ident() string           { return t.name }
-func (t backRef) Children() []grammarType { return nil }
+func (t backRef) Children() []GrammarType { return nil }
 func (t backRef) String() string {
 	return fmt.Sprintf(`func (c %s) %sRef() ast.Node { return ast.First(c.Node, "%s") }
 `,
@@ -213,7 +213,7 @@ func (t backRef) CallbackData() *callbackData { return nil }
 
 func (t namedToken) TypeName() string        { return "" /* not exported */ }
 func (t namedToken) Ident() string           { return t.name }
-func (t namedToken) Children() []grammarType { return nil }
+func (t namedToken) Children() []GrammarType { return nil }
 func (t namedToken) String() string {
 	replacer := strings.NewReplacer("{{parent}}", GoTypeName(t.parent),
 		"{{childtype}}", GoName(t.name),
@@ -247,7 +247,7 @@ func (t namedToken) CallbackData() *callbackData { return nil }
 
 func (t unnamedToken) TypeName() string        { return "" /* not exported */ }
 func (t unnamedToken) Ident() string           { return "Token" }
-func (t unnamedToken) Children() []grammarType { return nil }
+func (t unnamedToken) Children() []GrammarType { return nil }
 func (t unnamedToken) String() string {
 	replacer := strings.NewReplacer("{{parent}}", GoTypeName(t.parent))
 	out := ""
@@ -292,7 +292,7 @@ func (t unnamedToken) CallbackData() *callbackData { return nil }
 
 func (t namedRule) TypeName() string        { return "" /* not exported */ }
 func (t namedRule) Ident() string           { return t.name }
-func (t namedRule) Children() []grammarType { return nil }
+func (t namedRule) Children() []GrammarType { return nil }
 func (t namedRule) String() string {
 	replacer := strings.NewReplacer("{{parent}}", GoTypeName(t.parent),
 		"{{child}}", GoName(t.name),
@@ -329,7 +329,7 @@ func (t namedRule) CallbackData() *callbackData {
 
 func (t rule) TypeName() string        { return t.name }
 func (t rule) Ident() string           { return t.name }
-func (t rule) Children() []grammarType { return t.childs }
+func (t rule) Children() []GrammarType { return t.childs }
 func (t rule) String() string {
 	out := fmt.Sprintf("type %s struct { ast.Node}\n func (%s) isWalkableType() {}\n",
 		GoTypeName(t.name), GoTypeName(t.name))
@@ -350,7 +350,7 @@ func (t rule) String() string {
 func (t rule) CallbackData() *callbackData { return nil }
 
 type TypesData struct {
-	types map[string]grammarType
+	types map[string]GrammarType
 }
 
 func (d *TypesData) Get() []fmt.Stringer {
@@ -367,10 +367,10 @@ func (d *TypesData) Get() []fmt.Stringer {
 	return result
 }
 
-func (d *TypesData) Types() map[string]grammarType {
+func (d *TypesData) Types() map[string]GrammarType {
 	return d.types
 }
 
 func MakeTypes(node wbnf.GrammarNode) *TypesData {
-	return &TypesData{types: MakeTypesFromGrammar(wbnf.NewFromAst(node))}
+	return &TypesData{types: makeTypesFromGrammar(wbnf.NewFromAst(node))}
 }

@@ -78,18 +78,6 @@ func newCounters(t parser.Term) counters {
 	return result
 }
 
-func (ctrs counters) singular() *string {
-	if ctrs != nil && len(ctrs) == 1 {
-		for name, c := range ctrs {
-			if c == oneOne {
-				return &name
-			}
-			// TODO: zeroOrOne
-		}
-	}
-	return nil
-}
-
 func (ctrs counters) count(name string, c counter) {
 	ctrs[name] = ctrs[name].add(c)
 }

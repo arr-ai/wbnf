@@ -136,7 +136,7 @@ func (g Grammar) Compile(node interface{}) Parsers {
 
 //-----------------------------------------------------------------------------
 func parseEscape(p Parser, scope Scope, input *Scanner, output *TreeElement) (bool, error) {
-	if esc := scope.GetParserEscape(); esc != nil {
+	if esc := scope.getParserEscape(); esc != nil {
 		var match Scanner
 		if _, ok := input.EatRegexp(esc.openDelim, &match, nil); ok {
 			te, err := esc.external(scope.With("(term)", p.AsTerm()), input)
@@ -227,7 +227,7 @@ type sParser struct {
 	re   *regexp.Regexp
 }
 
-func (p *sParser) Parse(scope Scope, input *Scanner, output *TreeElement) error {
+func (p *sParser) Parse(scope Scope, input *Scanner, output *TreeElement) error { //nolint:dupl
 	if escaped, err := parseEscape(p, scope.PushCall(string(p.rule), p.t), input, output); escaped || err != nil {
 		return err
 	}
@@ -257,7 +257,7 @@ type reParser struct {
 	re   *regexp.Regexp
 }
 
-func (p *reParser) Parse(scope Scope, input *Scanner, output *TreeElement) error {
+func (p *reParser) Parse(scope Scope, input *Scanner, output *TreeElement) error { //nolint:dupl
 	if escaped, err := parseEscape(p, scope.PushCall(string(p.rule), p.t), input, output); escaped || err != nil {
 		return err
 	}
@@ -389,7 +389,7 @@ func (p *delimParser) Parse(scope Scope, input *Scanner, output *TreeElement) (o
 	if escaped, err := parseEscape(p, scope, input, output); escaped || err != nil {
 		return err
 	}
-	var result []TreeElement
+	result := []TreeElement{}
 
 	scope = scope.PushCall(string(p.rule), p.AsTerm())
 
@@ -475,14 +475,14 @@ func (t Delim) Parser(rule Rule, c cache) Parser {
 	return p
 }
 
-type lrtgen struct {
+type LRTGen struct {
 	sides   [2]Term
 	sep     Term
 	side    int
 	sepnext bool
 }
 
-func (l *lrtgen) Next() Term {
+func (l *LRTGen) Next() Term {
 	var out Term
 	if l.sepnext {
 		out = l.sep
@@ -494,15 +494,15 @@ func (l *lrtgen) Next() Term {
 	}
 	return out
 }
-func (t Delim) LRTerms(node Node) lrtgen {
+func (t Delim) LRTerms(node Node) LRTGen {
 	associativity := node.Extra.(Associativity)
 	switch {
 	case associativity < 0:
-		return lrtgen{sides: [2]Term{t.Term, t}, sep: t.Sep}
+		return LRTGen{sides: [2]Term{t.Term, t}, sep: t.Sep}
 	case associativity > 0:
-		return lrtgen{sides: [2]Term{t, t.Term}, sep: t.Sep}
+		return LRTGen{sides: [2]Term{t, t.Term}, sep: t.Sep}
 	}
-	return lrtgen{sides: [2]Term{t.Term, t.Term}, sep: t.Sep}
+	return LRTGen{sides: [2]Term{t.Term, t.Term}, sep: t.Sep}
 }
 
 //-----------------------------------------------------------------------------
@@ -685,7 +685,7 @@ func (t ExtRef) Parse(scope Scope, input *Scanner, output *TreeElement) (out err
 	}
 	fn := scope.GetExternal(string(t))
 	if fn == nil {
-		return newParseError(Rule(string(t)), "External handler not found")(cutpointdata(1),
+		return newParseError(Rule(string(t)), "External handler not found")(Cutpointdata(1),
 			func() error { return scope.GetCallStack() },
 		)
 	}

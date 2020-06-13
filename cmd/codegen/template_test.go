@@ -20,7 +20,7 @@ func TestWrite(t *testing.T) {
 		PackageName:       "testpackage",
 		StartRule:         "IdentStartRule",
 		StartRuleTypeName: "StartRuleNode",
-		Grammar: &goNode{name: "parser.Grammar", scope: squigglyScope, children: []goNode{{
+		Grammar: &GoNode{name: "parser.Grammar", scope: squigglyScope, children: []GoNode{{
 			name:     "parser.Foooooo",
 			children: nil,
 			scope:    bracesScope,

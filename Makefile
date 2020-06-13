@@ -31,7 +31,7 @@ lint: ## Run golangci-lint
 	golangci-lint run
 
 coverage: ## Verify the test coverage remains high
-	./scripts/check-coverage.sh 60
+	./scripts/check-coverage.sh 40
 
 test: ## Run tests without coverage
 	$(TESTEXE)

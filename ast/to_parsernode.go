@@ -39,45 +39,34 @@ func expandNode(n Node, name string) Node {
 	// }
 }
 
-func (n Branch) pull(name string, ctr counter) Node {
+func (b Branch) pull(name string, ctr counter) Node {
 	switch ctr {
 	case counter{}:
 		panic(errors.Inconceivable)
 	case zeroOrOne, oneOne:
-		return n.pullFromOne(name)
+		return b.pullFromOne(name)
 	default:
-		return n.pullFromMany(name)
+		return b.pullFromMany(name)
 	}
 }
 
-func (n Branch) pullFromOne(name string) Node {
-	if child, has := n[name]; has {
-		delete(n, name)
+func (b Branch) pullFromOne(name string) Node {
+	if child, has := b[name]; has {
+		delete(b, name)
 		return child.(One).Node
 	}
 	return nil
 }
 
-func (n Branch) dec(name string) int {
-	if child, has := n[name]; has {
-		i := child.(One).Node.(Extra).Data.(int)
-		if i == 1 {
-			delete(n, name)
-		}
-		return i
-	}
-	return 0
-}
-
-func (n Branch) pullFromMany(name string) Node {
-	if node, has := n[name]; has {
+func (b Branch) pullFromMany(name string) Node {
+	if node, has := b[name]; has {
 		many := node.(Many)
 		if len(many) > 0 {
 			result := many[0]
 			if len(many) > 1 {
-				n[name] = many[1:]
+				b[name] = many[1:]
 			} else {
-				delete(n, name)
+				delete(b, name)
 			}
 			return result
 		}
@@ -85,11 +74,11 @@ func (n Branch) pullFromMany(name string) Node {
 	return nil
 }
 
-func (n Branch) toParserNode(g parser.Grammar, term parser.Term, ctrs counters) (out parser.TreeElement) {
+func (b Branch) toParserNode(g parser.Grammar, term parser.Term, ctrs counters) (out parser.TreeElement) {
 	// defer enterf("%v.toParserNode(g, term=%T(%[2]v), ctrs=%v)", n, term, ctrs).exitf("%v", &out)
 	switch t := term.(type) {
 	case parser.S, parser.RE:
-		if node := n.pull("", ctrs[""]); node != nil {
+		if node := b.pull("", ctrs[""]); node != nil {
 			return parser.Scanner(node.(Leaf))
 		}
 		return nil
@@ -97,7 +86,7 @@ func (n Branch) toParserNode(g parser.Grammar, term parser.Term, ctrs counters) 
 		name := string(t)
 		term := g[t]
 		unleveled, level := unlevel(name, g)
-		if node := n.pull(unleveled, ctrs[name]); node != nil {
+		if node := b.pull(unleveled, ctrs[name]); node != nil {
 			if level > 0 {
 				node = expandNode(node, unleveled)
 			}
@@ -120,11 +109,11 @@ func (n Branch) toParserNode(g parser.Grammar, term parser.Term, ctrs counters) 
 		for rule, terms := range t.Grammar {
 			gcopy[rule] = terms
 		}
-		return n.toParserNode(gcopy, t.Term, ctrs)
+		return b.toParserNode(gcopy, t.Term, ctrs)
 	case parser.Seq:
 		result := parser.Node{Tag: seqTag}
 		for _, child := range t {
-			if node := n.toParserNode(g, child, ctrs); node != nil {
+			if node := b.toParserNode(g, child, ctrs); node != nil {
 				result.Children = append(result.Children, node)
 			} else {
 				return nil
@@ -132,12 +121,12 @@ func (n Branch) toParserNode(g parser.Grammar, term parser.Term, ctrs counters) 
 		}
 		return result
 	case parser.Oneof:
-		if choice := n.pullFromMany(ChoiceTag); choice != nil {
+		if choice := b.pullFromMany(ChoiceTag); choice != nil {
 			extra := choice.(Extra).Data.(parser.Choice)
 			return parser.Node{
 				Tag:      oneofTag,
 				Extra:    extra,
-				Children: []parser.TreeElement{n.toParserNode(g, t[extra], ctrs)},
+				Children: []parser.TreeElement{b.toParserNode(g, t[extra], ctrs)},
 			}
 		}
 		return nil
@@ -149,7 +138,7 @@ func (n Branch) toParserNode(g parser.Grammar, term parser.Term, ctrs counters) 
 		terms := [2]parser.Term{t.Term, t.Sep}
 		i := 0
 		for ; ; i++ {
-			if child := n.toParserNode(g, terms[i%2], ctrs); child != nil {
+			if child := b.toParserNode(g, terms[i%2], ctrs); child != nil {
 				v.Children = append(v.Children, child)
 			} else {
 				break
@@ -162,7 +151,7 @@ func (n Branch) toParserNode(g parser.Grammar, term parser.Term, ctrs counters) 
 	case parser.Quant:
 		result := parser.Node{Tag: quantTag}
 		for i := 0; !t.MaxLessThan(i); i++ {
-			if v := n.toParserNode(g, t.Term, ctrs); v != nil {
+			if v := b.toParserNode(g, t.Term, ctrs); v != nil {
 				result.Children = append(result.Children, v)
 			} else {
 				break
@@ -174,7 +163,7 @@ func (n Branch) toParserNode(g parser.Grammar, term parser.Term, ctrs counters) 
 		return result
 	case parser.Named:
 		childCtrs := newCounters(t.Term)
-		if node := n.pull(t.Name, ctrs[t.Name]); node != nil {
+		if node := b.pull(t.Name, ctrs[t.Name]); node != nil {
 			// if name := childCtrs.singular(); name != nil {
 			// 	node = Branch{*name: One{Node: node}}
 			// }
@@ -189,7 +178,7 @@ func (n Branch) toParserNode(g parser.Grammar, term parser.Term, ctrs counters) 
 		}
 		return nil
 	case parser.CutPoint:
-		return n.toParserNode(g, t.Term, ctrs)
+		return b.toParserNode(g, t.Term, ctrs)
 	default:
 		panic(fmt.Errorf("unexpected term type: %v %[1]T", t))
 	}

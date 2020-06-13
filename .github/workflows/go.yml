@@ -20,4 +20,5 @@ jobs:
       run: go get github.com/golangci/golangci-lint/cmd/golangci-lint
 
     - name: Build
-      run: make
+      run: |
+        PATH="$PATH:$(go env GOPATH)/bin" make

@@ -61,7 +61,6 @@ func TestGnodeWalkRule(t *testing.T) {
 }
 
 func TestCheckForRecursion(t *testing.T) {
-
 	for _, test := range []testData{
 		{"simple", "a -> 'a';", NoError},
 		{"simple", "a -> a;", PossibleCycleDetected},

@@ -39,9 +39,9 @@ func NewScannerAt(str string, offset, size int) *Scanner {
 
 // - Scanner
 
-func (r Scanner) StripSource() Scanner {
-	r.src = r.src.stripSource(r.sliceStart, r.sliceLength)
-	return r
+func (s Scanner) StripSource() Scanner {
+	s.src = s.src.stripSource(s.sliceStart, s.sliceLength)
+	return s
 }
 
 // The name of the file from which the source is derived (or empty if none).

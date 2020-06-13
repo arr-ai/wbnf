@@ -58,31 +58,31 @@ func TestTinyXMLGrammar(t *testing.T) {
 
 	assert.EqualValues(t,
 		ast.Branch{
-			ast.RuleTag:   ast.One{ast.Extra{parser.Rule("xml")}},
-			ast.ChoiceTag: ast.Many{ast.Extra{0}},
+			ast.RuleTag:   ast.One{Node: ast.Extra{Data: parser.Rule("xml")}},
+			ast.ChoiceTag: ast.Many{ast.Extra{Data: 0}},
 			"":            ast.Many{s(0, `<`), s(8, `>`), s(28, `</`), s(31, `>`)},
 			"s":           ast.Many{s(0, ``), s(1, ``), s(8, ``), s(30, ``), s(31, ``)},
 			"NAME":        ast.Many{s(1, `a`), s(30, `a`)},
 			"attr": ast.Many{ast.Branch{
-				"":      ast.One{s(4, `=`)},
-				"NAME":  ast.One{s(3, `x`)},
+				"":      ast.One{Node: s(4, `=`)},
+				"NAME":  ast.One{Node: s(3, `x`)},
 				"s":     ast.Many{s(2, ` `), s(4, ``), s(5, ``)},
-				"value": ast.One{s(5, `"1"`)},
+				"value": ast.One{Node: s(5, `"1"`)},
 			}},
 			"xml": ast.Many{
 				ast.Branch{
-					ast.ChoiceTag: ast.Many{ast.Extra{1}},
-					"CDATA":       ast.One{s(9, `hello `)},
+					ast.ChoiceTag: ast.Many{ast.Extra{Data: 1}},
+					"CDATA":       ast.One{Node: s(9, `hello `)},
 				},
 				ast.Branch{
-					ast.ChoiceTag: ast.Many{ast.Extra{0}},
+					ast.ChoiceTag: ast.Many{ast.Extra{Data: 0}},
 					"":            ast.Many{s(15, `<`), s(17, `>`), s(24, `</`), s(27, `>`)},
 					"s":           ast.Many{s(15, ``), s(16, ``), s(17, ``), s(26, ``), s(27, ``)},
 					"NAME":        ast.Many{s(16, `b`), s(26, `b`)},
 					"xml": ast.Many{
 						ast.Branch{
-							ast.ChoiceTag: ast.Many{ast.Extra{1}},
-							"CDATA":       ast.One{s(18, `world!`)},
+							ast.ChoiceTag: ast.Many{ast.Extra{Data: 1}},
+							"CDATA":       ast.One{Node: s(18, `world!`)},
 						},
 					},
 				},

@@ -15,20 +15,24 @@ type ParseError struct {
 
 type FatalError struct {
 	ParseError
-	cutpointdata
+	Cutpointdata
 }
 
 func isFatal(err error) bool {
 	_, ok := err.(FatalError)
 	return ok
 }
-func isNotMyFatalError(err error, cp cutpointdata) bool {
+func isNotMyFatalError(err error, cp Cutpointdata) bool {
 	fe, ok := err.(FatalError)
-	return ok && fe.cutpointdata != cp
+	return ok && fe.Cutpointdata != cp
 }
 
-func newParseError(rule Rule, format string, args ...interface{}) func(fatal cutpointdata, errors ...func() error) error {
-	return func(fatal cutpointdata, errors ...func() error) error {
+func newParseError(
+	rule Rule,
+	format string,
+	args ...interface{},
+) func(fatal Cutpointdata, errors ...func() error) error {
+	return func(fatal Cutpointdata, errors ...func() error) error {
 		err := ParseError{
 			rule:      rule,
 			msgFormat: format,

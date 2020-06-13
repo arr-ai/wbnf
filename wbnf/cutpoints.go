@@ -46,7 +46,7 @@ func insertCutPoints(g parser.Grammar) parser.Grammar {
 		switch t := t.(type) {
 		case parser.S:
 			if strings.Has(string(t)) {
-				return parser.CutPoint{t}
+				return parser.CutPoint{Term: t}
 			}
 		case parser.ScopedGrammar:
 			t.Grammar = rebuildGrammar(t.Grammar, callback)

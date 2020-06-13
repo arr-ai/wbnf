@@ -55,6 +55,7 @@ func TestNew(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			if got := New(tt.args.text); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("New() = %v, want %v", got, tt.want)
@@ -112,6 +113,7 @@ func Test_tree_Add(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			tree := &tree{
 				text:  tt.fields.text,
@@ -168,6 +170,7 @@ func Test_tree_AddTree(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			tree := &tree{
 				text:  tt.fields.text,
@@ -204,6 +207,7 @@ func Test_tree_Text(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			tree := &tree{
 				text:  tt.fields.text,
@@ -250,6 +254,7 @@ func Test_tree_Items(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			tree := &tree{
 				text:  tt.fields.text,
@@ -323,6 +328,7 @@ func Test_tree_Print(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.fields.tree.Print(); got != tt.want {
 				t.Errorf("tree.Print() = %#v, want %#v", got, tt.want)

@@ -43,14 +43,18 @@ var exprGrammar = parser.Grammar{
 	},
 }
 
-func assertParseToNode(t *testing.T, expected parser.Node, rule parser.Rule, input *parser.Scanner) bool { //nolint:unparam
+func assertParseToNode(
+	t *testing.T,
+	expected parser.Node,
+	rule parser.Rule,
+	input *parser.Scanner,
+) bool { //nolint:unparam
 	parsers := Core()
 	v, err := parsers.Parse(rule, input)
 	if assert.NoError(t, err) {
 		return parser.AssertEqualNodes(t, expected, v.(parser.Node))
-	} else {
-		t.Logf("input: %s", input.Context(parser.NoLimit))
 	}
+	t.Logf("input: %s", input.Context(parser.NoLimit))
 	return false
 }
 
@@ -208,7 +212,7 @@ func TestTinyGrammarGrammarGrammar(t *testing.T) {
 	t.Parallel()
 
 	tiny := parser.Rule("tiny")
-	tinyGrammar := parser.Grammar{tiny: parser.CutPoint{parser.S("x")}}
+	tinyGrammar := parser.Grammar{tiny: parser.CutPoint{Term: parser.S("x")}}
 	tinyGrammarSrc := `tiny -> "x";`
 
 	parsers := Core()

@@ -33,20 +33,20 @@ func FromParserNode(g parser.Grammar, e parser.TreeElement) Branch {
 	return result.collapse(0).(Branch)
 }
 
-func (n Branch) collapse(level int) Node {
+func (b Branch) collapse(level int) Node {
 	if false && level > 0 {
-		switch oneChild := n.oneChild().(type) {
+		switch oneChild := b.oneChild().(type) {
 		case Branch:
 			oneBranch := oneChild
 			oneBranch.inc(SkipTag)
-			if choice, has := n[ChoiceTag]; has {
+			if choice, has := b[ChoiceTag]; has {
 				if oChoice, has := oneBranch[ChoiceTag]; has {
 					oneBranch[ChoiceTag] = append(choice.(Many), oChoice.(Many)...)
 				} else {
 					oneBranch[ChoiceTag] = choice
 				}
 			}
-			if rule, has := n[RuleTag]; has {
+			if rule, has := b[RuleTag]; has {
 				oneBranch[RuleTag] = rule
 			}
 			return oneBranch
@@ -54,12 +54,12 @@ func (n Branch) collapse(level int) Node {
 			// 	return oneChild
 		}
 	}
-	return n
+	return b
 }
 
-func (n Branch) oneChild() Node {
+func (b Branch) oneChild() Node {
 	var oneChildren Children
-	for childrenName, children := range n {
+	for childrenName, children := range b {
 		if !strings.HasPrefix(childrenName, "@") {
 			if oneChildren != nil {
 				return nil
@@ -80,77 +80,75 @@ func (n Branch) oneChild() Node {
 	return nil
 }
 
-func (n Branch) inc(name string) int {
+func (b Branch) inc(name string) int {
 	i := 0
-	if child, has := n[name]; has {
+	if child, has := b[name]; has {
 		i = child.(One).Node.(Extra).Data.(int)
 	}
-	n[name] = One{Node: Extra{Data: i + 1}}
+	b[name] = One{Node: Extra{Data: i + 1}}
 	return i
 }
 
-func (n Branch) add(name string, node Node, ctr counter) {
+func (b Branch) add(name string, node Node, ctr counter) {
 	switch ctr {
 	case counter{}:
 		panic(errors.Inconceivable)
 	case zeroOrOne, oneOne:
-		n.one(name, node)
+		b.one(name, node)
 	default:
-		n.many(name, node)
+		b.many(name, node)
 	}
 }
 
-func (n Branch) one(name string, node Node) {
-	if _, has := n[name]; has {
+func (b Branch) one(name string, node Node) {
+	if _, has := b[name]; has {
 		panic(errors.Inconceivable)
 	}
-	n[name] = One{Node: node}
+	b[name] = One{Node: node}
 }
 
-func (n Branch) many(name string, node Node) {
-	if many, has := n[name]; has {
-		n[name] = append(many.(Many), node)
+func (b Branch) many(name string, node Node) {
+	if many, has := b[name]; has {
+		b[name] = append(many.(Many), node)
 	} else {
-		n[name] = Many([]Node{node})
+		b[name] = Many([]Node{node})
 	}
 }
 
-func (n Branch) fromParserNode(g parser.Grammar, term parser.Term, ctrs counters, e parser.TreeElement) {
+func (b Branch) fromParserNode(g parser.Grammar, term parser.Term, ctrs counters, e parser.TreeElement) {
 	var tag string
 	// defer enterf("fromParserNode(term=%T(%[1]v), ctrs=%v, v=%v)", term, ctrs, e).exitf("tag=%q, n=%v", &tag, &n)
 	switch t := term.(type) {
 	case parser.S, parser.RE:
-		n.add("", Leaf(e.(parser.Scanner)), ctrs[""])
+		b.add("", Leaf(e.(parser.Scanner)), ctrs[""])
 	case parser.Rule:
 		term := g[t]
 		childCtrs := newCounters(term)
-		b := Branch{}
+		b2 := Branch{}
 		unleveled, level := unlevel(string(t), g)
-		b.fromParserNode(g, term, childCtrs, e)
-		var node Node = b
+		b2.fromParserNode(g, term, childCtrs, e)
+		var node Node = b2
 		// if name := childCtrs.singular(); name != nil {
-		// 	node = b[*name].(One).Node
+		// 	node = b2[*name].(One).Node
 		// 	// TODO: zeroOrOne
 		// }
 		node = node.collapse(level)
-		n.add(unleveled, node, ctrs[string(t)])
+		b.add(unleveled, node, ctrs[string(t)])
 	case parser.ScopedGrammar:
 		gcopy := g
 		for rule, terms := range t.Grammar {
 			gcopy[rule] = terms
 		}
-		n.fromParserNode(gcopy, t.Term, ctrs, e)
+		b.fromParserNode(gcopy, t.Term, ctrs, e)
 	case parser.Seq:
 		node := e.(parser.Node)
-		tag = node.Tag
 		for i, child := range node.Children {
-			n.fromParserNode(g, t[i], ctrs, child)
+			b.fromParserNode(g, t[i], ctrs, child)
 		}
 	case parser.Oneof:
 		node := e.(parser.Node)
-		tag = node.Tag
-		n.many(ChoiceTag, Extra{Data: node.Extra.(parser.Choice)})
-		n.fromParserNode(g, t[node.Extra.(parser.Choice)], ctrs, node.Children[0])
+		b.many(ChoiceTag, Extra{Data: node.Extra.(parser.Choice)})
+		b.fromParserNode(g, t[node.Extra.(parser.Choice)], ctrs, node.Children[0])
 	case parser.Delim:
 		node := e.(parser.Node)
 		tag = node.Tag
@@ -158,57 +156,56 @@ func (n Branch) fromParserNode(g parser.Grammar, term parser.Term, ctrs counters
 		for i, child := range node.Children {
 			term := tgen.Next()
 			if _, ok := child.(parser.Empty); ok {
-				n.many("@empty", Extra{map[bool]string{true: "@prefix", false: "@suffix"}[i == 0]})
+				b.many("@empty", Extra{map[bool]string{true: "@prefix", false: "@suffix"}[i == 0]})
 			} else {
 				if term == t {
 					if _, ok := child.(parser.Node); ok {
 						childCtrs := newCounters(term)
-						b := Branch{}
+						b2 := Branch{}
 						childCtrs.termCountChildren(t, ctrs[""])
-						b.fromParserNode(g, term, childCtrs, child)
-						n.one(tag, b)
+						b2.fromParserNode(g, term, childCtrs, child)
+						b.one(tag, b2)
 					} else {
-						n.fromParserNode(g, t.Term, ctrs, child)
+						b.fromParserNode(g, t.Term, ctrs, child)
 					}
 				} else {
-					n.fromParserNode(g, term, ctrs, child)
+					b.fromParserNode(g, term, ctrs, child)
 				}
 			}
 		}
 	case parser.Quant:
 		node := e.(parser.Node)
-		tag = node.Tag
 		for _, child := range node.Children {
-			n.fromParserNode(g, t.Term, ctrs, child)
+			b.fromParserNode(g, t.Term, ctrs, child)
 		}
 	case parser.Named:
 		childCtrs := newCounters(t.Term)
-		b := Branch{}
-		b.fromParserNode(g, t.Term, childCtrs, e)
-		var node Node = b
+		b2 := Branch{}
+		b2.fromParserNode(g, t.Term, childCtrs, e)
+		var node Node = b2
 		// if name := childCtrs.singular(); name != nil {
-		// 	node = b[*name].(One).Node
+		// 	node = b2[*name].(One).Node
 		// 	// TODO: zeroOrOne
 		// }
-		n.add(t.Name, node, ctrs[t.Name])
+		b.add(t.Name, node, ctrs[t.Name])
 	case parser.REF:
 		switch e := e.(type) {
 		case parser.Scanner:
-			n.add(t.Ident, Leaf(e), ctrs[t.Ident])
+			b.add(t.Ident, Leaf(e), ctrs[t.Ident])
 		case parser.Node:
-			b := Branch{}
+			b2 := Branch{}
 			for _, child := range e.Children {
-				b.fromParserNode(g, term, ctrs, child)
+				b2.fromParserNode(g, term, ctrs, child)
 			}
-			n.add(t.Ident, b, ctrs[t.Ident])
+			b.add(t.Ident, b2, ctrs[t.Ident])
 		}
 	case parser.CutPoint:
-		n.fromParserNode(g, t.Term, ctrs, e)
+		b.fromParserNode(g, t.Term, ctrs, e)
 	case parser.ExtRef:
 		if node, ok := e.(parser.Node); ok {
-			if b, ok := node.Extra.(Branch); ok {
+			if b2, ok := node.Extra.(Branch); ok {
 				ident := t.String()
-				n.add(ident, b, ctrs[ident])
+				b.add(ident, b2, ctrs[ident])
 			}
 		}
 	default:

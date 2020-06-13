@@ -13,7 +13,7 @@ type TemplateData struct {
 	StartRule         string
 	StartRuleTypeName string
 
-	Grammar *goNode
+	Grammar *GoNode
 
 	MiddleSection []fmt.Stringer
 }

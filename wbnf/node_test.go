@@ -28,8 +28,8 @@ var endIndentRE = regexp.MustCompile(`([([])\n *|,\n *([)\]])|(,)\n( ) *`)
 func assertNodeParsesAs(
 	t *testing.T,
 	expected, grammar, rule, input string,
-	reversible bool,
-) bool {
+	reversible bool, //nolint:unparam
+) bool { //nolint:unparam
 	return assertNodeParsesAsScenario(t, nodeParseScenario{expected, grammar, rule, input, reversible})
 }
 
@@ -71,7 +71,7 @@ func assertNodeParsesAsScenario(t *testing.T, s nodeParseScenario) bool { //noli
 func assertNodeFailsToParse(
 	t *testing.T,
 	grammar, rule, input string,
-) bool {
+) bool { //nolint:unparam
 	return assertNodeFailsToParseScenario(t, nodeParseScenario{``, grammar, rule, input, false})
 }
 

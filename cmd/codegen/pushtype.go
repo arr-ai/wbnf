@@ -1,10 +1,10 @@
 package codegen
 
-func (tm *TypeMap) findType(name string) grammarType {
+func (tm *TypeMap) findType(name string) GrammarType {
 	return (*tm)[name]
 }
 
-func (tm *TypeMap) pushType(name, parent string, child grammarType) {
+func (tm *TypeMap) pushType(name, parent string, child GrammarType) {
 	if name == "" {
 		tm.createOrAddParent(parent, child)
 		return
@@ -19,14 +19,14 @@ func (tm *TypeMap) pushType(name, parent string, child grammarType) {
 	}
 }
 
-func (tm *TypeMap) createOrAddParent(parent string, child grammarType) {
+func (tm *TypeMap) createOrAddParent(parent string, child GrammarType) {
 	parentTypeName := GoTypeName(parent)
-	var val grammarType
+	var val GrammarType
 	if p := tm.findType(parentTypeName); p != nil {
-		var children []grammarType
+		var children []GrammarType
 		// Check if the parent needs to be upgraded to a rule() instead of a basicrule()
 		if basic, ok := p.(basicRule); ok {
-			children = []grammarType{basic.Upgrade()}
+			children = []GrammarType{basic.Upgrade()}
 		} else if _, ok := p.(rule); ok {
 			children = p.Children()
 		} else {
@@ -38,13 +38,13 @@ func (tm *TypeMap) createOrAddParent(parent string, child grammarType) {
 		if v, ok := child.(unnamedToken); ok && v.count.wantOne() {
 			val = basicRule(parentTypeName)
 		} else {
-			val = rule{name: parentTypeName, childs: []grammarType{child}}
+			val = rule{name: parentTypeName, childs: []GrammarType{child}}
 		}
 	}
 	(*tm)[parentTypeName] = val
 }
 
-func getNewCount(old countManager, new grammarType) countManager {
+func getNewCount(old countManager, new GrammarType) countManager {
 	switch t := new.(type) {
 	case unnamedToken:
 		return old.merge(t.count)
@@ -58,11 +58,11 @@ func getNewCount(old countManager, new grammarType) countManager {
 	return old
 }
 
-func checkForDupes(children []grammarType, next grammarType) []grammarType {
+func checkForDupes(children []GrammarType, next GrammarType) []GrammarType {
 	if next == nil {
 		return children
 	}
-	result := make([]grammarType, 0, len(children)+1)
+	result := make([]GrammarType, 0, len(children)+1)
 	appendNext := true
 	for _, c := range children {
 		if next.Ident() != c.Ident() {

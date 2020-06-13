@@ -82,7 +82,7 @@ func gen(c *cli.Context) error {
 	case "", "-":
 		os.Stdout.Write(out)
 	default:
-		ioutil.WriteFile(outFile, out, 0644) //nolint:errcheck
+		ioutil.WriteFile(outFile, out, 0644) //nolint:errcheck,gosec
 	}
 
 	return nil

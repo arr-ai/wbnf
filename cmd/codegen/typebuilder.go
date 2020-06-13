@@ -7,12 +7,12 @@ import (
 	"github.com/arr-ai/wbnf/parser"
 )
 
-func MakeTypesFromGrammar(g parser.Grammar) map[string]grammarType {
+func makeTypesFromGrammar(g parser.Grammar) map[string]GrammarType {
 	tm := &TypeMap{}
 	return tm.walkGrammar("", g, mergeGrammarRules("", g, frozen.NewMap()))
 }
 
-type TypeMap map[string]grammarType
+type TypeMap map[string]GrammarType
 
 func (tm *TypeMap) merge(other TypeMap) TypeMap {
 	for k, v := range other {
@@ -39,7 +39,7 @@ func mergeGrammarRules(prefix string, g parser.Grammar, knownRules frozen.Map) f
 }
 
 func (tm *TypeMap) walkGrammar(prefix string, g parser.Grammar, knownRules frozen.Map) TypeMap {
-	result := map[string]grammarType{}
+	result := map[string]GrammarType{}
 	for r, term := range g {
 		typeName := prefix + GoName(r.String())
 		tm.walkTerm(term, typeName, setWantOneGetter(),
@@ -65,15 +65,20 @@ func (tm *TypeMap) walkGrammar(prefix string, g parser.Grammar, knownRules froze
 	return tm.merge(result)
 }
 
-func (tm *TypeMap) handleSeq(terms []parser.Term, parentName string, quant countManager,
-	knownRules frozen.Map, termId int) {
+func (tm *TypeMap) handleSeq(
+	terms []parser.Term,
+	parentName string,
+	quant countManager,
+	knownRules frozen.Map,
+	termID int,
+) {
 	for _, t := range terms {
-		tm.walkTerm(t, parentName, quant, knownRules, termId)
+		tm.walkTerm(t, parentName, quant, knownRules, termID)
 	}
 }
 
 func (tm *TypeMap) makeLeafType(term parser.Term, parentName string, quant countManager, knownRules frozen.Map) {
-	var val grammarType
+	var val GrammarType
 	switch t := term.(type) {
 	case parser.Rule:
 		if t == parser.At {
@@ -98,11 +103,16 @@ func (tm *TypeMap) makeLeafType(term parser.Term, parentName string, quant count
 	tm.pushType("", parentName, val)
 }
 
-func (tm *TypeMap) walkTerm(term parser.Term, parentName string, quant countManager,
-	knownRules frozen.Map, termId int) {
+func (tm *TypeMap) walkTerm(
+	term parser.Term,
+	parentName string,
+	quant countManager,
+	knownRules frozen.Map,
+	termID int,
+) {
 	switch t := term.(type) {
 	case parser.S, parser.RE, parser.Rule:
-		tm.makeLeafType(term, parentName, quant.pushSingleNode(termId), knownRules)
+		tm.makeLeafType(term, parentName, quant.pushSingleNode(termID), knownRules)
 	case parser.REF:
 		tm.pushType("", parentName, backRef{
 			name:   t.Ident,
@@ -111,19 +121,19 @@ func (tm *TypeMap) walkTerm(term parser.Term, parentName string, quant countMana
 	case parser.ScopedGrammar:
 		knownRules = mergeGrammarRules(parentName, t.Grammar, knownRules)
 		scoped := tm.walkGrammar(parentName, t.Grammar, knownRules)
-		scoped.walkTerm(t.Term, parentName, quant, knownRules, termId)
+		scoped.walkTerm(t.Term, parentName, quant, knownRules, termID)
 		*tm = tm.merge(scoped)
 	case parser.Seq:
-		tm.handleSeq(t, parentName, quant, knownRules, termId)
+		tm.handleSeq(t, parentName, quant, knownRules, termID)
 	case parser.Oneof:
 		tm.pushType("", parentName, choice{parent: parentName})
 		for _, t := range t {
 			tm.walkTerm(t, parentName, quant, knownRules, rand.Int()) //nolint:gosec
 		}
 	case parser.Stack:
-		tm.handleSeq(t, parentName, quant, knownRules, termId)
+		tm.handleSeq(t, parentName, quant, knownRules, termID)
 	case parser.Delim:
-		tm.walkTerm(t.Term, parentName, setWantAllGetter(), knownRules, termId)
+		tm.walkTerm(t.Term, parentName, setWantAllGetter(), knownRules, termID)
 		switch delim := t.Sep.(type) {
 		case parser.Named:
 			childName := parentName + GoName(delim.Name)
@@ -135,21 +145,21 @@ func (tm *TypeMap) walkTerm(term parser.Term, parentName string, quant countMana
 					count:  quant,
 				})
 			default:
-				tm.walkTerm(t.Sep, parentName, setWantAllGetter(), knownRules, termId)
+				tm.walkTerm(t.Sep, parentName, setWantAllGetter(), knownRules, termID)
 			}
 		case parser.Rule:
 			childName := parentName + GoName(delim.String())
-			tm.walkTerm(t.Sep, childName, setWantAllGetter(), knownRules, termId)
+			tm.walkTerm(t.Sep, childName, setWantAllGetter(), knownRules, termID)
 		case parser.CutPoint, parser.S: // ignore the delim
 		default:
 			childName := parentName + "Delim"
-			tm.walkTerm(t.Sep, childName, setWantAllGetter(), knownRules, termId)
+			tm.walkTerm(t.Sep, childName, setWantAllGetter(), knownRules, termID)
 		}
 	case parser.Named:
 		childName := parentName + GoName(t.Name)
 		switch term := t.Term.(type) {
 		case parser.Rule:
-			var val grammarType
+			var val GrammarType
 			if term == parser.At {
 				si := knownRules.MustGet(term).(stackInfo)
 				val = stackBackRef{
@@ -172,7 +182,7 @@ func (tm *TypeMap) walkTerm(term parser.Term, parentName string, quant countMana
 				count:  quant,
 			})
 		default:
-			tm.walkTerm(t.Term, childName, quant, knownRules, termId)
+			tm.walkTerm(t.Term, childName, quant, knownRules, termID)
 			tm.pushType(childName, parentName, namedRule{
 				name:       t.Name,
 				parent:     parentName,
@@ -184,9 +194,9 @@ func (tm *TypeMap) walkTerm(term parser.Term, parentName string, quant countMana
 		if t.Max != 1 {
 			quant = setWantAllGetter()
 		}
-		tm.walkTerm(t.Term, parentName, quant, knownRules, termId)
+		tm.walkTerm(t.Term, parentName, quant, knownRules, termID)
 	case parser.CutPoint:
-		tm.walkTerm(t.Term, parentName, quant, knownRules, termId)
+		tm.walkTerm(t.Term, parentName, quant, knownRules, termID)
 	case parser.ExtRef:
 		// nothing yet
 	default:

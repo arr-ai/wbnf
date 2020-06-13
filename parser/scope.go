@@ -38,7 +38,6 @@ func (s Scope) Has(ident string) bool {
 type scopeVal struct {
 	p   Parser
 	val TreeElement
-	cp  cutpointdata
 }
 
 func (s Scope) WithVal(ident string, p Parser, val TreeElement) Scope {
@@ -58,24 +57,24 @@ func (s Scope) GetVal(ident string) (Parser, TreeElement, bool) {
 
 const cutpointkey = ".Cutpoint-key."
 
-type cutpointdata int32
+type Cutpointdata int32
 
-func (c cutpointdata) valid() bool { return c >= 0 }
+func (c Cutpointdata) valid() bool { return c >= 0 }
 
-const invalidCutpoint = cutpointdata(-1)
+const invalidCutpoint = Cutpointdata(-1)
 
-func (s Scope) ReplaceCutPoint(force bool) (newScope Scope, prev, replacement cutpointdata) {
+func (s Scope) ReplaceCutPoint(force bool) (newScope Scope, prev, replacement Cutpointdata) {
 	prev = s.GetCutPoint()
 	replacement = invalidCutpoint
 	if prev.valid() || force {
-		replacement = cutpointdata(rand.Int31())
+		replacement = Cutpointdata(rand.Int31())
 		return s.With(cutpointkey, replacement), prev, replacement
 	}
 	return s, invalidCutpoint, invalidCutpoint
 }
 
-func (s Scope) GetCutPoint() cutpointdata {
-	return s.m.GetElse(cutpointkey, invalidCutpoint).(cutpointdata)
+func (s Scope) GetCutPoint() Cutpointdata {
+	return s.m.GetElse(cutpointkey, invalidCutpoint).(Cutpointdata)
 }
 
 const externalsKey = ".Externals-key."
@@ -107,7 +106,7 @@ func (s Scope) GetExternal(ident string) ExternalRef {
 	return nil
 }
 
-func (s Scope) GetParserEscape() *escape {
+func (s Scope) getParserEscape() *escape {
 	if e, has := s.m.Get(parseEscapeKey); has {
 		return e.(*escape)
 	}
@@ -124,7 +123,7 @@ type CallStack struct {
 }
 
 func (c CallStack) Error() string {
-	var parts []string
+	parts := make([]string, 0, len(c.stack))
 	for _, call := range c.stack {
 		parts = append(parts, fmt.Sprintf("%+v", call))
 	}

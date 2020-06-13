@@ -15,7 +15,7 @@ var core = func() parser.Parsers {
 
 	a := Grammar().Grammar()
 	b := newGrammarGrammar
-	if diff := diff.DiffGrammars(a, b); !diff.Equal() {
+	if diff := diff.Grammars(a, b); !diff.Equal() {
 		panic(fmt.Errorf(
 			"mismatch between parsed and hand-crafted core grammar"+
 				"\nold: %v"+

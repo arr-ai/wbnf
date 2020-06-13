@@ -100,8 +100,8 @@ func (Extra) Many(_ string) []Node {
 	return nil
 }
 
-func (c Extra) collapse(level int) Node {
-	return c
+func (e Extra) collapse(level int) Node {
+	return e
 }
 
 var stackLevelRE = regexp.MustCompile(`^(\w+)@(\d+)$`)
@@ -146,8 +146,8 @@ func (b Branch) clone() Node {
 	return result
 }
 
-func (c Extra) clone() Node {
-	return c
+func (e Extra) clone() Node {
+	return e
 }
 
 func (c One) narrow() bool {
@@ -174,7 +174,7 @@ func (b Branch) narrow() bool {
 	return false
 }
 
-func (c Extra) narrow() bool {
+func (Extra) narrow() bool {
 	return true
 }
 
@@ -211,7 +211,6 @@ func (b Branch) ContentEquals(other Node) bool {
 			default:
 				panic(fmt.Errorf("unexpected node type: %v", v))
 			}
-
 		}
 		return true
 	}

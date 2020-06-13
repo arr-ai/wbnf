@@ -9,6 +9,7 @@ import (
 // These test all verify the parser behaviour when the tested Term fails when inside a CutPoint scope
 // the test will automatically add a Seq{CutPoint{S(":")}} around the test term and prefix the input data so it passes
 func TestParserWithCutpointScope(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name  string
 		term  Term
@@ -20,8 +21,16 @@ func TestParserWithCutpointScope(t *testing.T) {
 		{name: "seq fail fatal child", term: Seq{CutPoint{S("a")}, S("b")}, err: FatalError{}, input: "a"},
 
 		{name: "oneof ok", term: Oneof{S("1"), Seq{S("a"), CutPoint{S("b")}, S("c")}}, err: nil, input: "abc"},
-		{name: "oneof fail not fatal", term: Oneof{S("1"), Seq{S("a"), CutPoint{S("b")}, S("c")}}, err: ParseError{}, input: "z"},
-		{name: "oneof fail not fatal child", term: Oneof{S("1"), Seq{S("a"), CutPoint{S("b")}, S("c")}}, err: FatalError{}, input: "abd"},
+		{
+			name: "oneof fail not fatal",
+			term: Oneof{S("1"), Seq{S("a"), CutPoint{S("b")}, S("c")}},
+			err:  ParseError{}, input: "z",
+		},
+		{
+			name: "oneof fail not fatal child",
+			term: Oneof{S("1"), Seq{S("a"), CutPoint{S("b")}, S("c")}},
+			err:  FatalError{}, input: "abd",
+		},
 
 		{name: "quant min = 1 ok", term: Some(S("1")), err: nil, input: "11"},
 		{name: "quant min = 1 fail", term: Some(S("1")), err: ParseError{}, input: "2"},
@@ -50,31 +59,32 @@ func TestParserWithCutpointScope(t *testing.T) {
 			CanEndWithSep:   false,
 		}, err: FatalError{}, input: "a1b"},
 	} {
-		t.Run(test.name, func(t *testing.T) {
-			t.Run("with cutpoint", func(t *testing.T) {
-				p := Grammar{"a": Seq{CutPoint{S(":")}, test.term}}.Compile(nil)
-				te, err := p.Parse("a", NewScanner(":"+test.input))
-				if test.err == nil {
-					assert.NotNil(t, te)
-					assert.NoError(t, err)
-				} else {
-					assert.Nil(t, te)
-					assert.Error(t, err)
-					assert.IsType(t, FatalError{}, err)
-				}
-			})
-			t.Run("without cutpoint", func(t *testing.T) {
-				p := Grammar{"a": test.term}.Compile(nil)
-				te, err := p.Parse("a", NewScanner(test.input))
-				if test.err == nil {
-					assert.NotNil(t, te)
-					assert.NoError(t, err)
-				} else {
-					assert.Nil(t, te)
-					assert.Error(t, err)
-					assert.IsType(t, test.err, err)
-				}
-			})
+		test := test
+		t.Run(test.name+"-with-cutpoint", func(t *testing.T) {
+			t.Parallel()
+			p := Grammar{"a": Seq{CutPoint{S(":")}, test.term}}.Compile(nil)
+			te, err := p.Parse("a", NewScanner(":"+test.input))
+			if test.err == nil {
+				assert.NotNil(t, te)
+				assert.NoError(t, err)
+			} else {
+				assert.Nil(t, te)
+				assert.Error(t, err)
+				assert.IsType(t, FatalError{}, err)
+			}
+		})
+		t.Run(test.name+"-without-cutpoint", func(t *testing.T) {
+			t.Parallel()
+			p := Grammar{"a": test.term}.Compile(nil)
+			te, err := p.Parse("a", NewScanner(test.input))
+			if test.err == nil {
+				assert.NotNil(t, te)
+				assert.NoError(t, err)
+			} else {
+				assert.Nil(t, te)
+				assert.Error(t, err)
+				assert.IsType(t, test.err, err)
+			}
 		})
 	}
 }
@@ -93,13 +103,12 @@ func TestParserEscaping(t *testing.T) {
 		"*{:():}": func(scope Scope, input *Scanner) (element TreeElement, err error) {
 			assert.EqualValues(t, "haha:} c", input.String())
 			var eaten Scanner
-			input = input.Eat(4, &eaten)
+			input.Eat(4, &eaten)
 			return eaten, nil
 		},
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, expected.(Node).String(), actual.(Node).String())
-
 }
 
 func TestParserEscaping2LevelGrammar(t *testing.T) {

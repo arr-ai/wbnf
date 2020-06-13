@@ -17,13 +17,13 @@ const (
 	mapScope
 )
 
-type goNode struct {
+type GoNode struct {
 	name     string
-	children []goNode
+	children []GoNode
 	scope    int
 }
 
-func (g *goNode) String() string {
+func (g *GoNode) String() string {
 	x := map[int]struct {
 		open  string
 		close string
@@ -40,7 +40,7 @@ func (g *goNode) String() string {
 	return strings.Join([]string{g.name, x.open, strings.Join(children, ",\n"), x.close}, "")
 }
 
-func (g *goNode) Add(n goNode) {
+func (g *GoNode) Add(n GoNode) {
 	g.children = append(g.children, n)
 }
 
@@ -49,19 +49,19 @@ func safeString(src string) string {
 	return r.Replace(src)
 }
 
-func prefixName(prefix string, node goNode) goNode {
-	return goNode{
+func prefixName(prefix string, node GoNode) GoNode {
+	return GoNode{
 		name:     prefix + node.name,
 		children: node.children,
 		scope:    node.scope,
 	}
 }
-func stringNode(fmtString string, args ...interface{}) goNode {
-	return goNode{name: fmt.Sprintf(fmtString, args...)}
+func stringNode(fmtString string, args ...interface{}) GoNode {
+	return GoNode{name: fmt.Sprintf(fmtString, args...)}
 }
 
-func walkTerm(term parser.Term) goNode {
-	node := goNode{}
+func walkTerm(term parser.Term) GoNode {
+	node := GoNode{}
 	switch t := term.(type) {
 	case parser.Seq:
 		node.name = "parser.Seq"
@@ -86,7 +86,7 @@ func walkTerm(term parser.Term) goNode {
 	case parser.Delim:
 		node.name = "parser.Delim"
 		node.scope = squigglyScope
-		node.children = []goNode{
+		node.children = []GoNode{
 			prefixName("Term: ", walkTerm(t.Term)),
 			prefixName("Sep: ", walkTerm(t.Sep)),
 		}
@@ -122,13 +122,13 @@ func walkTerm(term parser.Term) goNode {
 	case parser.Named:
 		node.name = "parser.Eq"
 		node.scope = bracesScope
-		node.children = []goNode{
+		node.children = []GoNode{
 			stringNode("`%s`", t.Name),
 			walkTerm(t.Term),
 		}
 	case parser.ScopedGrammar:
 		node.name = "parser.ScopedGrammar"
-		node.children = []goNode{
+		node.children = []GoNode{
 			prefixName("Term: ", walkTerm(t.Term)),
 			prefixName("Grammar: ", *MakeGrammarString(t.Grammar)),
 		}
@@ -161,14 +161,14 @@ func walkTerm(term parser.Term) goNode {
 	return node
 }
 
-func MakeGrammarString(g parser.Grammar) *goNode {
-	root := goNode{name: "parser.Grammar", scope: squigglyScope}
+func MakeGrammarString(g parser.Grammar) *GoNode {
+	root := GoNode{name: "parser.Grammar", scope: squigglyScope}
 	keys := make([]string, 0, len(g))
 	for rule := range g {
 		keys = append(keys, string(rule))
 	}
 	sort.Strings(keys)
-	rules := map[string]goNode{}
+	rules := map[string]GoNode{}
 	stackPrefixes := frozen.NewSet()
 	for rule, t := range g {
 		r := string(rule)
@@ -180,9 +180,9 @@ func MakeGrammarString(g parser.Grammar) *goNode {
 
 	for _, rule := range keys {
 		if stackPrefixes.Has(rule) {
-			stack := goNode{
+			stack := GoNode{
 				name:     "parser.Stack",
-				children: []goNode{rules[rule]},
+				children: []GoNode{rules[rule]},
 				scope:    squigglyScope,
 			}
 			for i := 1; ; i++ {
@@ -194,15 +194,15 @@ func MakeGrammarString(g parser.Grammar) *goNode {
 					break
 				}
 			}
-			root.Add(goNode{
+			root.Add(GoNode{
 				name:     fmt.Sprintf(`"%s"`, rule),
-				children: []goNode{stack},
+				children: []GoNode{stack},
 				scope:    mapScope,
 			})
 		} else if node, ok := rules[rule]; ok {
-			root.Add(goNode{
+			root.Add(GoNode{
 				name:     fmt.Sprintf(`"%s"`, rule),
-				children: []goNode{node},
+				children: []GoNode{node},
 				scope:    mapScope,
 			})
 		}

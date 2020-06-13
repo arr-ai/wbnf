@@ -7,7 +7,7 @@ import (
 )
 
 type VisitorWriter struct {
-	types     map[string]grammarType
+	types     map[string]GrammarType
 	startRule string
 }
 
@@ -46,7 +46,7 @@ func (w VisitorWriter) String() string {
 	return out + strings.Join(parts, "\n")
 }
 
-func (w *VisitorWriter) getTypeWalker(t grammarType) string {
+func (w *VisitorWriter) getTypeWalker(t GrammarType) string {
 	repl := strings.NewReplacer("{{.CtxName}}", GoTypeName(t.TypeName()), `\n`, "\n")
 	walker := repl.Replace(`func (w WalkerOps) Walk{{.CtxName}}(node {{.CtxName}}) Stopper {
 	if fn := w.Enter{{.CtxName}}; fn != nil { 
@@ -78,7 +78,7 @@ func (w *VisitorWriter) getTypeWalker(t grammarType) string {
 	return walker
 }
 
-func GetVisitorWriter(types map[string]grammarType, startRule string) VisitorWriter {
+func GetVisitorWriter(types map[string]GrammarType, startRule string) VisitorWriter {
 	return VisitorWriter{types, startRule}
 }
 

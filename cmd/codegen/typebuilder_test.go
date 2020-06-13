@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func findChild(needle string, haystack []grammarType) grammarType {
+func findChild(needle string, haystack []GrammarType) GrammarType {
 	for _, child := range haystack {
 		if child.Ident() == needle {
 			return child
@@ -25,7 +25,7 @@ type childrenTestData map[string]struct {
 	returnType string
 }
 
-func testChildren(t *testing.T, children []grammarType, tests childrenTestData) {
+func testChildren(t *testing.T, children []GrammarType, tests childrenTestData) {
 	assert.Len(t, children, len(tests))
 	for name, val := range tests {
 		errMessage := fmt.Sprintf("Looking up ident: %s", name)
@@ -47,11 +47,11 @@ func testChildren(t *testing.T, children []grammarType, tests childrenTestData) 
 	}
 }
 
-func initTypeBuilderTest(t *testing.T, grammar string) map[string]grammarType {
+func initTypeBuilderTest(t *testing.T, grammar string) map[string]GrammarType {
 	tree, err := wbnf.ParseString(grammar)
 	require.NoError(t, err)
 
-	return MakeTypesFromGrammar(wbnf.NewFromAst(tree))
+	return makeTypesFromGrammar(wbnf.NewFromAst(tree))
 }
 
 func TestTypeBuilder2_RuleWithOnlyUnnamedTokenVal(t *testing.T) {

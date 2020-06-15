@@ -180,6 +180,6 @@ func (b Branch) toParserNode(g parser.Grammar, term parser.Term, ctrs counters) 
 	case parser.CutPoint:
 		return b.toParserNode(g, t.Term, ctrs)
 	default:
-		panic(fmt.Errorf("unexpected term type: %v %[1]T", t))
+		panic(fmt.Errorf("unexpected term type to parser node: %v %[1]T", t))
 	}
 }

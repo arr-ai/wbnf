@@ -126,6 +126,6 @@ func (ctrs counters) termCountChildren(term parser.Term, parent counter) {
 	case parser.ExtRef:
 		ctrs.count(string(t), parent)
 	default:
-		panic(fmt.Errorf("unexpected term type: %v %[1]T", t))
+		panic(fmt.Errorf("unexpected term type for counter: %v %[1]T", t))
 	}
 }

@@ -209,6 +209,6 @@ func (b Branch) fromParserNode(g parser.Grammar, term parser.Term, ctrs counters
 			}
 		}
 	default:
-		panic(fmt.Errorf("unexpected term type in parser node: %v %[1]T", t))
+		panic(fmt.Errorf("branch.fromParserNode: unexpected term type: %v %[1]T", t))
 	}
 }

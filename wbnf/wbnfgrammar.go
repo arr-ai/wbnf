@@ -10,7 +10,7 @@ import (
 func Grammar() parser.Parsers {
 	return parser.Grammar{".wrapRE": parser.RE(`\s*()\s*`),
 		"COMMENT": parser.RE(`//.*$|(?s:/\*(?:[^*]|\*+[^*/])\*/)`),
-		"IDENT":   parser.RE(`@|\.?[A-Za-z_]\w*`),
+		"IDENT":   parser.RE(`\.?[A-Za-z_]\w*`),
 		"INT":     parser.RE(`\d+`),
 		"RE":      parser.RE(`/{(?:\\.|{(?:(?:\d+(?:,\d*)?|,\d+)\})?|\[(?:\\.|\[:^?[a-z]+:\]|[^\]])+]|[^\\{\}])*\}|(?:(?:\[(?:\\.|\[:^?[a-z]+:\]|[^\]])+]|\\[pP](?:[a-z]|\{[a-zA-Z_]+\})|\\[a-zA-Z]|[.^$])(?:(?:[+*?]|\{\d+,?\d?\})\??)?)+`),
 		"REF": parser.Seq{parser.CutPoint{parser.S(`%`)},
@@ -19,7 +19,14 @@ func Grammar() parser.Parsers {
 				parser.Eq(`default`,
 					parser.Rule(`STR`))})},
 		"STR": parser.RE(`"(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*'|` + "`" + `(?:` + "`" + `` + "`" + `|[^` + "`" + `])*` + "`" + ``),
-		"atom": parser.Oneof{parser.Rule(`IDENT`),
+		"atom": parser.Oneof{parser.Seq{parser.Eq(`at`,
+			parser.CutPoint{parser.S(`@`)}),
+			parser.Opt(parser.Eq(`offset`,
+				parser.RE(`-?\d+`)))},
+			parser.Seq{parser.Rule(`IDENT`),
+				parser.Opt(parser.Seq{parser.S(`.`),
+					parser.Eq(`offset`,
+						parser.RE(`\d+`))})},
 			parser.Rule(`STR`),
 			parser.Rule(`RE`),
 			parser.Rule(`macrocall`),
@@ -50,7 +57,7 @@ func Grammar() parser.Parsers {
 				"import": parser.Seq{parser.CutPoint{parser.S(`.import`)},
 					parser.Eq(`path`,
 						parser.Delim{Term: parser.Oneof{parser.CutPoint{parser.S(`..`)},
-							parser.CutPoint{parser.S(`.`)},
+							parser.S(`.`),
 							parser.RE(`[a-zA-Z0-9.:]+`)},
 							Sep:             parser.S(`/`),
 							CanStartWithSep: true}),
@@ -155,6 +162,13 @@ type AtomNode struct{ ast.Node }
 func (AtomNode) isWalkableType() {}
 func (c AtomNode) Choice() int   { return ast.Choice(c.Node) }
 
+func (c AtomNode) OneAt() string {
+	if child := ast.First(c.Node, "at"); child != nil {
+		return ast.First(child, "").Scanner().String()
+	}
+	return ""
+}
+
 func (c AtomNode) OneExtRef() *AtomExtRefNode {
 	if child := ast.First(c.Node, "ExtRef"); child != nil {
 		return &AtomExtRefNode{child}
@@ -174,6 +188,13 @@ func (c AtomNode) OneMacrocall() *MacrocallNode {
 		return &MacrocallNode{child}
 	}
 	return nil
+}
+
+func (c AtomNode) OneOffset() string {
+	if child := ast.First(c.Node, "offset"); child != nil {
+		return ast.First(child, "").Scanner().String()
+	}
+	return ""
 }
 
 func (c AtomNode) OneRe() *ReNode {
@@ -1451,7 +1472,15 @@ named   -> (IDENT op="=")? atom;
 quant   -> op=[?*+]
          | "{" min=INT? "," max=INT? "}"
          | op=/{<:|:>?} opt_leading=","? named opt_trailing=","?;
-atom    -> IDENT | STR | RE | macrocall | ExtRef=("%%" IDENT) | REF | "(" term ")" | "(" ")";
+atom    -> at="@" offset=/{-?\d+}?
+         | IDENT ("." offset=\d+)?
+         | STR
+         | RE
+         | macrocall
+         | ExtRef=("%%" IDENT)
+         | REF
+         | "(" term ")"
+         | "(" ")";
 
 macrocall   -> "%!" name=IDENT "(" term:","? ")";
 REF         -> "%" IDENT ("=" default=STR)?;
@@ -1460,7 +1489,7 @@ REF         -> "%" IDENT ("=" default=STR)?;
 COMMENT -> /{ //.*$
             | (?s: /\* (?: [^*] | \*+[^*/] ) \*/ )
             };
-IDENT   -> /{@|\.?[A-Za-z_]\w*};
+IDENT   -> /{\.?[A-Za-z_]\w*};
 INT     -> \d+;
 STR     -> /{ " (?: \\. | [^\\"] )* "
             | ' (?: \\. | [^\\'] )* '

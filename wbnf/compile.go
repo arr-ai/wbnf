@@ -116,7 +116,7 @@ func (gb grammarBuilder) expandMacro(node MacrocallNode) parser.Term {
 }
 
 func (gb grammarBuilder) buildAtom(atom AtomNode) parser.Term {
-	x, _ := ast.Which(atom.Node.(ast.Branch), "RE", "STR", "macrocall", "ExtRef", "IDENT", "REF", "term")
+	x, _ := ast.Which(atom.Node.(ast.Branch), "RE", "STR", "macrocall", "ExtRef", "at", "IDENT", "REF", "term")
 	name := ""
 	switch x {
 	case "term", "REF", "ExtRef", "macrocall", "":
@@ -125,6 +125,8 @@ func (gb grammarBuilder) buildAtom(atom AtomNode) parser.Term {
 	}
 
 	switch x {
+	case "at":
+		return parser.Rule(name)
 	case "IDENT":
 		return parser.Rule(name)
 	case "STR":

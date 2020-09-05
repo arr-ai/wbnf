@@ -14,6 +14,7 @@ type escape struct {
 	closeDelim *regexp.Regexp
 	external   ExternalRef
 }
+
 type Scope struct {
 	m frozen.Map
 }
@@ -27,12 +28,27 @@ func (s Scope) Keys() frozen.Set {
 }
 
 func (s Scope) With(ident string, v interface{}) Scope {
-	s.m = s.m.With(ident, v)
-	return s
+	return Scope{m: s.m.With(ident, v)}
 }
 
 func (s Scope) Has(ident string) bool {
 	return s.m.Has(ident)
+}
+
+func (s Scope) Merge(t Scope) Scope {
+	return Scope{m: s.m.Update(t.m)}
+}
+
+type scopeBuilder struct {
+	mb frozen.MapBuilder
+}
+
+func (b *scopeBuilder) Put(ident string, v interface{}) {
+	b.mb.Put(ident, v)
+}
+
+func (b *scopeBuilder) Finish() Scope {
+	return Scope{m: b.mb.Finish()}
 }
 
 type scopeVal struct {
@@ -83,6 +99,7 @@ const parseEscapeKey = ".ParseEscape-key."
 
 func (s Scope) WithExternals(extRefs ExternalRefs) Scope {
 	var e *escape
+	var sb scopeBuilder
 	for name, external := range extRefs {
 		if strings.HasPrefix(name, "*") {
 			if e != nil {
@@ -94,10 +111,11 @@ func (s Scope) WithExternals(extRefs ExternalRefs) Scope {
 				closeDelim: regexp.MustCompile(`(?m)\A` + openClose[1]),
 				external:   external,
 			}
-			s = s.With(parseEscapeKey, e)
+			sb.Put(parseEscapeKey, e)
 		}
 	}
-	return s.With(externalsKey, extRefs)
+	sb.Put(externalsKey, extRefs)
+	return s.Merge(sb.Finish())
 }
 
 func (s Scope) GetExternal(ident string) ExternalRef {
@@ -117,31 +135,17 @@ func (s Scope) getParserEscape() *escape {
 type call struct {
 	ident string
 	term  Term
-	scope Scope
-}
-type CallStack struct {
-	stack []call
+	next  *call
 }
 
-func (c CallStack) Error() string {
-	parts := make([]string, 0, len(c.stack))
-	for _, call := range c.stack {
-		parts = append(parts, fmt.Sprintf("%+v", call))
+func (c *call) Error() string {
+	var parts []string
+	for ; c != nil; c = c.next {
+		parts = append(parts, fmt.Sprintf("%+v", *c))
 	}
 	return strings.Join(parts, "\n")
 }
 
-const callStackKey = ".CallStack-key."
-
-func (s Scope) PushCall(ident string, t Term) Scope {
-	cs := s.GetCallStack()
-	cs.stack = append(cs.stack, call{ident, t, s})
-	return s.With(callStackKey, cs)
-}
-
-func (s Scope) GetCallStack() CallStack {
-	if e, has := s.m.Get(callStackKey); has {
-		return e.(CallStack)
-	}
-	return CallStack{}
+func (c *call) push(ident string, t Term) *call {
+	return &call{ident, t, c}
 }

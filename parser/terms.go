@@ -49,9 +49,9 @@ func (p Parsers) Unparse(e TreeElement, w io.Writer) (n int, err error) {
 
 // Parse parses some source per a given rule.
 func (p Parsers) ParseWithExternals(rule Rule, input *Scanner, exts ExternalRefs) (TreeElement, error) {
-	scope := Scope{}.WithExternals(exts).PushCall(string(rule), rule)
+	scope := Scope{}.WithExternals(exts)
 	var e TreeElement
-	if err := p.parsers[rule].Parse(scope, input, &e); err != nil {
+	if err := p.parsers[rule].Parse(scope, input, &e, nil); err != nil {
 		return nil, err
 	}
 

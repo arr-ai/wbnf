@@ -18,13 +18,26 @@ type FatalError struct {
 	Cutpointdata
 }
 
-func isFatal(err error) bool {
-	_, ok := err.(FatalError)
-	return ok
+type StopError interface {
+	IsStopError()
 }
+
+func isFatal(err error) bool {
+	switch err.(type) {
+	case FatalError, StopError:
+		return true
+	}
+	return false
+}
+
 func isNotMyFatalError(err error, cp Cutpointdata) bool {
-	fe, ok := err.(FatalError)
-	return ok && fe.Cutpointdata != cp
+	switch err := err.(type) {
+	case FatalError:
+		return err.Cutpointdata != cp
+	case StopError:
+		return true
+	}
+	return false
 }
 
 func newParseError(

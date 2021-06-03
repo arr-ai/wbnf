@@ -10,7 +10,15 @@ named   -> (IDENT op="=")? atom;
 quant   -> op=[?*+]
          | "{" min=INT? "," max=INT? "}"
          | op=/{<:|:>?} opt_leading=","? named opt_trailing=","?;
-atom    -> IDENT | STR | RE | macrocall | ExtRef=("%%" IDENT) | REF | "(" term ")" | "(" ")";
+atom    -> at="@" offset=/{-?\d+}?
+         | IDENT ("." offset=\d+)?
+         | STR
+         | RE
+         | macrocall
+         | ExtRef=("%%" IDENT)
+         | REF
+         | "(" term ")"
+         | "(" ")";
 
 macrocall   -> "%!" name=IDENT "(" term:","? ")";
 REF         -> "%" IDENT ("=" default=STR)?;
@@ -19,7 +27,7 @@ REF         -> "%" IDENT ("=" default=STR)?;
 COMMENT -> /{ //.*$
             | (?s: /\* (?: [^*] | \*+[^*/] ) \*/ )
             };
-IDENT   -> /{@|\.?[A-Za-z_]\w*};
+IDENT   -> /{\.?[A-Za-z_]\w*};
 INT     -> \d+;
 STR     -> /{ " (?: \\. | [^\\"] )* "
             | ' (?: \\. | [^\\'] )* '

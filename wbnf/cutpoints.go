@@ -103,7 +103,7 @@ func findUniqueStrings(g parser.Grammar) frozen.Set {
 			out = out.Merge(forTerm(t.Default), mergeFn)
 		case parser.CutPoint:
 			out = out.Merge(forTerm(t.Term), mergeFn)
-		case parser.RE, parser.Rule, parser.ExtRef: // do nothing
+		case parser.RE, parser.Rule, parser.ExtRef, parser.LookAhead: // do nothing
 		default:
 			panic(fmt.Errorf("findUniqueStrings: unexpected term type: %v %[1]T", t))
 		}
@@ -163,7 +163,7 @@ func fixTerm(term parser.Term, callback func(t parser.Term) parser.Term) parser.
 	case parser.CutPoint:
 		t.Term = fixTerm(t.Term, callback)
 		return callback(t)
-	case parser.S, parser.REF, parser.RE, parser.Rule, parser.ExtRef:
+	case parser.S, parser.REF, parser.RE, parser.Rule, parser.ExtRef, parser.LookAhead:
 		return callback(term)
 	default:
 		panic(fmt.Errorf("fixTerm: unexpected term type: %v %[1]T", t))

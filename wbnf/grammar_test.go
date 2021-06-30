@@ -274,6 +274,15 @@ func TestEmptyNamedTerm(t *testing.T) {
 	log.Print(p.Grammar())
 }
 
+func TestLookAhead(t *testing.T) {
+	t.Parallel()
+
+	p, err := Compile(`x -> "a" (?="b") "b";`, nil)
+	assert.NoError(t, err)
+	_, err = p.Parse("x", parser.NewScanner("ab"))
+	assert.NoError(t, err)
+}
+
 func TestScopeGrammar(t *testing.T) {
 	t.Parallel()
 	g := parser.Grammar{

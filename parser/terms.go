@@ -139,6 +139,9 @@ type (
 		CanStartWithSep bool
 		CanEndWithSep   bool
 	}
+	LookAhead struct {
+		Term Term
+	}
 	Quant struct {
 		Term Term
 		Min  int
@@ -205,16 +208,17 @@ func (g Grammar) String() string {
 	return sb.String()
 }
 
-func (t Rule) String() string     { return string(t) }
-func (t S) String() string        { return fmt.Sprintf("%q", string(t)) }
-func (t RE) String() string       { return fmt.Sprintf("/%v/", string(t)) }
-func (t REF) String() string      { return fmt.Sprintf("%%%v=%v", t.Ident, t.Default) }
-func (t ExtRef) String() string   { return string(t) }
-func (t Seq) String() string      { return "(" + join(t, " ") + ")" }
-func (t Oneof) String() string    { return join(t, " | ") }
-func (t Stack) String() string    { return join(t, " > ") }
-func (t Named) String() string    { return fmt.Sprintf("%s=%v", t.Name, t.Term) }
-func (t CutPoint) String() string { return fmt.Sprintf("cutpoint {%s}", t.Term.String()) }
+func (t Rule) String() string      { return string(t) }
+func (t S) String() string         { return fmt.Sprintf("%q", string(t)) }
+func (t RE) String() string        { return fmt.Sprintf("/%v/", string(t)) }
+func (t REF) String() string       { return fmt.Sprintf("%%%v=%v", t.Ident, t.Default) }
+func (t ExtRef) String() string    { return string(t) }
+func (t Seq) String() string       { return "(" + join(t, " ") + ")" }
+func (t Oneof) String() string     { return join(t, " | ") }
+func (t Stack) String() string     { return join(t, " > ") }
+func (t Named) String() string     { return fmt.Sprintf("%s=%v", t.Name, t.Term) }
+func (t LookAhead) String() string { return fmt.Sprintf("(?=%v)", t.Term) }
+func (t CutPoint) String() string  { return fmt.Sprintf("cutpoint {%s}", t.Term.String()) }
 
 func (t Delim) String() string {
 	leading := ""

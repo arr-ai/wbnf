@@ -54,6 +54,15 @@ func (t Delim) Unparse(g Grammar, e TreeElement, w io.Writer) (n int, err error)
 	return
 }
 
+func (t LookAhead) Unparse(g Grammar, e TreeElement, w io.Writer) (n int, err error) {
+	for _, child := range e.(Node).Children {
+		if err = unparse(g, t.Term, child, w, &n); err != nil {
+			return
+		}
+	}
+	return
+}
+
 func (t Quant) Unparse(g Grammar, e TreeElement, w io.Writer) (n int, err error) {
 	for _, child := range e.(Node).Children {
 		if err = unparse(g, t.Term, child, w, &n); err != nil {

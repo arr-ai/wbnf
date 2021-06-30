@@ -116,10 +116,10 @@ func (gb grammarBuilder) expandMacro(node MacrocallNode) parser.Term {
 }
 
 func (gb grammarBuilder) buildAtom(atom AtomNode) parser.Term {
-	x, _ := ast.Which(atom.Node.(ast.Branch), "RE", "STR", "macrocall", "ExtRef", "IDENT", "REF", "term")
+	x, _ := ast.Which(atom.Node.(ast.Branch), "RE", "STR", "macrocall", "ExtRef", "IDENT", "REF", "lookahead", "term")
 	name := ""
 	switch x {
-	case "term", "REF", "ExtRef", "macrocall", "":
+	case "lookahead", "term", "REF", "ExtRef", "macrocall", "":
 	default:
 		name = atom.One(x).Scanner().String()
 	}
@@ -151,6 +151,10 @@ func (gb grammarBuilder) buildAtom(atom AtomNode) parser.Term {
 	case "ExtRef":
 		refNode := atom.OneExtRef()
 		return parser.ExtRef(refNode.OneIdent().String())
+	case "lookahead":
+		return parser.LookAhead{
+			Term: gb.buildTerm(*atom.OneLookahead()),
+		}
 	case "term":
 		return gb.buildTerm(*atom.OneTerm())
 	case "macrocall":

@@ -27,6 +27,10 @@ func Grammar() parser.Parsers {
 				parser.Seq{parser.CutPoint{parser.S(`%%`)},
 					parser.Rule(`IDENT`)}),
 			parser.Rule(`REF`),
+			parser.Seq{parser.CutPoint{parser.S(`(?=`)},
+				parser.Eq(`lookahead`,
+					parser.Rule(`term`)),
+				parser.S(`)`)},
 			parser.Seq{parser.S(`(`),
 				parser.Rule(`term`),
 				parser.S(`)`)},
@@ -165,6 +169,13 @@ func (c AtomNode) OneExtRef() *AtomExtRefNode {
 func (c AtomNode) OneIdent() *IdentNode {
 	if child := ast.First(c.Node, "IDENT"); child != nil {
 		return &IdentNode{child}
+	}
+	return nil
+}
+
+func (c AtomNode) OneLookahead() *TermNode {
+	if child := ast.First(c.Node, "lookahead"); child != nil {
+		return &TermNode{child}
 	}
 	return nil
 }
@@ -867,6 +878,16 @@ func (w WalkerOps) WalkAtomNode(node AtomNode) Stopper {
 			}
 		}
 	}
+	if child := node.OneLookahead(); child != nil {
+		child := *child
+		if s := w.WalkTermNode(child); s != nil {
+			if s.ExitNode() {
+				return nil
+			} else if s.Abort() {
+				return s
+			}
+		}
+	}
 	if child := node.OneMacrocall(); child != nil {
 		child := *child
 		if s := w.WalkMacrocallNode(child); s != nil {
@@ -1451,7 +1472,15 @@ named   -> (IDENT op="=")? atom;
 quant   -> op=[?*+]
          | "{" min=INT? "," max=INT? "}"
          | op=/{<:|:>?} opt_leading=","? named opt_trailing=","?;
-atom    -> IDENT | STR | RE | macrocall | ExtRef=("%%" IDENT) | REF | "(" term ")" | "(" ")";
+atom    -> IDENT
+         | STR
+         | RE
+         | macrocall
+         | ExtRef=("%%" IDENT)
+         | REF
+         | "(?=" lookahead=term ")"
+         | "(" term ")"
+         | "(" ")";
 
 macrocall   -> "%!" name=IDENT "(" term:","? ")";
 REF         -> "%" IDENT ("=" default=STR)?;

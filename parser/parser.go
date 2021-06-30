@@ -13,11 +13,12 @@ const (
 	StackDelim = "@"
 	At         = Rule(StackDelim)
 
-	seqTag   = "_"
-	oneofTag = "|"
-	delimTag = ":"
-	quantTag = "?"
-	WrapRE   = Rule(".wrapRE")
+	seqTag       = "_"
+	oneofTag     = "|"
+	delimTag     = ":"
+	quantTag     = "?"
+	lookaheadTag = "?="
+	WrapRE       = Rule(".wrapRE")
 )
 
 type cache struct {
@@ -506,6 +507,42 @@ func (t Delim) LRTerms(node Node) LRTGen {
 		return LRTGen{sides: [2]Term{t, t.Term}, sep: t.Sep}
 	}
 	return LRTGen{sides: [2]Term{t.Term, t.Term}, sep: t.Sep}
+}
+
+//-----------------------------------------------------------------------------
+
+type lookaheadParser struct {
+	term Parser
+	t    LookAhead
+	rule Rule
+	put  putter
+}
+
+func (l *lookaheadParser) Parse(scope Scope, input *Scanner, output *TreeElement, stk *call) (out error) {
+	if escaped, err := parseEscape(l, scope, "", nil, input, output); escaped || err != nil {
+		return err
+	}
+
+	stk = stk.push(string(l.rule), l.AsTerm())
+	var v TreeElement
+	start := *input
+	if err := l.term.Parse(scope, &start, &v, stk); err != nil {
+		return err
+	}
+	return l.put(output, nil, v)
+}
+
+func (l *lookaheadParser) AsTerm() Term { return l.t }
+
+func (t LookAhead) Parser(rule Rule, c cache) Parser {
+	p := &lookaheadParser{
+		rule: rule,
+		term: t.Term.Parser("", c),
+		t:    t,
+		put:  tag(rule, lookaheadTag),
+	}
+	c.registerRule(&p.term)
+	return p
 }
 
 //-----------------------------------------------------------------------------

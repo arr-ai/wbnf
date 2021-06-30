@@ -51,6 +51,11 @@ func (t Quant) Resolve(oldRule, newRule Rule) Term {
 	return t
 }
 
+func (t LookAhead) Resolve(oldRule, newRule Rule) Term {
+	t.Term = t.Term.Resolve(oldRule, newRule)
+	return t
+}
+
 func (t Named) Resolve(oldRule, newRule Rule) Term {
 	t.Term = t.Term.Resolve(oldRule, newRule)
 	return t

@@ -305,7 +305,15 @@ named   -> (IDENT op="=")? atom;
 quant   -> op=[?*+]
          | "{" min=INT? "," max=INT? "}"
          | op=/{<:|:>?} opt_leading=","? named opt_trailing=","?;
-atom    -> IDENT | STR | RE | macrocall | ExtRef=("%%" IDENT) | REF | "(" term ")" | "(" ")";
+atom    -> IDENT
+         | STR
+         | RE
+         | macrocall
+         | ExtRef=("%%" IDENT)
+         | REF
+         | "(?=" lookahead=term ")"
+         | "(" term ")"
+         | "(" ")";
 
 macrocall   -> "%!" name=IDENT "(" term:","? ")";
 REF         -> "%" IDENT ("=" default=STR)?;

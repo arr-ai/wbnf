@@ -123,9 +123,10 @@ func (ctrs counters) termCountChildren(term parser.Term, parent counter) {
 		ctrs.termCountChildren(t.Term, parent.mul(oneOrMore))
 	case parser.CutPoint:
 		ctrs.termCountChildren(t.Term, parent)
+	case parser.LookAhead:
+		ctrs.termCountChildren(t.Term, parent)
 	case parser.ExtRef:
 		ctrs.count(string(t), parent)
-	case parser.LookAhead:
 	default:
 		panic(fmt.Errorf("counters.termCountChildren: unexpected term type: %v %[1]T", t))
 	}

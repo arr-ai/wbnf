@@ -179,6 +179,8 @@ func (b Branch) toParserNode(g parser.Grammar, term parser.Term, ctrs counters) 
 		return nil
 	case parser.CutPoint:
 		return b.toParserNode(g, t.Term, ctrs)
+	case parser.LookAhead:
+		return b.toParserNode(g, t.Term, ctrs)
 	default:
 		panic(fmt.Errorf("branch.toParserNode: unexpected term type: %v %[1]T", t))
 	}

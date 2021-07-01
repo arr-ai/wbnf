@@ -208,6 +208,11 @@ func (b Branch) fromParserNode(g parser.Grammar, term parser.Term, ctrs counters
 				b.add(ident, b2, ctrs[ident])
 			}
 		}
+	case parser.LookAhead:
+		node := e.(parser.Node)
+		for _, child := range node.Children {
+			b.fromParserNode(g, t.Term, ctrs, child)
+		}
 	default:
 		panic(fmt.Errorf("branch.fromParserNode: unexpected term type: %v %[1]T", t))
 	}

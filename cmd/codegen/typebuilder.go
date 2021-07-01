@@ -197,6 +197,8 @@ func (tm *TypeMap) walkTerm(
 		tm.walkTerm(t.Term, parentName, quant, knownRules, termID)
 	case parser.CutPoint:
 		tm.walkTerm(t.Term, parentName, quant, knownRules, termID)
+	case parser.LookAhead:
+		tm.walkTerm(t.Term, parentName, quant, knownRules, termID)
 	case parser.ExtRef:
 		// nothing yet
 	default:

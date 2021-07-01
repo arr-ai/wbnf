@@ -114,6 +114,8 @@ func Terms(a, b parser.Term) TermDiff {
 		return diffSes(parser.S(string(a)), parser.S(string(a)))
 	case parser.REF:
 		return diffRefs(a, b.(parser.REF))
+	case parser.LookAhead:
+		return Terms(a.Term, b.(parser.LookAhead).Term)
 	default:
 		panic(fmt.Errorf("unknown term type: %v %[1]T", a))
 	}

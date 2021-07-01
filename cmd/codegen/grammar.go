@@ -154,6 +154,10 @@ func walkTerm(term parser.Term) GoNode {
 		node.Add(walkTerm(t.Term))
 	case parser.ExtRef:
 		node = stringNode("parser.ExtRef(`%s`)", safeString(string(t)))
+	case parser.LookAhead:
+		node.name = "parser.LookAhead"
+		node.scope = squigglyScope
+		node.Add(walkTerm(t.Term))
 	default:
 		panic(fmt.Errorf("walkTerm: unexpected term type: %v %[1]T", t))
 	}

@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/arr-ai/frozen v0.14.0
-	github.com/arr-ai/hash v0.5.0 // indirect
+	github.com/arr-ai/hash v0.8.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/iancoleman/strcase v0.0.0-20191112232945-16388991a334
 	github.com/sirupsen/logrus v1.6.0

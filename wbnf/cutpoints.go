@@ -97,7 +97,7 @@ func findUniqueStrings(g parser.Grammar) frozen.Set[string] {
 			out = out.Merge(forTerm(t.Term), mergeFn)
 			incoming := frozen.NewMapFromKeys(
 				findUniqueStrings(t.Grammar),
-				func(key string) int { return 1 })
+				func(string) int { return 1 })
 			out = out.Merge(incoming, mergeFn)
 		case parser.REF:
 			out = out.Merge(forTerm(t.Default), mergeFn)

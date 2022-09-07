@@ -17,7 +17,7 @@ func IdentName(name string) string {
 }
 
 func (i IdentsWriter) String() string {
-	names := frozen.NewSet()
+	names := frozen.NewSet[string]()
 
 	wbnf.WalkerOps{
 		EnterNamedNode: func(node wbnf.NamedNode) wbnf.Stopper {
@@ -33,13 +33,13 @@ func (i IdentsWriter) String() string {
 		},
 	}.Walk(i.GrammarNode)
 
-	sorted := names.OrderedElements(func(a, b interface{}) bool {
-		return strings.Compare(IdentName(a.(string)), IdentName(b.(string))) < 0
+	sorted := names.OrderedElements(func(a, b string) bool {
+		return strings.Compare(IdentName(a), IdentName(b)) < 0
 	})
 	out := "const (\n"
 	for _, name := range sorted {
 		if name != "" {
-			out += fmt.Sprintf("%s = \"%s\"\n", IdentName(name.(string)), name)
+			out += fmt.Sprintf("%s = \"%s\"\n", IdentName(name), name)
 		}
 	}
 	return out + ")\n"

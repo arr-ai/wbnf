@@ -10,9 +10,9 @@ import (
 	"github.com/arr-ai/wbnf/parser"
 )
 
-func findDefinedRules(tree GrammarNode) (frozen.Set, map[string]PragmaMacrodefNode, error) {
+func findDefinedRules(tree GrammarNode) (frozen.Set[string], map[string]PragmaMacrodefNode, error) {
 	var dupeRules []string
-	out := frozen.NewSet()
+	out := frozen.NewSet[string]()
 	macros := map[string]PragmaMacrodefNode{}
 	adder := func(ident string) {
 		if out.Has(ident) {
@@ -36,7 +36,7 @@ func findDefinedRules(tree GrammarNode) (frozen.Set, map[string]PragmaMacrodefNo
 	if len(dupeRules) == 0 {
 		return out, macros, nil
 	}
-	return frozen.Set{}, nil, validationError{
+	return frozen.Set[string]{}, nil, validationError{
 		msg:  fmt.Sprintf("the following rule(s) are defined multiple times: %s", dupeRules),
 		kind: DuplicatedRule}
 }
@@ -80,12 +80,12 @@ const (
 type validationError struct {
 	s    parser.Scanner
 	msg  string
-	args []interface{}
+	args []any
 	kind validationErrorKind
 }
 
 func (v validationError) Error() string {
-	var args []interface{}
+	var args []any
 	if v.s.String() != "" {
 		args = append(args, v.s.String())
 		if len(v.args) > 0 {
@@ -99,7 +99,7 @@ func (v validationError) Error() string {
 }
 
 type validator struct {
-	knownRules frozen.Set
+	knownRules frozen.Set[string]
 	macros     map[string]PragmaMacrodefNode
 	err        []error
 }
@@ -162,8 +162,12 @@ func (v *validator) validateAtom(tree AtomNode) Stopper {
 		}
 	} else if x := tree.OneRe(); x != nil {
 		if _, err := regexp.Compile(x.String()); err != nil {
-			v.err = append(v.err, validationError{s: tree.OneRe().Scanner(),
-				msg: "regex '%s' is not valid, %s", kind: InvalidRegex, args: []interface{}{err}})
+			v.err = append(v.err, validationError{
+				s:    tree.OneRe().Scanner(),
+				msg:  "regex '%s' is not valid, %s",
+				kind: InvalidRegex,
+				args: []any{err},
+			})
 		}
 	}
 	return nil

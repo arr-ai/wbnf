@@ -11,19 +11,19 @@ type Report interface {
 	Equal() bool
 }
 
-type InterfaceDiff struct {
-	A, B interface{}
+type InterfaceDiff[T comparable] struct {
+	A, B T
 }
 
-func (d InterfaceDiff) Equal() bool {
+func (d InterfaceDiff[T]) Equal() bool {
 	return d.A == d.B
 }
 
-func diffInterfaces(a, b interface{}) InterfaceDiff {
-	if diff := (InterfaceDiff{A: a, B: b}); !diff.Equal() {
+func diffInterfaces[T comparable](a, b T) InterfaceDiff[T] {
+	if diff := (InterfaceDiff[T]{A: a, B: b}); !diff.Equal() {
 		return diff
 	}
-	return InterfaceDiff{}
+	return InterfaceDiff[T]{}
 }
 
 //-----------------------------------------------------------------------------
@@ -70,17 +70,17 @@ type TermDiff interface {
 	Report
 }
 
-type TypesDiffer struct {
-	InterfaceDiff
+type TypesDiffer[T comparable] struct {
+	InterfaceDiff[T]
 }
 
-func (d TypesDiffer) Equal() bool {
+func (d TypesDiffer[T]) Equal() bool {
 	return false
 }
 
 func Terms(a, b parser.Term) TermDiff {
 	if reflect.TypeOf(a) != reflect.TypeOf(b) {
-		return TypesDiffer{
+		return TypesDiffer[string]{
 			InterfaceDiff: diffInterfaces(
 				reflect.TypeOf(a).String(),
 				reflect.TypeOf(b).String(),
@@ -183,7 +183,7 @@ func diffRefs(a, b parser.REF) RefDiff {
 //-----------------------------------------------------------------------------
 
 type termsesDiff struct {
-	Len   InterfaceDiff
+	Len   InterfaceDiff[int]
 	Terms []TermDiff
 }
 
@@ -245,9 +245,9 @@ func diffTowers(a, b parser.Stack) TowerDiff {
 type DelimDiff struct {
 	Term            TermDiff
 	Sep             TermDiff
-	Assoc           InterfaceDiff
-	CanStartWithSep InterfaceDiff
-	CanEndWithSep   InterfaceDiff
+	Assoc           InterfaceDiff[parser.Associativity]
+	CanStartWithSep InterfaceDiff[bool]
+	CanEndWithSep   InterfaceDiff[bool]
 }
 
 func (d DelimDiff) Equal() bool {
@@ -272,8 +272,8 @@ func diffDelims(a, b parser.Delim) DelimDiff {
 
 type QuantDiff struct {
 	Term TermDiff
-	Min  InterfaceDiff
-	Max  InterfaceDiff
+	Min  InterfaceDiff[int]
+	Max  InterfaceDiff[int]
 }
 
 func (d QuantDiff) Equal() bool {
@@ -291,7 +291,7 @@ func diffQuants(a, b parser.Quant) QuantDiff {
 //-----------------------------------------------------------------------------
 
 type NamedDiff struct {
-	Name InterfaceDiff
+	Name InterfaceDiff[string]
 	Term TermDiff
 }
 

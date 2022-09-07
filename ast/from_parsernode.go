@@ -122,11 +122,11 @@ func (b Branch) fromParserNode(g parser.Grammar, term parser.Term, ctrs counters
 	case parser.S, parser.RE:
 		b.add("", Leaf(e.(parser.Scanner)), ctrs[""])
 	case parser.Rule:
-		term := g[t]
-		childCtrs := newCounters(term)
+		rule := g[t]
+		childCtrs := newCounters(rule)
 		b2 := Branch{}
 		unleveled, level := unlevel(string(t), g)
-		b2.fromParserNode(g, term, childCtrs, e)
+		b2.fromParserNode(g, rule, childCtrs, e)
 		var node Node = b2
 		// if name := childCtrs.singular(); name != nil {
 		// 	node = b2[*name].(One).Node
@@ -154,22 +154,22 @@ func (b Branch) fromParserNode(g parser.Grammar, term parser.Term, ctrs counters
 		tag = node.Tag
 		tgen := t.LRTerms(node)
 		for i, child := range node.Children {
-			term := tgen.Next()
+			lrTerm := tgen.Next()
 			if _, ok := child.(parser.Empty); ok {
 				b.many("@empty", Extra{map[bool]string{true: "@prefix", false: "@suffix"}[i == 0]})
 			} else {
-				if term == t {
+				if lrTerm == t {
 					if _, ok := child.(parser.Node); ok {
-						childCtrs := newCounters(term)
+						childCtrs := newCounters(lrTerm)
 						b2 := Branch{}
 						childCtrs.termCountChildren(t, ctrs[""])
-						b2.fromParserNode(g, term, childCtrs, child)
+						b2.fromParserNode(g, lrTerm, childCtrs, child)
 						b.one(tag, b2)
 					} else {
 						b.fromParserNode(g, t.Term, ctrs, child)
 					}
 				} else {
-					b.fromParserNode(g, term, ctrs, child)
+					b.fromParserNode(g, lrTerm, ctrs, child)
 				}
 			}
 		}

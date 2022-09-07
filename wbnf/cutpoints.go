@@ -57,13 +57,13 @@ func insertCutPoints(g parser.Grammar) parser.Grammar {
 	return rebuildGrammar(g, callback)
 }
 
-func findUniqueStrings(g parser.Grammar) frozen.Set {
-	mergeFn := func(_ interface{}, a, b interface{}) interface{} {
-		return a.(int) + b.(int)
+func findUniqueStrings(g parser.Grammar) frozen.Set[string] {
+	mergeFn := func(_ string, a, b int) int {
+		return a + b
 	}
-	var forTerm func(t parser.Term) frozen.Map
-	forTerm = func(t parser.Term) frozen.Map {
-		out := frozen.NewMap()
+	var forTerm func(t parser.Term) frozen.Map[string, int]
+	forTerm = func(t parser.Term) frozen.Map[string, int] {
+		out := frozen.NewMap[string, int]()
 		if t == nil {
 			return out
 		}
@@ -95,9 +95,9 @@ func findUniqueStrings(g parser.Grammar) frozen.Set {
 			out = out.Merge(forTerm(t.Term), mergeFn)
 		case parser.ScopedGrammar:
 			out = out.Merge(forTerm(t.Term), mergeFn)
-			incoming := frozen.NewMapFromKeys(findUniqueStrings(t.Grammar), func(key interface{}) interface{} {
-				return 1
-			})
+			incoming := frozen.NewMapFromKeys(
+				findUniqueStrings(t.Grammar),
+				func(key string) int { return 1 })
 			out = out.Merge(incoming, mergeFn)
 		case parser.REF:
 			out = out.Merge(forTerm(t.Default), mergeFn)
@@ -110,12 +110,12 @@ func findUniqueStrings(g parser.Grammar) frozen.Set {
 		return out
 	}
 
-	strings := frozen.NewMap()
+	strings := frozen.NewMap[string, int]()
 	for _, t := range g {
 		strings = strings.Merge(forTerm(t), mergeFn)
 	}
-	return strings.Where(func(key, val interface{}) bool {
-		return val.(int) == 1
+	return strings.Where(func(key string, val int) bool {
+		return val == 1
 	}).Keys()
 }
 

@@ -42,7 +42,7 @@ type (
 	}
 )
 
-//New returns a new GoTree.Tree
+// New returns a new GoTree.Tree
 func New(text string) Tree {
 	return &tree{
 		text:  text,
@@ -50,29 +50,29 @@ func New(text string) Tree {
 	}
 }
 
-//Add adds a node to the tree
+// Add adds a node to the tree
 func (t *tree) Add(text string) Tree {
 	n := New(text)
 	t.items = append(t.items, n)
 	return n
 }
 
-//AddTree adds a tree as an item
+// AddTree adds a tree as an item
 func (t *tree) AddTree(tree Tree) {
 	t.items = append(t.items, tree)
 }
 
-//Text returns the node's value
+// Text returns the node's value
 func (t *tree) Text() string {
 	return t.text
 }
 
-//Items returns all items in the tree
+// Items returns all items in the tree
 func (t *tree) Items() []Tree {
 	return t.items
 }
 
-//Print returns an visual representation of the tree
+// Print returns an visual representation of the tree
 func (t *tree) Print() string {
 	return newPrinter().Print(t)
 }
@@ -112,7 +112,7 @@ func newPrinter() Printer {
 	return &printer{}
 }
 
-//Print prints a tree to a string
+// Print prints a tree to a string
 func (p *printer) Print(t Tree) string {
 	return t.Text() + newLine + p.printItems(t.Items(), []bool{})
 }

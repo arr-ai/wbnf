@@ -9,7 +9,7 @@ import (
 
 func makeTypesFromGrammar(g parser.Grammar) map[string]GrammarType {
 	tm := &TypeMap{}
-	return tm.walkGrammar("", g, mergeGrammarRules("", g, frozen.NewMap()))
+	return tm.walkGrammar("", g, mergeGrammarRules("", g, frozen.NewMap[string, any]()))
 }
 
 type TypeMap map[string]GrammarType
@@ -23,22 +23,22 @@ func (tm *TypeMap) merge(other TypeMap) TypeMap {
 
 type stackInfo struct{ ident, parentName string }
 
-func pushRuleNameForStack(ident, parentName string, knownRules frozen.Map) frozen.Map {
-	return knownRules.With(parser.At, stackInfo{
+func pushRuleNameForStack(ident, parentName string, knownRules frozen.Map[string, any]) frozen.Map[string, any] {
+	return knownRules.With(parser.At.String(), stackInfo{
 		ident:      ident,
 		parentName: parentName,
 	})
 }
 
-func mergeGrammarRules(prefix string, g parser.Grammar, knownRules frozen.Map) frozen.Map {
-	mb := frozen.NewMapBuilder(len(g))
+func mergeGrammarRules(prefix string, g parser.Grammar, knownRules frozen.Map[string, any]) frozen.Map[string, any] {
+	mb := frozen.NewMapBuilder[string, any](len(g))
 	for k := range g {
 		mb.Put(k.String(), prefix+GoName(k.String()))
 	}
 	return knownRules.Update(mb.Finish())
 }
 
-func (tm *TypeMap) walkGrammar(prefix string, g parser.Grammar, knownRules frozen.Map) TypeMap {
+func (tm *TypeMap) walkGrammar(prefix string, g parser.Grammar, knownRules frozen.Map[string, any]) TypeMap {
 	result := map[string]GrammarType{}
 	for r, term := range g {
 		typeName := prefix + GoName(r.String())
@@ -69,7 +69,7 @@ func (tm *TypeMap) handleSeq(
 	terms []parser.Term,
 	parentName string,
 	quant countManager,
-	knownRules frozen.Map,
+	knownRules frozen.Map[string, any],
 	termID int,
 ) {
 	for _, t := range terms {
@@ -77,12 +77,17 @@ func (tm *TypeMap) handleSeq(
 	}
 }
 
-func (tm *TypeMap) makeLeafType(term parser.Term, parentName string, quant countManager, knownRules frozen.Map) {
+func (tm *TypeMap) makeLeafType(
+	term parser.Term,
+	parentName string,
+	quant countManager,
+	knownRules frozen.Map[string, any],
+) {
 	var val GrammarType
 	switch t := term.(type) {
 	case parser.Rule:
 		if t == parser.At {
-			si := knownRules.MustGet(t).(stackInfo)
+			si := knownRules.MustGet(t.String()).(stackInfo)
 			val = stackBackRef{
 				name:   si.ident,
 				parent: si.parentName,
@@ -107,7 +112,7 @@ func (tm *TypeMap) walkTerm(
 	term parser.Term,
 	parentName string,
 	quant countManager,
-	knownRules frozen.Map,
+	knownRules frozen.Map[string, any],
 	termID int,
 ) {
 	switch t := term.(type) {
@@ -161,7 +166,7 @@ func (tm *TypeMap) walkTerm(
 		case parser.Rule:
 			var val GrammarType
 			if term == parser.At {
-				si := knownRules.MustGet(term).(stackInfo)
+				si := knownRules.MustGet(term.String()).(stackInfo)
 				val = stackBackRef{
 					name:   t.Name,
 					parent: si.parentName,

@@ -12,17 +12,20 @@ import (
 Need to test for rule chains which could recurse infinitely.
 
 Basic definition: Any Seq{} which could make a graph from itself back to itself without first passing through
-				  some other non-optional term is recursive.
+
+	some other non-optional term is recursive.
+
 Obvious ones:
+
 	a -> a;
 	a -> "("? a;
 */
 func checkForRecursion(tree GrammarNode) error {
-	dangers := map[string]frozen.Set{}
+	dangers := map[string]frozen.Set[string]{}
 
 	// First get a map with every rules directly connected rules
 	WalkerOps{EnterProdNode: func(node ProdNode) Stopper {
-		td := frozen.NewSet()
+		td := frozen.NewSet[string]()
 		for _, t := range node.AllTerm() {
 			td = td.Union(getSequenceDangerTerms(t))
 		}
@@ -39,9 +42,9 @@ func checkForRecursion(tree GrammarNode) error {
 	// now determine the cycles
 
 	var badRoutes []string
-	paths := findPaths("", gn, frozen.NewSet(), nil)
+	paths := findPaths("", gn, frozen.NewSet[string](), nil)
 	for _, p := range paths {
-		if len(p) != frozen.NewSetFromStrings(p...).Count() {
+		if len(p) != frozen.NewSet(p...).Count() {
 			badRoutes = append(badRoutes, strings.Join(p, " > "))
 		}
 	}
@@ -55,7 +58,7 @@ func checkForRecursion(tree GrammarNode) error {
 	return nil
 }
 
-func findPaths(name string, node *gnode, seen frozen.Set, current []string) [][]string {
+func findPaths(name string, node *gnode, seen frozen.Set[string], current []string) [][]string {
 	if name != "" {
 		current = append(current, name)
 	}
@@ -71,11 +74,10 @@ func findPaths(name string, node *gnode, seen frozen.Set, current []string) [][]
 	return possibles
 }
 
-func sortedSet(s frozen.Set) []string {
+func sortedSet(s frozen.Set[string]) []string {
 	out := make([]string, 0, s.Count())
-	for _, x := range s.Elements() {
-		out = append(out, x.(string))
-	}
+	out = append(out, s.Elements()...)
+
 	sort.Strings(out)
 	return out
 }
@@ -84,7 +86,7 @@ type gnode struct {
 	next map[string]*gnode
 }
 
-func (g *gnode) walkRule(start string, dangers *map[string]frozen.Set) *gnode {
+func (g *gnode) walkRule(start string, dangers *map[string]frozen.Set[string]) *gnode {
 	if f, has := g.next[start]; has {
 		return f
 	}
@@ -100,8 +102,8 @@ func (g *gnode) walkRule(start string, dangers *map[string]frozen.Set) *gnode {
 	return node
 }
 
-func getSequenceDangerTerms(tree TermNode) frozen.Set {
-	result := frozen.NewSet()
+func getSequenceDangerTerms(tree TermNode) frozen.Set[string] {
+	result := frozen.NewSet[string]()
 
 	if tree.OneOp() == "|" {
 		// Any of the options could be dangerous, need to | them all

@@ -14,7 +14,11 @@ func TestStringCutpoints(t *testing.T) {
 
 	idents := findUniqueStrings(g)
 
-	assert.EqualValues(t, frozen.NewSetFromStrings("hello", "b").Elements(), idents.Elements())
+	assert.EqualValues(
+		t,
+		frozen.NewSet[string]("hello", "b").OrderedElements(stringLess),
+		idents.OrderedElements(stringLess),
+	)
 }
 
 func TestStringCutpointsInNestedGrammar(t *testing.T) {
@@ -27,5 +31,9 @@ func TestStringCutpointsInNestedGrammar(t *testing.T) {
 
 	idents := findUniqueStrings(g)
 
-	assert.EqualValues(t, frozen.NewSetFromStrings("a").Elements(), idents.Elements())
+	assert.EqualValues(t, frozen.NewSet[string]("a").Elements(), idents.Elements())
+}
+
+func stringLess(a, b string) bool {
+	return a < b
 }

@@ -16,18 +16,18 @@ type escape struct {
 }
 
 type Scope struct {
-	m frozen.Map
+	m frozen.Map[string, any]
 }
 
 func (s Scope) String() string {
 	return s.m.String()
 }
 
-func (s Scope) Keys() frozen.Set {
+func (s Scope) Keys() frozen.Set[string] {
 	return s.m.Keys()
 }
 
-func (s Scope) With(ident string, v interface{}) Scope {
+func (s Scope) With(ident string, v any) Scope {
 	return Scope{m: s.m.With(ident, v)}
 }
 
@@ -40,10 +40,10 @@ func (s Scope) Merge(t Scope) Scope {
 }
 
 type scopeBuilder struct {
-	mb frozen.MapBuilder
+	mb frozen.MapBuilder[string, any]
 }
 
-func (b *scopeBuilder) Put(ident string, v interface{}) {
+func (b *scopeBuilder) Put(ident string, v any) {
 	b.mb.Put(ident, v)
 }
 

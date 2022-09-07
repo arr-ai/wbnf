@@ -56,7 +56,7 @@ func prefixName(prefix string, node GoNode) GoNode {
 		scope:    node.scope,
 	}
 }
-func stringNode(fmtString string, args ...interface{}) GoNode {
+func stringNode(fmtString string, args ...any) GoNode {
 	return GoNode{name: fmt.Sprintf(fmtString, args...)}
 }
 
@@ -173,7 +173,7 @@ func MakeGrammarString(g parser.Grammar) *GoNode {
 	}
 	sort.Strings(keys)
 	rules := map[string]GoNode{}
-	stackPrefixes := frozen.NewSet()
+	stackPrefixes := frozen.NewSet[string]()
 	for rule, t := range g {
 		r := string(rule)
 		rules[r] = walkTerm(t)

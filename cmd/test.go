@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -84,7 +84,7 @@ func makeResolver(firstFilename string) resolver {
 }
 
 func loadTestGrammar() parser.Parsers {
-	text, err := ioutil.ReadFile(inGrammarFile)
+	text, err := os.ReadFile(inGrammarFile)
 	if err != nil {
 		panic(err)
 	}
@@ -118,13 +118,13 @@ func test(c *cli.Context) error {
 	var input string
 	switch source {
 	case "", "-":
-		buf, err := ioutil.ReadAll(os.Stdin)
+		buf, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			return err
 		}
 		input = string(buf)
 	default:
-		buf, err := ioutil.ReadFile(source)
+		buf, err := os.ReadFile(source)
 		if err != nil {
 			return err
 		}

@@ -9,7 +9,7 @@ import (
 type ParseError struct {
 	rule      Rule
 	msgFormat string
-	msgArgs   []interface{}
+	msgArgs   []any
 	children  []func() error
 }
 
@@ -43,7 +43,7 @@ func isNotMyFatalError(err error, cp Cutpointdata) bool {
 func newParseError(
 	rule Rule,
 	format string,
-	args ...interface{},
+	args ...any,
 ) func(fatal Cutpointdata, errors ...func() error) error {
 	return func(fatal Cutpointdata, errors ...func() error) error {
 		err := ParseError{

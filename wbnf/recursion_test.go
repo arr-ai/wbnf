@@ -28,13 +28,13 @@ func TestRecursionTermDangerNodes(t *testing.T) {
 			assert.NotNil(t, node.Node)
 			WalkerOps{EnterProdNode: func(node ProdNode) Stopper {
 				if node.OneIdent().String() == test.rule {
-					dangers := frozen.NewSet()
+					dangers := frozen.NewSet[string]()
 					for _, t := range node.AllTerm() {
 						dangers = dangers.Union(getSequenceDangerTerms(t))
 					}
-					expected := frozen.NewSetFromStrings(test.dangers...)
+					expected := frozen.NewSet[string](test.dangers...)
 
-					assert.True(t, dangers.EqualSet(expected),
+					assert.True(t, dangers.Equal(expected),
 						"expect:%s actual:%s", expected.Elements(), dangers.Elements())
 					return Aborter
 				}
@@ -45,10 +45,10 @@ func TestRecursionTermDangerNodes(t *testing.T) {
 }
 
 func TestGnodeWalkRule(t *testing.T) {
-	rules := map[string]frozen.Set{
-		"a": frozen.NewSetFromStrings("b", "c"),
-		"b": frozen.NewSetFromStrings("c"),
-		"c": frozen.NewSetFromStrings("a", "d"),
+	rules := map[string]frozen.Set[string]{
+		"a": frozen.NewSet[string]("b", "c"),
+		"b": frozen.NewSet[string]("c"),
+		"c": frozen.NewSet[string]("a", "d"),
 	}
 
 	gn := &gnode{next: map[string]*gnode{}}
@@ -56,7 +56,7 @@ func TestGnodeWalkRule(t *testing.T) {
 		gn.walkRule(k, &rules)
 	}
 
-	err := findPaths("", gn, frozen.NewSet(), nil)
+	err := findPaths("", gn, frozen.NewSet[string](), nil)
 	assert.NotNil(t, err)
 }
 

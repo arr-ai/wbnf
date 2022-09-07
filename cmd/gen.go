@@ -3,7 +3,6 @@ package cmd
 import (
 	"bytes"
 	"go/format"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -82,7 +81,7 @@ func gen(c *cli.Context) error {
 	case "", "-":
 		os.Stdout.Write(out)
 	default:
-		ioutil.WriteFile(outFile, out, 0644) //nolint:errcheck,gosec
+		os.WriteFile(outFile, out, 0644) //nolint:errcheck,gosec
 	}
 
 	return nil

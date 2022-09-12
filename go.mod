@@ -1,15 +1,23 @@
 module github.com/arr-ai/wbnf
 
-go 1.12
+go 1.18
 
 require (
-	github.com/arr-ai/frozen v0.14.0
+	github.com/arr-ai/frozen v0.20.1
+	github.com/iancoleman/strcase v0.2.0
+	github.com/sirupsen/logrus v1.9.0
+	github.com/stretchr/testify v1.8.0
+	github.com/urfave/cli v1.22.10
+)
+
+require (
 	github.com/arr-ai/hash v0.8.0 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
-	github.com/iancoleman/strcase v0.0.0-20191112232945-16388991a334
-	github.com/sirupsen/logrus v1.6.0
-	github.com/stretchr/testify v1.6.1
-	github.com/urfave/cli v1.22.4
-	golang.org/x/sys v0.0.0-20200610111108-226ff32320da // indirect
-	gopkg.in/yaml.v3 v3.0.0-20200605160147-a5ece683394c // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/go-errors/errors v1.4.2 // indirect
+	github.com/kr/text v0.2.0 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/russross/blackfriday/v2 v2.1.0 // indirect
+	golang.org/x/sys v0.0.0-20220906165534-d0df966e6959 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

@@ -80,12 +80,12 @@ const (
 type validationError struct {
 	s    parser.Scanner
 	msg  string
-	args []interface{}
+	args []any
 	kind validationErrorKind
 }
 
 func (v validationError) Error() string {
-	var args []interface{}
+	var args []any
 	if v.s.String() != "" {
 		args = append(args, v.s.String())
 		if len(v.args) > 0 {
@@ -163,7 +163,7 @@ func (v *validator) validateAtom(tree AtomNode) Stopper {
 	} else if x := tree.OneRe(); x != nil {
 		if _, err := regexp.Compile(x.String()); err != nil {
 			v.err = append(v.err, validationError{s: tree.OneRe().Scanner(),
-				msg: "regex '%s' is not valid, %s", kind: InvalidRegex, args: []interface{}{err}})
+				msg: "regex '%s' is not valid, %s", kind: InvalidRegex, args: []any{err}})
 		}
 	}
 	return nil

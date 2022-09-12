@@ -12,8 +12,11 @@ import (
 Need to test for rule chains which could recurse infinitely.
 
 Basic definition: Any Seq{} which could make a graph from itself back to itself without first passing through
-				  some other non-optional term is recursive.
+
+	some other non-optional term is recursive.
+
 Obvious ones:
+
 	a -> a;
 	a -> "("? a;
 */

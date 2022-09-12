@@ -27,14 +27,14 @@ func (g Grammar) Unparse(e TreeElement, w io.Writer) (n int, err error) {
 type Parsers struct {
 	parsers map[Rule]Parser
 	grammar Grammar
-	node    interface{}
+	node    any
 }
 
 func (p Parsers) Grammar() Grammar {
 	return p.grammar
 }
 
-func (p Parsers) Node() interface{} {
+func (p Parsers) Node() any {
 	return p.node
 }
 

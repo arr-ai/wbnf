@@ -89,7 +89,7 @@ func (b Branch) Many(name string) []Node {
 }
 
 type Extra struct {
-	Data interface{}
+	Data any
 }
 
 func (Extra) One(_ string) Node {

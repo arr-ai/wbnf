@@ -3,12 +3,8 @@ linters-settings:
     check-blank: true
   govet:
     check-shadowing: true
-  golint:
+  revive:
     min-confidence: 0
-  goimports:
-    local-prefixes: github.com/marcelocantos/frozen
-  maligned:
-    suggest-new: true
   dupl:
     threshold: 100
   lll:
@@ -29,8 +25,7 @@ linters:
   disable-all: true
   enable:
   - bodyclose
-  - deadcode
-  # - depguard
+  - depguard
   - dogsled
   - dupl
   - errcheck
@@ -41,31 +36,27 @@ linters:
   - goconst
   # - godox
   # - gocritic
-  # - gocyclo
+  - gocyclo
   - gofmt
   - goimports
-  - golint
+  - revive
   - gosec
   - gosimple
-  # - govet
+  - govet
   - ineffassign
 
-  # - interfacer
   - lll
 
-  - maligned
   - misspell
   - nakedret
   - prealloc
-  - scopelint
+  - exportloopref
 
   - staticcheck
-  - structcheck
   - stylecheck
   - typecheck
   - unconvert
   - unparam
   - unused
-  - varcheck
   - whitespace
   # - wsl

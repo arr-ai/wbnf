@@ -96,12 +96,16 @@ const (
 
 // This little struct is used to figure out if any particular ident requires the AllName() func or just the OneName()
 // all the following rules clearly can only ever have a single value for x, so only the One*() is needed
-// 		a -> x=IDENT;      				obvious
-//		a -> x="hello" | x="goodbye";	only one x on either side of the |
-//		a -> FOO:x=",";					even though there will be many delims, they must all be the same value
+//
+//	a -> x=IDENT;      				obvious
+//	a -> x="hello" | x="goodbye";	only one x on either side of the |
+//	a -> FOO:x=",";					even though there will be many delims, they must all be the same value
+//
 // Other combinations will require the AllName() because it is ambigous which term the user is asking for.
-//      a -> x="a"+ | x="b"				one option wants only one, the other wants at least one.
-//  etc.
+//
+//	    a -> x="a"+ | x="b"				one option wants only one, the other wants at least one.
+//	etc.
+//
 // To track this, each countManager keeps a set of identifiers for each branch of a term the ident is used in,
 // If each term is unique, and they all want just One, then the result should only require a One.
 type countManager struct {

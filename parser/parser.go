@@ -95,7 +95,7 @@ func (g Grammar) resolveStacks() {
 
 // Compile prepares a grammar for parsing. The parser holds a copy of the
 // grammar modified to support parser execution.
-func (g Grammar) Compile(node interface{}) Parsers {
+func (g Grammar) Compile(node any) Parsers {
 	for _, term := range g {
 		if _, ok := term.(Stack); ok {
 			g = g.clone()
@@ -135,7 +135,7 @@ func (g Grammar) Compile(node interface{}) Parsers {
 	}
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 func parseEscape(p Parser, scope Scope, ident string, t Term, input *Scanner, output *TreeElement) (bool, error) {
 	if esc := scope.getParserEscape(); esc != nil {
 		var match Scanner
@@ -164,7 +164,7 @@ func parseEscape(p Parser, scope Scope, ident string, t Term, input *Scanner, ou
 	return false, nil
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 type ruleParser struct {
 	rule Rule
 	t    Rule
@@ -309,7 +309,7 @@ func identFromTerm(term Term) string {
 	return ""
 }
 
-func nodesEqual(a, b interface{}) bool {
+func nodesEqual(a, b any) bool {
 	aType := reflect.TypeOf(a)
 	bType := reflect.TypeOf(b)
 	if aType == bType {
@@ -498,6 +498,7 @@ func (l *LRTGen) Next() Term {
 	}
 	return out
 }
+
 func (t Delim) LRTerms(node Node) LRTGen {
 	associativity := node.Extra.(Associativity)
 	switch {

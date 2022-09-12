@@ -56,7 +56,7 @@ func prefixName(prefix string, node GoNode) GoNode {
 		scope:    node.scope,
 	}
 }
-func stringNode(fmtString string, args ...interface{}) GoNode {
+func stringNode(fmtString string, args ...any) GoNode {
 	return GoNode{name: fmt.Sprintf(fmtString, args...)}
 }
 

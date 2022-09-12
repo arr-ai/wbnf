@@ -33,7 +33,7 @@ func (i IdentsWriter) String() string {
 		},
 	}.Walk(i.GrammarNode)
 
-	sorted := names.OrderedElements(func(a, b interface{}) bool {
+	sorted := names.OrderedElements(func(a, b any) bool {
 		return strings.Compare(IdentName(a.(string)), IdentName(b.(string))) < 0
 	})
 	out := "const (\n"

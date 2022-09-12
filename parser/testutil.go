@@ -7,14 +7,14 @@ import (
 )
 
 func AssertEqualNodes(t *testing.T, v, u Node) bool {
-	if !assertEqualNodes(t, v, u, []interface{}{}) {
+	if !assertEqualNodes(t, v, u, []int{}) {
 		t.Logf("\nexpected: %v\nactual:   %v", v, u)
 		return false
 	}
 	return true
 }
 
-func assertEqualNodes(t *testing.T, v, u Node, path []interface{}) bool {
+func assertEqualNodes(t *testing.T, v, u Node, path []int) bool {
 	result := true
 	ok := func(ok bool) bool {
 		result = result && ok

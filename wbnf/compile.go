@@ -2,7 +2,7 @@ package wbnf
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -343,7 +343,7 @@ func (c *compiler) makeGrammar(filename, text string) (GrammarNode, error) {
 func (c *compiler) loadGrammarFile(filename string) (GrammarNode, error) {
 	filename = filepath.Clean(filename)
 	if _, has := c.imports[filename]; !has {
-		text, err := ioutil.ReadFile(filename)
+		text, err := os.ReadFile(filename)
 		if err != nil {
 			return GrammarNode{}, err
 		}

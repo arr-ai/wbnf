@@ -20,7 +20,7 @@ func findChild(needle string, haystack []GrammarType) GrammarType {
 }
 
 type childrenTestData map[string]struct {
-	t          interface{}
+	t          any
 	quant      int
 	returnType string
 }

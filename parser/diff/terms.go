@@ -12,14 +12,14 @@ type Report interface {
 }
 
 type InterfaceDiff struct {
-	A, B interface{}
+	A, B any
 }
 
 func (d InterfaceDiff) Equal() bool {
 	return d.A == d.B
 }
 
-func diffInterfaces(a, b interface{}) InterfaceDiff {
+func diffInterfaces(a, b any) InterfaceDiff {
 	if diff := (InterfaceDiff{A: a, B: b}); !diff.Equal() {
 		return diff
 	}

@@ -27,7 +27,7 @@ func (s Scope) Keys() frozen.Set {
 	return s.m.Keys()
 }
 
-func (s Scope) With(ident string, v interface{}) Scope {
+func (s Scope) With(ident string, v any) Scope {
 	return Scope{m: s.m.With(ident, v)}
 }
 
@@ -43,7 +43,7 @@ type scopeBuilder struct {
 	mb frozen.MapBuilder
 }
 
-func (b *scopeBuilder) Put(ident string, v interface{}) {
+func (b *scopeBuilder) Put(ident string, v any) {
 	b.mb.Put(ident, v)
 }
 

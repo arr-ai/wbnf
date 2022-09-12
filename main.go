@@ -6,6 +6,7 @@ import "github.com/arr-ai/wbnf/cmd"
 // GitCommit - Commit SHA of the source code
 // BuildDate - Binary build date
 // BuildOS   - Operating System used to build binary
+//
 //nolint:gochecknoglobals
 var (
 	Version   = "unspecified"

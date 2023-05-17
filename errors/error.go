@@ -13,6 +13,7 @@ const (
 
 type Error string
 
+//nolint:errcheck // This is assigning to _ as an error type, not ignoring an error return
 var _ error = Error("")
 
 func (p Error) Error() string {

@@ -81,7 +81,6 @@ const invalidCutpoint = Cutpointdata(-1)
 
 func (s Scope) ReplaceCutPoint(force bool) (newScope Scope, prev, replacement Cutpointdata) {
 	prev = s.GetCutPoint()
-	replacement = invalidCutpoint
 	if prev.valid() || force {
 		// TODO: What's with the random number?
 		replacement = Cutpointdata(rand.Int31()) //nolint:gosec

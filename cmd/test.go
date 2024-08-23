@@ -94,15 +94,13 @@ func loadTestGrammar() parser.Parsers {
 	return wbnf.MustCompile(string(text), makeResolver(inGrammarFile))
 }
 
-func testWbnfFile(filename, grammar string) error {
+func testWbnfFile(filename, grammar string) {
 	g := wbnf.MustCompile(grammar, makeResolver(filename))
 	if printTree {
 		fmt.Println(ast.BuildTreeView("grammar", g.Node().(wbnf.GrammarNode).Node, true))
 	} else {
 		fmt.Println(g.Node().(ast.Node))
 	}
-
-	return nil
 }
 
 func test(c *cli.Context) error {
@@ -131,7 +129,9 @@ func test(c *cli.Context) error {
 		input = string(buf)
 	}
 	if inGrammarFile == "" {
-		return testWbnfFile(source, input)
+		testWbnfFile(source, input)
+
+		return nil
 	}
 	g := loadTestGrammar()
 

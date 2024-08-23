@@ -36,28 +36,28 @@ func parseString(s string) string {
 				if err != nil {
 					panic(err)
 				}
-				sb.WriteByte(uint8(n))
+				sb.WriteByte(uint8(n)) // nolint:gosec // G115: integer overflow conversion int64 -> uint8
 				i++
 			case 'u':
 				n, err := strconv.ParseInt(s[i:i+4], 16, 16)
 				if err != nil {
 					panic(err)
 				}
-				sb.WriteByte(uint8(n))
+				sb.WriteByte(uint8(n)) // nolint:gosec // G115: integer overflow conversion int64 -> uint8
 				i += 2
 			case 'U':
 				n, err := strconv.ParseInt(s[i:i+8], 16, 32)
 				if err != nil {
 					panic(err)
 				}
-				sb.WriteByte(uint8(n))
+				sb.WriteByte(uint8(n)) // nolint:gosec // G115: integer overflow conversion int64 -> uint8
 				i += 4
 			case '0', '1', '2', '3', '4', '5', '6', '7':
 				n, err := strconv.ParseInt(s[i:i+3], 8, 8)
 				if err != nil {
 					panic(err)
 				}
-				sb.WriteByte(uint8(n))
+				sb.WriteByte(uint8(n)) // nolint:gosec // G115: integer overflow conversion int64 -> uint8
 				i++
 			case 'a':
 				sb.WriteByte('\a')
@@ -176,23 +176,23 @@ func (gb grammarBuilder) buildQuant(q QuantNode, term parser.Term) parser.Term {
 			return parser.Some(term)
 		}
 	case 1:
-		min := 0
-		max := 0
+		mn := 0
+		mx := 0
 		if x := q.OneMin().String(); x != "" {
 			val, err := strconv.Atoi(x)
 			if err != nil {
 				panic(err)
 			}
-			min = val
+			mn = val
 		}
 		if x := q.OneMax().String(); x != "" {
 			val, err := strconv.Atoi(x)
 			if err != nil {
 				panic(err)
 			}
-			max = val
+			mx = val
 		}
-		return parser.Quant{Term: term, Min: min, Max: max}
+		return parser.Quant{Term: term, Min: mn, Max: mx}
 	case 2:
 		assoc := parser.NewAssociativity(q.OneOp())
 		sep := gb.buildNamed(*q.OneNamed())

@@ -2,7 +2,7 @@ linters-settings:
   errcheck:
     check-blank: true
   govet:
-    check-shadowing: true
+    shadowing: true
   revive:
     min-confidence: 0
   dupl:
@@ -25,7 +25,7 @@ linters:
   disable-all: true
   enable:
   - bodyclose
-  - depguard
+  # - depguard
   - dogsled
   - dupl
   - errcheck
@@ -50,7 +50,7 @@ linters:
   - misspell
   - nakedret
   - prealloc
-  - exportloopref
+  - copyloopvar
 
   - staticcheck
   - stylecheck

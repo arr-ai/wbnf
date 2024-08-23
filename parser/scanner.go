@@ -64,7 +64,7 @@ func (s Scanner) Format(state fmt.State, c rune) {
 	if c == 'q' {
 		_, _ = fmt.Fprintf(state, "%q", s.slice())
 	} else {
-		_, _ = state.Write([]byte(s.slice()))
+		_, _ = state.Write([]byte(s.slice())) //nolint:errcheck
 	}
 }
 

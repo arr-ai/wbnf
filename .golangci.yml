@@ -1,62 +1,53 @@
-linters-settings:
-  errcheck:
-    check-blank: true
-  govet:
-    check-shadowing: true
-  revive:
-    min-confidence: 0
-  dupl:
-    threshold: 100
-  lll:
-    line-length: 120
-  goimports:
-    local-prefixes: github.com/golangci/golangci-lint
-  gocritic:
-    enabled-tags:
-    - diagnostic
-    - experimental
-    - opinionated
-    - performance
-    - style
-
+version: "2"
 linters:
-  # please, do not use `enable-all`: it's deprecated and will be removed soon.
-  # inverted configuration with `enable-all` and `disable` is not scalable during updates of golangci-lint
-  disable-all: true
+  default: none
   enable:
-  - bodyclose
-  - depguard
-  - dogsled
-  - dupl
-  - errcheck
-  # - funlen
-  # - gochecknoglobals
-  - gochecknoinits
-  # - gocognit
-  - goconst
-  # - godox
-  # - gocritic
-  - gocyclo
-  - gofmt
-  - goimports
-  # - revive
-  - gosec
-  - gosimple
-  - govet
-  - ineffassign
-
-  - lll
-
-  - misspell
-  - nakedret
-  - prealloc
-  - exportloopref
-
-  - staticcheck
-  - stylecheck
-  - typecheck
-  - unconvert
-  - unparam
-  - unused
-  - whitespace
-  # - wsl
+    - bodyclose
+    - dogsled
+    - dupl
+    - errcheck
+    - gochecknoinits
+    - goconst
+    - gocyclo
+    - gosec
+    - govet
+    - ineffassign
+    - lll
+    - misspell
+    - nakedret
+    - prealloc
+    - staticcheck
+    - unconvert
+    - unparam
+    - unused
+    - whitespace
+  settings:
+    dupl:
+      threshold: 100
+    lll:
+      line-length: 120
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/golangci/golangci-lint
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

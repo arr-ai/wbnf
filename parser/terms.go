@@ -171,7 +171,7 @@ func Eq(name string, term Term) Named {
 }
 
 func join(terms []Term, sep string) string {
-	s := []string{}
+	s := make([]string, 0, len(terms))
 	for _, t := range terms {
 		s = append(s, t.String())
 	}

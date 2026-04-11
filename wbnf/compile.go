@@ -36,28 +36,28 @@ func parseString(s string) string {
 				if err != nil {
 					panic(err)
 				}
-				sb.WriteByte(uint8(n))
+				sb.WriteByte(uint8(n)) //nolint:gosec // bitSize=8 constrains n to int8 range
 				i++
 			case 'u':
 				n, err := strconv.ParseInt(s[i:i+4], 16, 16)
 				if err != nil {
 					panic(err)
 				}
-				sb.WriteByte(uint8(n))
+				sb.WriteByte(uint8(n)) //nolint:gosec // legacy: low byte only (see 🎯T4)
 				i += 2
 			case 'U':
 				n, err := strconv.ParseInt(s[i:i+8], 16, 32)
 				if err != nil {
 					panic(err)
 				}
-				sb.WriteByte(uint8(n))
+				sb.WriteByte(uint8(n)) //nolint:gosec // legacy: low byte only (see 🎯T4)
 				i += 4
 			case '0', '1', '2', '3', '4', '5', '6', '7':
 				n, err := strconv.ParseInt(s[i:i+3], 8, 8)
 				if err != nil {
 					panic(err)
 				}
-				sb.WriteByte(uint8(n))
+				sb.WriteByte(uint8(n)) //nolint:gosec // bitSize=8 constrains n to int8 range
 				i++
 			case 'a':
 				sb.WriteByte('\a')
@@ -218,7 +218,7 @@ func (gb grammarBuilder) buildNamed(n NamedNode) parser.Term {
 
 func (gb grammarBuilder) buildTerm(t TermNode) parser.Term {
 	if len(t.AllTerm()) > 0 {
-		var terms []parser.Term
+		terms := make([]parser.Term, 0, len(t.AllTerm()))
 		for _, t := range t.AllTerm() {
 			terms = append(terms, gb.buildTerm(t))
 		}

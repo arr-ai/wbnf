@@ -130,7 +130,7 @@ func rebuildGrammar(input parser.Grammar, callback func(t parser.Term) parser.Te
 func fixTerm(term parser.Term, callback func(t parser.Term) parser.Term) parser.Term {
 	switch t := term.(type) {
 	case parser.Seq:
-		out := parser.Seq{}
+		out := make(parser.Seq, 0, len(t))
 		for _, t := range t {
 			out = append(out, fixTerm(t, callback))
 		}

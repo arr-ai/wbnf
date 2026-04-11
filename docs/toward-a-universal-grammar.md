@@ -199,15 +199,18 @@ parsing.
 
 #### 3.2.2 The `tok::label` Mechanism
 
-Define a rule whose alternatives are labeled:
+No new labeling construct is needed: wBNF's existing named-capture syntax
+(`name=expr`) already tags alternatives in the AST, and the same names
+serve as labels for external reference. A lexer-style rule is just a rule
+whose alternatives happen to be labeled and regular:
 
 ```
-tok -> (?kw_if) "if"
-     | (?kw_while) "while"
-     | (?ident) /[a-zA-Z_]\w*/
-     | (?number) /\d+(\.\d+)?/
-     | (?lparen) "("
-     | (?rparen) ")"
+tok -> kw_if="if"
+     | kw_while="while"
+     | ident=/[a-zA-Z_]\w*/
+     | number=/\d+(\.\d+)?/
+     | lparen="("
+     | rparen=")"
      | ...
      ;
 ```
@@ -227,11 +230,19 @@ The semantics of `tok::kw_if` are:
    otherwise.
 
 This provides longest-match token competition — the defining behavior of
-traditional lexers — without a separate lexing pass. The `tok` rule is invoked
-lazily from within the parser at the point where a token is needed. Different
-parts of the grammar can either use `tok::label` (participating in shared token
-competition) or bypass `tok` entirely with inline terminals when they need
-context-specific tokenization.
+traditional lexers — without a separate lexing pass and without any new
+grammar construct beyond the `::` label-selection operator on rule
+references. The `tok` rule is invoked lazily from within the parser at the
+point where a token is needed. Different parts of the grammar can either use
+`tok::label` (participating in shared token competition) or bypass `tok`
+entirely with inline terminals when they need context-specific tokenization.
+
+The `::` separator is a grammar-level construct and does not collide with
+regex syntax: regex's positional uses of `:` inside `(?:...)` and
+`[:alnum:]` are anchored to specific syntactic contexts, and freestanding
+`::` never appears inside a regex atom. `:` is already grammar-level syntax
+in wBNF (delimited repetition), so the regex-unification boundary already
+has to accommodate it; `::` fits inside that existing boundary.
 
 #### 3.2.3 Caching
 
@@ -247,6 +258,38 @@ Whitespace handling (`.wrapRE`) should apply around `tok::X` references
 `tok` rule would typically be defined in a scoped grammar with
 `.wrapRE -> /{()}/` (no whitespace), while the outer grammar's `.wrapRE`
 applies between `tok::X` references.
+
+#### 3.2.5 Regularity Detection and Optional `.lex`
+
+A `tok` rule of the shape shown above lies within the regular fragment: a
+flat disjunction of labeled terminal alternatives, with no recursion and no
+non-regular references. Under the layered engine described in §7.1, the
+grammar compiler detects such rules automatically and compiles them to DFAs
+over character classes; no annotation is required for this optimisation to
+happen. The `--explain` output reports which rules were promoted to DFAs
+so that performance characteristics remain visible and diagnosable.
+
+The longest-match-with-priority semantics described in §3.2.2 is the default
+disambiguation for any rule lying in the regular fragment — it is not tied
+to a mode or marker, but to the rule's structural shape. In the vocabulary
+of §7.1 this is `.longest`; it can be made explicit or overridden per
+alternative where needed.
+
+An optional `.lex` directive is available as a strictness marker: a rule
+tagged `.lex` *must* remain regular, and the grammar compiler rejects any
+edit that would make it non-regular (for example, an inadvertent recursive
+reference introduced during grammar evolution). This is opt-in rather than
+required — without `.lex`, a rule that drifts out of regularity silently
+loses its fast path but remains correct; with `.lex`, the drift becomes a
+compile error. Users who care about locking in the optimisation reach for
+`.lex`; users who do not care get the optimisation automatically whenever
+it applies.
+
+The practical consequence is that "lexer" disappears as a concept in the
+surface language. There are only rules. Some rules happen to be regular and
+get the fast path; some rules happen to be referenced via `::label` and
+participate in labeled-alternative filtering. Both of these are properties
+the engine detects, not modes the user selects.
 
 ### 3.3 Generalized Property Constraints
 
@@ -532,8 +575,7 @@ production during parsing) rather than a theoretical necessity.
 With the proposed extensions, wBNF's recognizable language class would include:
 
 - All regular languages (via regex subsumption)
-- All context-free languages (given a suitable parsing algorithm such as
-  ALL(\*) or GLR)
+- All context-free languages (given a GLL-family parsing algorithm; see §7.1)
 - Some context-sensitive languages (via REF for copy languages, `@len`
   constraints for counting languages)
 
@@ -610,6 +652,16 @@ wBNF's `.wrapRE` differs from SDF/Rascal's approach by making whitespace
 handling a continuously variable, scopeable property rather than a binary
 classification tied to declaration type.
 
+**Meerkat / Iguana** (Afroozeh & Izmaylova, CWI, 2014–2016) is the closest
+engine-level neighbour to the direction proposed in §7.1: a generalised LL
+(GLL) implementation extended with data-dependent grammar support, derived
+from the Yakker line of work (Jim et al., 2010; see §6.3). It shares wBNF's
+top-down recursive-descent orientation while giving full CFG expressiveness,
+native left recursion, and a natural path to positional and data-dependent
+extensions. SDF/Rascal is the closer philosophical neighbour in its
+treatment of scannerless parsing and disambiguation filters; Meerkat/Iguana
+is the closer engineering neighbour in how the parser itself is structured.
+
 ### 6.2 Layout-Sensitive Parsing
 
 **Adams (2013)**, *"Principled Parsing for Indentation-Sensitive Languages"*,
@@ -666,16 +718,95 @@ attributed grammars.
 ### 7.1 Parsing Algorithm
 
 The current wBNF implementation uses a backtracking recursive-descent parser
-with PEG-style ordered choice. The design intent is CFG semantics with
-ANTLR-style ALL(\*) prediction or a similar algorithm that provides:
+with PEG-style ordered choice. The target is a GLL-family top-down CFG parser
+with a layered DFA fast path, CFG-unordered alternation, and declarative
+disambiguation.
 
-- Unordered alternation (true CFG semantics)
-- Lookahead DFA construction for prediction
-- Linear-time parsing for most practical grammars
-- Ambiguity detection
+**Engine.** GLL (Scott & Johnstone, 2010) is the preferred migration target.
+Compared to ANTLR's ALL(\*):
 
-The grammar language and compilation pipeline are already rich enough to
-support this; the migration path is primarily in the parsing engine.
+- GLL is natively scannerless, composing cleanly with wBNF's scoped-grammar
+  and `.wrapRE` machinery without requiring a stable token stream. ALL(\*)'s
+  prediction DFA is keyed on tokens and assumes a context-free lexer, which
+  is precisely the architecture wBNF was designed to escape.
+- GLL handles left recursion natively, so `Stack` can be re-expressed as
+  sugar over direct left-recursive rules rather than as a distinct engine
+  feature.
+- GLL preserves the top-down recursive-descent mental model — each `Term`
+  implementation maps to a GLL parse function — so the migration from the
+  current engine is continuous rather than a rewrite.
+- GLL supports data-dependent grammar extensions naturally, directly enabling
+  the positional-constraint mechanism of §3.3 and the formal semantics line
+  of §7.2 (Meerkat/Iguana; Afroozeh & Izmaylova; derived from Jim et al.'s
+  Yakker).
+
+GLL's worst-case complexity is O(n³); it runs in linear time on grammars
+admitting bounded lookahead, which covers the majority of practical grammars.
+LL(\*)-style regular lookahead construction can be layered on top of GLL as a
+prediction optimisation, capturing ALL(\*)'s practical near-linear performance
+without the token-stream assumption.
+
+**Layered execution.** The engine distinguishes regular and non-regular rules.
+A rule whose body lies within the regular fragment — strings, regex atoms,
+character classes, alternation, quantification, with no recursive or
+non-regular references — is compiled to a DFA over character classes at
+grammar-compilation time. Non-regular rules get GLL parse functions.
+
+This layering gives wBNF the efficiency of traditional two-phase lex+parse on
+grammars that happen to have a regular terminal layer, without committing to
+a hard two-phase architecture:
+
+- On a fully token-based grammar, every terminal form is a regular sub-rule
+  and runs as a DFA; the parser operates on coarse token-label lookahead.
+- On a fully scannerless grammar, the engine falls back to character-level
+  prediction and GLL parsing throughout.
+- On a hybrid — scoped grammars, `.wrapRE`-varying whitespace, heredocs,
+  string interpolation — each rule runs at its natural level, and scope
+  transitions swap between pre-compiled DFAs for the active lexical
+  environment.
+
+The `tok::label` mechanism of §3.2 is the natural surface syntax for the
+regular terminal layer: a flat rule of named-capture alternatives is the
+canonical shape, and references of the form `tok::lparen` compile to
+label-level lookahead. Regularity is detected automatically by the grammar
+compiler; no annotation is required to promote a regular rule to the DFA
+fast path. An optional `.lex` directive is available as a strictness
+marker that commits the rule to remain regular, causing the compiler to
+reject any edit that introduces non-regular references — opt-in for users
+who want to lock in the optimisation, but not required. Without `.lex`, a
+rule that drifts out of regularity silently loses its fast path but
+remains correct; with `.lex`, the drift becomes a compile error.
+
+**Semantics and disambiguation.** Alternation is CFG-unordered; there is no
+implicit preference by source order. The grammar must be provably unambiguous
+via bounded-lookahead analysis at grammar-compilation time, or it must carry
+explicit disambiguation declarations. The disambiguation vocabulary is
+first-class grammar syntax, not annotations or hints:
+
+- `.prefer` / `.avoid` — alternative-level preference for cases such as
+  dangling-else.
+- `.assoc=left` / `.assoc=right` / `.assoc=none` — operator associativity.
+- `.priority` — explicit priority chains; generalises `Stack`.
+- `.longest` — longest-match; the default disambiguation for rules lying
+  in the regular fragment.
+
+A decision point that is neither provably deterministic nor covered by a
+disambiguation declaration is a compile error. A disambiguation declaration
+covering a decision that is already provably deterministic is a warning
+("unnecessary disambiguation"). This gives a "hard to do stupid things"
+property: ambiguity is never silent, and the user cannot accidentally rely
+on the engine's disambiguation heuristics without saying so.
+
+**Diagnostics.** The layered architecture yields two distinct error contexts.
+Inside the regular layer, errors report in terms of viable terminals and
+positions ("expected one of `(`, `)`, identifier at line 3:5; got `$`").
+Outside, errors report in terms of rule and alternative ("in rule
+`expression`, expected `term` after `operator`; got `}`"). Error recovery
+resynchronises at token boundaries inside tokenised regions and at
+cutpoint-protected rule boundaries otherwise. The engine can additionally
+explain, for any given grammar, which rules were promoted to DFAs and which
+decision points required runtime GLL forking, making performance
+characteristics visible and diagnosable rather than opaque.
 
 ### 7.2 Formal Semantics
 
@@ -696,6 +827,13 @@ complexity:
    exposing scanner position properties to the grammar; moderate complexity.
 4. **Grammar composition** (`+`, `|=`, override): requires grammar-level
    operations and a module/import system; higher complexity.
+5. **Engine migration** (GLL-family parser with layered DFA fast path and
+   disambiguation filter vocabulary; see §7.1): high complexity. This is a
+   precondition for (3) and (4) in full generality — positional constraints
+   are most cleanly expressed against data-dependent GLL (§7.2), and grammar
+   composition is better-behaved against CFG-unordered semantics than
+   against PEG ordered choice. Items (1) and (2) can proceed against the
+   current engine and be retrofitted when the engine migrates.
 
 ## 8. Conclusion
 

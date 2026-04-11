@@ -671,7 +671,7 @@ func termFromRefVal(from TreeElement) Term {
 	var term Term
 	switch n := from.(type) {
 	case Node:
-		s := Seq{}
+		s := make(Seq, 0, len(n.Children))
 		for _, v := range n.Children {
 			s = append(s, termFromRefVal(v))
 		}

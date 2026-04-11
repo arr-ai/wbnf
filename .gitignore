@@ -15,3 +15,6 @@ dist/
 # Dependency directories (remove the comment below to include it)
 # vendor/
 .idea/
+
+# Claude Code local agent state (per-project conversation history, etc.)
+.claude/

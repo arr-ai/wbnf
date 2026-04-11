@@ -16,17 +16,6 @@
 - **Status**: Identified
 - **Discovered**: 2026-04-11
 
-### 🎯T2 No open high-severity Dependabot alerts on master
-- **Value**: 5
-- **Cost**: 2
-- **Acceptance**:
-  - `https://github.com/arr-ai/wbnf/security/dependabot` reports no open high-severity alerts on master
-  - The dependency bump is verified by CI (test + lint + build all green)
-- **Context**: GitHub flagged 1 high-severity Dependabot alert on arr-ai/wbnf's default branch during the PR #91 push on 2026-04-11 — surfaced in the remote's push output but unrelated to that PR's content. Full details at https://github.com/arr-ai/wbnf/security/dependabot/2. Likely a transitive Go dependency; probably resolvable by a targeted `go get -u` on the affected module plus `go mod tidy`.
-- **Tags**: security
-- **Status**: Identified
-- **Discovered**: 2026-04-11
-
 ### 🎯T3 CI workflow actions run on Node 24-compatible versions
 - **Value**: 2
 - **Cost**: 2
@@ -41,13 +30,22 @@
 
 ## Achieved
 
-(none)
+### 🎯T2 No open high-severity Dependabot alerts on master
+- **Value**: 5
+- **Cost**: 2
+- **Acceptance**:
+  - `https://github.com/arr-ai/wbnf/security/dependabot` reports no open high-severity alerts on master
+  - The dependency bump is verified by CI (test + lint + build all green)
+- **Context**: GitHub flagged 1 high-severity Dependabot alert on arr-ai/wbnf's default branch during the PR #91 push on 2026-04-11 — CVE-2025-65637 / GHSA-4f99-4q7p-p3gh, a DoS in github.com/sirupsen/logrus's Entry.Writer() when logging single-line payloads > 64KB without newlines. Reachability analysis showed zero .Writer() call sites in the wbnf codebase, so the DoS was never exploitable in practice. Resolved in PR #94 (commit 4d0fa25) by bumping logrus from v1.9.0 to v1.9.3. GitHub auto-closed the alert at 2026-04-11T11:26:45Z (state: fixed). Build/lint/test all green on the merged commit.
+- **Tags**: security
+- **Status**: Achieved
+- **Discovered**: 2026-04-11
+- **Achieved**: 2026-04-11
 
 ## Graph
 
 ```mermaid
 graph TD
     T1["CI lints cleanly under curren…"]
-    T2["No open high-severity Dependa…"]
     T3["CI workflow actions run on No…"]
 ```

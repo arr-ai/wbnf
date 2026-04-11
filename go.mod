@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/arr-ai/frozen v1.4.0
 	github.com/iancoleman/strcase v0.2.0
-	github.com/sirupsen/logrus v1.9.0
+	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.0
 	github.com/urfave/cli v1.22.10
 )

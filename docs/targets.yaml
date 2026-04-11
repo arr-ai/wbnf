@@ -36,10 +36,10 @@ targets:
     value: 2.0
     cost: 2.0
     acceptance:
-    - '`.github/workflows/go.yml` and `.github/workflows/generate-tag.yml` pin actions to versions that support Node 24'
+    - '`.github/workflows/go.yml` pins all GitHub Actions to versions that support Node 24'
     - CI runs emit no Node.js 20 deprecation annotations
     - All workflow jobs continue to pass after the bump
-    context: 'CI runs on 2026-04-11 (PR #91) emitted Node.js 20 deprecation annotations for actions/checkout@v3, actions/setup-go@v3, and golangci/golangci-lint-action@v3. GitHub Actions will force Node 24 by default on 2026-06-02 and remove Node 20 from runners on 2026-09-16. The two workflow files `.github/workflows/go.yml` and `.github/workflows/generate-tag.yml` both reference these v3-pinned actions and will need version bumps (actions/checkout@v4, actions/setup-go@v5, golangci/golangci-lint-action@v4 or later — whichever releases support Node 24). Coordinate with the lint-cleanup target (🎯T1) since both touch `go.yml` and one atomic workflow update is cleaner than two.'
+    context: 'CI runs on 2026-04-11 (PR #91) emitted Node.js 20 deprecation annotations for actions/checkout@v3, actions/setup-go@v3, and golangci/golangci-lint-action@v3 in .github/workflows/go.yml. GitHub Actions will force Node 24 by default on 2026-06-02 and remove Node 20 from runners on 2026-09-16, so the v3 pins need a bump to versions that support Node 24 (likely actions/checkout@v4, actions/setup-go@v5, golangci/golangci-lint-action@v4 or later — whichever releases support Node 24). Scope is now a single workflow file: generate-tag.yml was deleted in commit 0a4794b''s follow-up pare-back (the build system was simplified to rely on the /release skill for deliberate releases rather than auto-tagging on master push).'
     tags:
     - ci
     - tech-debt

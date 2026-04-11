@@ -1,0 +1,53 @@
+# Targets
+
+## Active
+
+### 🎯T1 CI lints cleanly under current golangci-lint without a version pin
+- **Value**: 3
+- **Cost**: 5
+- **Acceptance**:
+  - `.github/workflows/go.yml` has no explicit `version:` pin on `golangci/golangci-lint-action`
+  - CI passes against current golangci-lint
+  - gosec G115, errcheck state.Write, and unparam testWbnfFile findings are resolved in source
+  - .golangci.yml depguard config is migrated to the rules-based format and no longer emits import-denial errors
+  - deprecated config keys (exportloopref, govet.check-shadowing, github-actions output format) are removed or updated
+- **Context**: Commit 7e04aef pinned golangci-lint to v1.48 as a restoration — the previous workflow commit 3a4dd96 (May 2023) had removed an earlier v1.48 pin without exercising CI, and two-plus years of golangci-lint drift surfaced when the next PR finally ran Go CI (PR #91, April 2026). The pin is a stopgap, not a fix. Removing it cleanly requires addressing the underlying code-level findings that newer golangci-lint versions flag: gosec G115 integer-overflow warnings in wbnf/compile.go lines 39, 46, 53 (int64 → uint8 conversions); an unchecked state.Write return caught by errcheck; an always-nil error return on testWbnfFile caught by unparam; and a depguard configuration in .golangci.yml that the newer rules-based format interprets as a blanket deny on every import (~20 errors). Fixing the Go findings is straightforward; the depguard config likely needs a migration to the current format. Also worth cleaning up alongside: the deprecated `exportloopref` linter, the deprecated `linters.govet.check-shadowing` option, and the deprecated `github-actions` output format all flagged as warnings in the same run.
+- **Tags**: ci, tech-debt
+- **Status**: Identified
+- **Discovered**: 2026-04-11
+
+### 🎯T2 No open high-severity Dependabot alerts on master
+- **Value**: 5
+- **Cost**: 2
+- **Acceptance**:
+  - `https://github.com/arr-ai/wbnf/security/dependabot` reports no open high-severity alerts on master
+  - The dependency bump is verified by CI (test + lint + build all green)
+- **Context**: GitHub flagged 1 high-severity Dependabot alert on arr-ai/wbnf's default branch during the PR #91 push on 2026-04-11 — surfaced in the remote's push output but unrelated to that PR's content. Full details at https://github.com/arr-ai/wbnf/security/dependabot/2. Likely a transitive Go dependency; probably resolvable by a targeted `go get -u` on the affected module plus `go mod tidy`.
+- **Tags**: security
+- **Status**: Identified
+- **Discovered**: 2026-04-11
+
+### 🎯T3 CI workflow actions run on Node 24-compatible versions
+- **Value**: 2
+- **Cost**: 2
+- **Acceptance**:
+  - `.github/workflows/go.yml` and `.github/workflows/generate-tag.yml` pin actions to versions that support Node 24
+  - CI runs emit no Node.js 20 deprecation annotations
+  - All workflow jobs continue to pass after the bump
+- **Context**: CI runs on 2026-04-11 (PR #91) emitted Node.js 20 deprecation annotations for actions/checkout@v3, actions/setup-go@v3, and golangci/golangci-lint-action@v3. GitHub Actions will force Node 24 by default on 2026-06-02 and remove Node 20 from runners on 2026-09-16. The two workflow files `.github/workflows/go.yml` and `.github/workflows/generate-tag.yml` both reference these v3-pinned actions and will need version bumps (actions/checkout@v4, actions/setup-go@v5, golangci/golangci-lint-action@v4 or later — whichever releases support Node 24). Coordinate with the lint-cleanup target (🎯T1) since both touch `go.yml` and one atomic workflow update is cleaner than two.
+- **Tags**: ci, tech-debt
+- **Status**: Identified
+- **Discovered**: 2026-04-11
+
+## Achieved
+
+(none)
+
+## Graph
+
+```mermaid
+graph TD
+    T1["CI lints cleanly under curren…"]
+    T2["No open high-severity Dependa…"]
+    T3["CI workflow actions run on No…"]
+```

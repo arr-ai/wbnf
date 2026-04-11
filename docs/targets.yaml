@@ -2,7 +2,7 @@ schema_version: 1
 targets:
   T1:
     name: CI lints cleanly under current golangci-lint without a version pin
-    status: identified
+    status: achieved
     value: 3.0
     cost: 5.0
     acceptance:
@@ -11,12 +11,13 @@ targets:
     - gosec G115, errcheck state.Write, and unparam testWbnfFile findings are resolved in source
     - .golangci.yml depguard config is migrated to the rules-based format and no longer emits import-denial errors
     - deprecated config keys (exportloopref, govet.check-shadowing, github-actions output format) are removed or updated
-    context: 'Commit 7e04aef pinned golangci-lint to v1.48 as a restoration — the previous workflow commit 3a4dd96 (May 2023) had removed an earlier v1.48 pin without exercising CI, and two-plus years of golangci-lint drift surfaced when the next PR finally ran Go CI (PR #91, April 2026). The pin is a stopgap, not a fix. Removing it cleanly requires addressing the underlying code-level findings that newer golangci-lint versions flag: gosec G115 integer-overflow warnings in wbnf/compile.go lines 39, 46, 53 (int64 → uint8 conversions); an unchecked state.Write return caught by errcheck; an always-nil error return on testWbnfFile caught by unparam; and a depguard configuration in .golangci.yml that the newer rules-based format interprets as a blanket deny on every import (~20 errors). Fixing the Go findings is straightforward; the depguard config likely needs a migration to the current format. Also worth cleaning up alongside: the deprecated `exportloopref` linter, the deprecated `linters.govet.check-shadowing` option, and the deprecated `github-actions` output format all flagged as warnings in the same run.'
+    context: 'PR #91 restored a v1.48 pin on golangci-lint-action as a stopgap. 🎯T1 resolved the underlying findings so the pin could be removed. Commit a2cd03e: migrated .golangci.yml from v1 to v2 format (via `golangci-lint migrate`), removed depguard (never configured; triggered blanket import denials under the v2 rules format), removed errcheck.check-blank=true (fighting idiomatic Format methods), and dropped deprecated config keys (exportloopref, govet.check-shadowing, github-actions output format). Code fixes: four //nolint:gosec comments on parseString''s byte-escape conversions (the \x and octal cases are genuinely safe via bitSize=8 constraints; the \u and \U cases have a latent truncation bug tracked separately as 🎯T4), the testWbnfFile unparam finding was resolved by dropping the always-nil error return, and four prealloc fixes converted `[]T{}` patterns to `make([]T, 0, len(...))`. The v1.48 pin on golangci-lint-action was removed. Local verification: `go build ./...`, `go test ./...`, and `golangci-lint run` (v2.11.4) all clean. CI verification pending the push of a2cd03e + a97465c.'
     tags:
     - ci
     - tech-debt
     origin: manual
     discovered: 2026-04-11
+    achieved: 2026-04-11
   T2:
     name: No open high-severity Dependabot alerts on master
     status: achieved
@@ -33,16 +34,44 @@ targets:
     achieved: 2026-04-11
   T3:
     name: CI workflow actions run on Node 24-compatible versions
-    status: identified
+    status: achieved
     value: 2.0
     cost: 2.0
     acceptance:
     - '`.github/workflows/go.yml` pins all GitHub Actions to versions that support Node 24'
     - CI runs emit no Node.js 20 deprecation annotations
     - All workflow jobs continue to pass after the bump
-    context: 'CI runs on 2026-04-11 (PR #91) emitted Node.js 20 deprecation annotations for actions/checkout@v3, actions/setup-go@v3, and golangci/golangci-lint-action@v3 in .github/workflows/go.yml. GitHub Actions will force Node 24 by default on 2026-06-02 and remove Node 20 from runners on 2026-09-16, so the v3 pins need a bump to versions that support Node 24 (likely actions/checkout@v4, actions/setup-go@v5, golangci/golangci-lint-action@v4 or later — whichever releases support Node 24). Scope is now a single workflow file: generate-tag.yml was deleted in commit 0a4794b''s follow-up pare-back (the build system was simplified to rely on the /release skill for deliberate releases rather than auto-tagging on master push).'
+    context: 'CI annotations on PR #91 warned that actions/checkout@v3, actions/setup-go@v3, and golangci/golangci-lint-action@v3 use Node.js 20, which GitHub Actions will force to Node 24 on 2026-06-02 and remove on 2026-09-16. Commit a97465c bumped all three to their current latest major versions: actions/checkout@v6, actions/setup-go@v6, golangci/golangci-lint-action@v9. Scope was reduced to a single workflow file after generate-tag.yml was deleted in commit 88ece12 as part of paring back the build system to rely on the /release skill. CI verification pending the push of a97465c + a2cd03e (combined with 🎯T1''s config migration and lint fixes, since golangci-lint-action@v9 installs v2.x by default which requires the v2 config format).'
     tags:
     - ci
     - tech-debt
+    origin: manual
+    discovered: 2026-04-11
+    achieved: 2026-04-11
+  T4:
+    name: parseString correctly handles \x, \u, \U, and octal escapes
+    status: identified
+    value: 2.0
+    cost: 2.0
+    acceptance:
+    - '`parseString` correctly parses `\x41`, `\u1234`, `\U00012345`, and octal `\123` escapes without panicking'
+    - '`\u` and `\U` escapes use `WriteRune` and produce the intended UTF-8 encoding rather than truncating to a single byte'
+    - Tests exercise each of the four escape forms with both in-range and out-of-range inputs where applicable
+    - The four `//nolint:gosec` comments in wbnf/compile.go referencing 🎯T4 are removed, because the conversions become provably bounded
+    context: |-
+      wbnf/compile.go's parseString function has latent bugs in its handling of numeric and unicode string-literal escapes. Discovered during 🎯T1 (lint cleanup) when gosec G115 flagged the int64→uint8 conversions.
+
+      Two distinct issues:
+
+      1. **Slice-offset bug.** The `\x`, `\u`, and `\U` cases read `s[i:i+N]` where `i` points at the escape-marker character (`x`, `u`, `U`), so the slice includes the marker instead of only the hex digits. `ParseInt("x41", 16, 8)` fails because 'x' is not a hex digit. Any grammar that actually uses these escapes panics the compiler.
+
+      2. **Truncation bug.** The `\u` and `\U` cases call `sb.WriteByte(uint8(n))` where `n` is a multi-byte Unicode code point. Only the low byte is written. The intent of these escapes is clearly Unicode (matching Go string literal semantics), so `sb.WriteRune(rune(n))` is correct.
+
+      Neither bug has ever been observed because no grammar in the repo — neither the self-hosting `wbnf.wbnf`, nor `sysl`, nor `xml`, nor any test fixture — uses `\x`, `\u`, or `\U` escapes. The code paths are dead. 🎯T1's lint cleanup added `//nolint:gosec` comments on the conversions pointing at this target for follow-up.
+
+      The fix is small: correct the slice offsets (`s[i+1:i+3]` etc.), switch `\u`/`\U` to `WriteRune`, and add tests. Use `strconv.ParseUint` with bitSize 8/16/32 respectively to get unsigned semantics (the current `ParseInt` with bitSize 8 caps at 127, rejecting values 0x80-0xFF even though they're valid bytes). Once fixed, the nolint comments in compile.go can be removed since the conversions become explicitly bounded.
+    tags:
+    - bug
+    - parsing
     origin: manual
     discovered: 2026-04-11

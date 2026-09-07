@@ -46,6 +46,9 @@ func (s Scanner) StripSource() Scanner {
 
 // The name of the file from which the source is derived (or empty if none).
 func (s Scanner) Filename() string {
+	if s.src == nil {
+		return ""
+	}
 	return s.src.filename()
 }
 

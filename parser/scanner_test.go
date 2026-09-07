@@ -103,6 +103,20 @@ func TestContains(t *testing.T) {
 	assert.False(t, s1.Contains(*s2))
 }
 
+// A zero-value Scanner (as embedded in a struct that never set its Scanner
+// field) must not panic Filename/Contains, matching String's nil handling.
+func TestContainsZeroValue(t *testing.T) {
+	t.Parallel()
+
+	var empty, real Scanner
+	real = *NewScanner("something")
+
+	assert.Equal(t, "", empty.Filename())
+	assert.False(t, empty.Contains(real))
+	assert.False(t, real.Contains(empty))
+	assert.True(t, empty.Contains(empty))
+}
+
 func assertMergedScanner(t *testing.T, src source, offset, length int, items []Scanner) { //nolint:unparam
 	s, err := MergeScanners(items...)
 	assert.NoError(t, err)

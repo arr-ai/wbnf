@@ -115,21 +115,33 @@ func (gb grammarBuilder) expandMacro(node MacrocallNode) parser.Term {
 	return newg[parser.Rule(name)]
 }
 
+const (
+	atomRE        = "RE"
+	atomSTR       = "STR"
+	atomMacrocall = "macrocall"
+	atomExtRef    = "ExtRef"
+	atomIDENT     = "IDENT"
+	atomREF       = "REF"
+	atomLookahead = "lookahead"
+	atomTerm      = "term"
+)
+
 func (gb grammarBuilder) buildAtom(atom AtomNode) parser.Term {
-	x, _ := ast.Which(atom.Node.(ast.Branch), "RE", "STR", "macrocall", "ExtRef", "IDENT", "REF", "lookahead", "term")
+	x, _ := ast.Which(atom.Node.(ast.Branch),
+		atomRE, atomSTR, atomMacrocall, atomExtRef, atomIDENT, atomREF, atomLookahead, atomTerm)
 	name := ""
 	switch x {
-	case "lookahead", "term", "REF", "ExtRef", "macrocall", "":
+	case atomLookahead, atomTerm, atomREF, atomExtRef, atomMacrocall, "":
 	default:
 		name = atom.One(x).Scanner().String()
 	}
 
 	switch x {
-	case "IDENT":
+	case atomIDENT:
 		return parser.Rule(name)
-	case "STR":
+	case atomSTR:
 		return parser.S(parseString(name))
-	case "RE":
+	case atomRE:
 		s := whitespaceRE.ReplaceAllString(name, "")
 		// Do this twice to cover adjacent escaped spaces `\_\_`.
 		s = escapedSpaceRE.ReplaceAllString(s, "$1 ")
@@ -138,7 +150,7 @@ func (gb grammarBuilder) buildAtom(atom AtomNode) parser.Term {
 			s = s[2 : len(s)-1]
 		}
 		return parser.RE(s)
-	case "REF":
+	case atomREF:
 		refNode := atom.OneRef()
 		ref := parser.REF{
 			Ident:   refNode.OneIdent().String(),
@@ -148,16 +160,16 @@ func (gb grammarBuilder) buildAtom(atom AtomNode) parser.Term {
 			ref.Default = parser.S(parseString(defTerm))
 		}
 		return ref
-	case "ExtRef":
+	case atomExtRef:
 		refNode := atom.OneExtRef()
 		return parser.ExtRef(refNode.OneIdent().String())
-	case "lookahead":
+	case atomLookahead:
 		return parser.LookAhead{
 			Term: gb.buildTerm(*atom.OneLookahead()),
 		}
-	case "term":
+	case atomTerm:
 		return gb.buildTerm(*atom.OneTerm())
-	case "macrocall":
+	case atomMacrocall:
 		return gb.expandMacro(*atom.OneMacrocall())
 	}
 	// Must be the empty term '()'

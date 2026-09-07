@@ -24,6 +24,11 @@ linters:
   settings:
     dupl:
       threshold: 100
+    goconst:
+      # Match prior v1 / arrai behaviour: ignore test files and short strings.
+      min-len: 3
+      min-occurrences: 3
+      ignore-tests: true
     lll:
       line-length: 120
   exclusions:
@@ -33,6 +38,16 @@ linters:
       - common-false-positives
       - legacy
       - std-error-handling
+    rules:
+      - path: (.+)_test\.go$
+        linters:
+          - goconst
+          - dupl
+      # Misnamed test file (does not end in _test.go), so ignore-tests does not apply.
+      - path: wbnf/node_test_complex\.go
+        linters:
+          - goconst
+          - dupl
     paths:
       - third_party$
       - builtin$
